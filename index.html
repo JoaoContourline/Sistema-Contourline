@@ -866,7 +866,7 @@ function filterEquipSearch(val) {
   if (!filtered.length) { dd.classList.remove('open'); return; }
   equipSearchFocusIdx = -1;
   dd.innerHTML = filtered.map((e, i) =>
-    `<div class="equip-dropdown-item" onclick="selectEquipFromSearch(${JSON.stringify(e.name)})" data-idx="${i}">
+    `<div class="equip-dropdown-item" onmousedown="event.preventDefault();selectEquipFromSearch(this.dataset.name)" data-name="${e.name.replace(/"/g,'&quot;')}" data-idx="${i}">
       <span class="equip-dropdown-name">${e.name}</span>
       ${e.code ? `<span class="equip-dropdown-code">${e.code}</span>` : ''}
     </div>`
@@ -911,7 +911,8 @@ function equipSearchKeydown(e) {
   } else if (e.key === 'Enter') {
     e.preventDefault();
     if (equipSearchFocusIdx >= 0 && items[equipSearchFocusIdx]) {
-      items[equipSearchFocusIdx].click();
+      const name = items[equipSearchFocusIdx].dataset.name;
+      if (name) selectEquipFromSearch(name);
     } else {
       const val = document.getElementById('equip-search-input')?.value?.trim();
       if (val) selectEquipFromSearch(val);
@@ -1229,9 +1230,9 @@ function renderQueue(user, el) {
     let html = `<div class="step-header"><div class="step-title">Minhas OPs — Pendentes</div>
       <div class="step-desc">OPs ainda em andamento. Acompanhe o progresso ou clique para ver detalhes.</div></div>`;
     if (!ops.length) {
-      html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP ainda</div><div class="empty-desc">Clique em "+ Nova OP" para começar.</div></div>`;
+      html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP cadastrada</div><div class="empty-desc">Clique em "+ Nova OP" para criar a primeira.</div></div>`;
     } else if (!pendentes.length) {
-      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Todas as OPs foram entregues!</div></div>`;
+      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo entregue!</div><div class="empty-desc">Todas as OPs foram concluídas e entregues ao cliente.</div></div>`;
     } else {
       html += `<div class="card-grid">${pendentes.map((op,i) => card(op,false,i)).join('')}</div>`;
     }
@@ -1279,7 +1280,7 @@ function renderQueue(user, el) {
   const queue = getQueue(user);
   el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
     ${queue.length === 0
-      ? `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Fila vazia</div><div class="empty-desc">Nenhuma OP aguardando sua ação agora.</div></div>`
+      ? `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando sua ação no momento.</div></div>`
       : `<div class="card-grid">${queue.map((op,i) => card(op,true,i)).join('')}</div>`}`;
 }
 
@@ -1376,7 +1377,7 @@ function card(op, inQueue, animIdx) {
       ${skippedFin ? `<span class="skip-badge">↷ Fin. pulado</span>` : ''}
     </div>
     <div class="pipe-bar">${dots}</div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato} <span>${entradaHtml(op.entrada)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato} <span>${isEntregue ? '' : entradaHtml(op.entrada)}</span></div>
     ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${lastEvt.note.substring(0,90)}${lastEvt.note.length>90?'…':''}</div>` : ''}
     ${footer}
   </div>`;

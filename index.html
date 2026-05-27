@@ -525,8 +525,8 @@ const STEPS = {
     rejectLabel: 'Bloquear OP',
     formFields: [
       { key: 'descricao',  label: 'Descrição da Aprovação *', type: 'textarea', required: true },
-      { key: 'boleto',     label: 'Boleto(s)',                type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
-      { key: 'notaFiscal', label: 'Nota(s) Fiscal(is)',       type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
+      { key: 'boleto',     label: 'Comprovante(s)',            type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
+      { key: 'extras',     label: 'Outros anexos (opcional)',  type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml' },
     ],
     rejectFields: [
       { key: 'descricao',     label: 'Motivo do Bloqueio *',     type: 'textarea', required: true,  placeholder: 'Ex: Cartão recusado, aguardando novo método de pagamento...' },
@@ -1747,8 +1747,8 @@ function openInfoModal(opId) {
       ${dItem('Aprovação', df.descricao)}
       ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
     </div>`;
-    if (df.boleto?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Boleto(s)</div>${fileLinksHtml(df.boleto)}</div>`;
-    if (df.notaFiscal?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Nota(s) Fiscal(is)</div>${fileLinksHtml(df.notaFiscal)}</div>`;
+    if (df.boleto?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Comprovante(s)</div>${fileLinksHtml(df.boleto)}</div>`;
+    if (df.extras?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Outros Anexos</div>${fileLinksHtml(df.extras)}</div>`;
     sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
   }
 

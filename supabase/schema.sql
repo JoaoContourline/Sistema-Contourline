@@ -45,3 +45,34 @@ create policy "ops_all_access" on ops
 
 -- Habilitar Realtime para a tabela ops
 alter publication supabase_realtime add table ops;
+
+-- =====================================================================
+-- Tabela de Usuários (login interno)
+-- Edite senhas diretamente no Supabase Table Editor
+-- =====================================================================
+create table if not exists usuarios (
+  id         bigserial primary key,
+  email      text unique not null,
+  password   text not null,
+  sector_id  text not null,   -- comercial | financeiro | logistica | fiscal | gestor
+  name       text not null,
+  created_at timestamptz default now()
+);
+
+-- Índice para consulta rápida por email
+create index if not exists idx_usuarios_email on usuarios (email);
+
+-- RLS — leitura via anon key (app interno, sem dados sensíveis)
+alter table usuarios enable row level security;
+drop policy if exists "usuarios_select" on usuarios;
+create policy "usuarios_select" on usuarios
+  for select using (true);
+
+-- Usuários iniciais (altere as senhas no Table Editor do Supabase)
+insert into usuarios (email, password, sector_id, name) values
+  ('comercial@contourline.com.br',  'Cont0207@', 'comercial',  'Comercial'),
+  ('financeiro@contourline.com.br', 'Cont0207@', 'financeiro', 'Financeiro'),
+  ('logistica@contourline.com.br',  'Cont0207@', 'logistica',  'Logística'),
+  ('fiscal@contourline.com.br',     'Cont0207@', 'fiscal',     'Fiscal'),
+  ('gestor@contourline.com.br',     'Cont0207@', 'gestor',     'Gestor')
+on conflict (email) do nothing;

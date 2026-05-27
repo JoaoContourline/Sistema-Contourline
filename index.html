@@ -414,9 +414,158 @@ main { padding: 24px; }
 }
 .kanban-col-body .card { animation: none; }
 .kanban-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 14px 6px; }
+
+/* ── LOGIN SCREEN ──────────────────────────────────────────────── */
+#loginScreen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #eef1f6;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+}
+.login-card {
+  width: 100%; max-width: 420px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 16px 60px rgba(22,44,69,.18), 0 2px 8px rgba(22,44,69,.08);
+  overflow: hidden;
+}
+.login-card-header {
+  background: linear-gradient(135deg, #162C45 0%, #24336E 100%);
+  padding: 32px 28px 28px;
+  text-align: center;
+}
+.login-logo {
+  height: 32px; width: auto;
+  filter: brightness(0) invert(1);
+  margin-bottom: 14px;
+  display: block; margin-left: auto; margin-right: auto;
+}
+.login-title {
+  font-size: 20px; font-weight: 700; color: #fff;
+  letter-spacing: -.3px;
+}
+.login-card-body { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
+.login-field { display: flex; flex-direction: column; gap: 6px; }
+.login-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  color: #8096b3; font-family: 'DM Mono', monospace; text-transform: uppercase;
+}
+.login-input-wrap {
+  position: relative; display: flex; align-items: center;
+  border: 1.5px solid #dde3ed; border-radius: 10px; background: #f8fafc;
+  transition: border-color .15s;
+}
+.login-input-wrap:focus-within { border-color: #2672B8; background: #fff; }
+.login-input-icon {
+  position: absolute; left: 13px; color: #8096b3; pointer-events: none;
+  display: flex; align-items: center;
+}
+.login-input {
+  width: 100%; padding: 12px 42px;
+  border: none; background: transparent; outline: none;
+  font-family: 'Inter', sans-serif; font-size: 14px; color: #0f1f35;
+}
+.login-input::placeholder { color: #aab5c8; }
+.login-eye-btn {
+  position: absolute; right: 12px; background: none; border: none;
+  cursor: pointer; color: #8096b3; display: flex; align-items: center;
+  padding: 4px; border-radius: 4px; transition: color .15s;
+}
+.login-eye-btn:hover { color: #3d5170; }
+.login-error {
+  font-size: 12px; color: #dc2626; text-align: center;
+  min-height: 16px; font-weight: 500;
+}
+.login-btn {
+  width: 100%; padding: 13px;
+  background: linear-gradient(135deg, #162C45 0%, #24336E 100%);
+  color: #fff; border: none; border-radius: 10px;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s; display: flex; align-items: center;
+  justify-content: center; gap: 8px; margin-top: 4px;
+}
+.login-btn:hover:not(:disabled) { opacity: .88; }
+.login-btn:disabled { opacity: .55; cursor: default; }
+.login-card-footer {
+  text-align: center; padding: 14px;
+  font-size: 11px; color: #aab5c8; border-top: 1px solid #eef1f6;
+  font-family: 'DM Mono', monospace;
+}
+/* ── USER CHIP (header) ────────────────────────────────────────── */
+.user-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.1);
+}
+.user-chip-av {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,.25); color: #fff;
+  font-size: 9px; font-weight: 800; display: grid; place-items: center;
+  font-family: 'DM Mono', monospace;
+}
+.user-chip-name { font-size: 12px; font-weight: 600; color: #fff; }
+.user-chip-role {
+  font-size: 9px; font-family: 'DM Mono', monospace;
+  background: rgba(255,255,255,.15); color: rgba(255,255,255,.8);
+  padding: 1px 6px; border-radius: 4px;
+}
+.logout-btn {
+  padding: 5px 11px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.08); color: rgba(255,255,255,.75);
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px;
+}
+.logout-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-card-header">
+      <img id="loginLogo" class="login-logo" alt="Contourline">
+      <div class="login-title">Fluxo de Vendas</div>
+    </div>
+    <div class="login-card-body">
+      <div class="login-field">
+        <label class="login-label">E-mail</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <input class="login-input" id="loginEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username"
+            onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
+        </div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Senha</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <input class="login-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')doLogin()">
+          <button class="login-eye-btn" type="button" onclick="toggleLoginPwd(this)" title="Mostrar/ocultar senha">
+            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Entrar
+      </button>
+    </div>
+    <div class="login-card-footer">Rede interna · Acesso restrito</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appContainer" style="display:none">
 
 <header>
   <div class="logo">
@@ -425,7 +574,7 @@ main { padding: 24px; }
       <div class="logo-text">Fluxo de Vendas</div>
     </div>
   </div>
-  <div class="role-selector" id="roleSelector"></div>
+  <div id="roleSelector"></div>
   <button class="btn-nova-op" onclick="openNovaOP()">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Nova OP
@@ -443,6 +592,8 @@ main { padding: 24px; }
 <div class="modal-overlay" id="overlay">
   <div class="modal" id="modal"></div>
 </div>
+
+</div><!-- /appContainer -->
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
@@ -764,7 +915,6 @@ function startRealtime() {
 // APP STATE
 // ═══════════════════════════════════════════════════════════════════
 
-let currentUserId = 'gestor';
 let currentTab    = 'fila';
 let activeOpId    = null;
 let modalMode     = null;
@@ -772,7 +922,87 @@ let tempEquipList = []; // [{name, qty}]
 let tempFiles     = {}; // { key: [File, ...] } — only used for File object reference
 let tempFilesData = {}; // { key: [{name, size, dataUrl}] } — persisted in formData
 
-const getUser = () => SECTORS.find(s => s.id === currentUserId);
+// ─── AUTH ──────────────────────────────────────────────────────────
+const SESSION_KEY = 'fluxo_session_v1';
+
+function getUser() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+    if (!s) return null;
+    return SECTORS.find(sec => sec.id === s.sectorId) || null;
+  } catch { return null; }
+}
+
+function saveSession(sectorId) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ sectorId }));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function doLogin() {
+  const email  = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
+  const pass   = (document.getElementById('loginPassword').value || '');
+  const errEl  = document.getElementById('loginError');
+  const btn    = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Preencha email e senha.'; return; }
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Entrando…';
+  try {
+    const { data, error } = await sb.from('usuarios')
+      .select('sector_id, name')
+      .eq('email', email)
+      .eq('password', pass)
+      .single();
+    if (error || !data) {
+      errEl.textContent = 'E-mail ou senha incorretos.';
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Entrar';
+      return;
+    }
+    saveSession(data.sector_id);
+    showApp();
+  } catch (e) {
+    errEl.textContent = 'Erro de conexão. Tente novamente.';
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Entrar';
+  }
+}
+
+function doLogout() {
+  clearSession();
+  window.location.reload();
+}
+
+function toggleLoginPwd(btn) {
+  const inp = document.getElementById('loginPassword');
+  const isHidden = inp.type === 'password';
+  inp.type = isHidden ? 'text' : 'password';
+  btn.innerHTML = isHidden
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+}
+
+function copyLogoToLogin() {
+  // O appContainer está display:none mas o img src é acessível no DOM
+  const hLogo = document.querySelector('#appContainer header img');
+  if (hLogo && hLogo.src) document.getElementById('loginLogo').src = hLogo.src;
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appContainer').style.display = '';
+  renderRoles();
+  loadOps().then(() => startRealtime());
+}
+
+function checkSession() {
+  copyLogoToLogin();
+  const user = getUser();
+  if (user) showApp();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // QUEUE RESOLUTION ALGORITHM
@@ -1317,11 +1547,18 @@ function renderAll() {
 }
 
 function renderRoles() {
-  document.getElementById('roleSelector').innerHTML = SECTORS.map(s => `
-    <button class="role-btn ${s.id===currentUserId?'active':''}" onclick="setUser('${s.id}')" title="${s.desc}">
-      <span style="font-size:9px;font-family:'DM Mono',monospace;background:${s.id===currentUserId?'rgba(255,255,255,.35)':'rgba(255,255,255,.12)'};color:#fff;padding:1px 5px;border-radius:3px">${s.av}</span>
-      ${s.name}
-    </button>`).join('');
+  const user = getUser();
+  if (!user) return;
+  document.getElementById('roleSelector').innerHTML = `
+    <div class="user-chip">
+      <div class="user-chip-av">${user.av}</div>
+      <div class="user-chip-name">${user.name}</div>
+      <div class="user-chip-role">${user.desc}</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()" title="Sair da conta">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sair
+    </button>`;
 }
 
 function renderCounts() {
@@ -3031,7 +3268,7 @@ ${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsH
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 
-function setUser(id) { currentUserId = id; renderAll(); }
+// setUser removido — autenticação agora via login screen
 function setTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -3043,8 +3280,7 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); 
 // ═══════════════════════════════════════════════════════════════════
 // INIT — carrega do Supabase e inicia Realtime
 // ═══════════════════════════════════════════════════════════════════
-renderRoles();
-loadOps().then(() => startRealtime());
+checkSession();
 </script>
 </body>
 </html>

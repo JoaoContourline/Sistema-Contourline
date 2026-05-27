@@ -316,6 +316,7 @@ main { padding: 24px; }
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;   /* força a row a preencher a altura do body */
   overflow: hidden;
 }
 .split-pane {
@@ -1820,18 +1821,28 @@ function openActionModal(opId, mode) {
 
   document.getElementById('overlay').classList.add('open');
 
-  // Força a altura do modal split via JS (CSS cascade não é confiável no grid do overlay)
+  // Força alturas via JS — CSS cascade no grid do overlay não é confiável
   requestAnimationFrame(() => {
     const modal  = document.getElementById('modal');
     if (!modal.classList.contains('split')) return;
-    const hEl  = modal.querySelector('.modal-header');
-    const fEl  = modal.querySelector('.modal-footer');
-    const body = modal.querySelector('.modal-split-body');
+    const hEl    = modal.querySelector('.modal-header');
+    const fEl    = modal.querySelector('.modal-footer');
+    const body   = modal.querySelector('.modal-split-body');
+    const lhEl   = modal.querySelector('.split-pane-left-header');
+    const scroll = modal.querySelector('.split-pane-left-scroll');
     if (!body) return;
-    const maxH = Math.min(window.innerHeight * 0.9, window.innerHeight - 40);
+    const maxH  = Math.min(window.innerHeight * 0.9, window.innerHeight - 40);
+    const bodyH = maxH - (hEl?.offsetHeight || 0) - (fEl?.offsetHeight || 0);
     modal.style.height    = maxH + 'px';
     modal.style.maxHeight = maxH + 'px';
-    body.style.height     = (maxH - (hEl?.offsetHeight||0) - (fEl?.offsetHeight||0)) + 'px';
+    body.style.height     = bodyH + 'px';
+    // Seta a altura do scroll container explicitamente para garantir overflow-y
+    if (scroll) {
+      const scrollH = bodyH - (lhEl?.offsetHeight || 0);
+      scroll.style.height    = scrollH + 'px';
+      scroll.style.maxHeight = scrollH + 'px';
+      scroll.style.overflowY = 'auto';
+    }
   });
 }
 

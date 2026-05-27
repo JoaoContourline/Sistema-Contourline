@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/protheus", "destination": "/api/protheus" },
+    { "source": "/(.*)",         "destination": "/index.html"   }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "monitor-ops-contourline",
+  "version": "1.0.0",
+  "description": "Monitor de Ordens de Pedido — Contourline Equipamentos Médicos",
+  "private": true,
+  "engines": { "node": ">=18" }
+}

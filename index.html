@@ -1,0 +1,2254 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de OPs — Contourline</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --surface2: #f0f2f5;
+  --border: #e2e5eb; --border2: #d0d5de;
+  --text: #111827; --text2: #4b5563; --text3: #9ca3af;
+  --accent: #2563eb; --accent2: #1d4ed8;
+  --green: #16a34a; --green-bg: rgba(22,163,74,.08);
+  --yellow: #ca8a04; --yellow-bg: rgba(202,138,4,.08);
+  --orange: #ea580c; --orange-bg: rgba(234,88,12,.08);
+  --red: #dc2626; --red-bg: rgba(220,38,38,.08);
+  --gray: #6b7280; --gray-bg: rgba(107,114,128,.08);
+  --blue: #2563eb; --blue-bg: rgba(37,99,235,.08);
+  --purple: #7c3aed; --purple-bg: rgba(124,58,237,.08);
+  --teal: #0d9488; --teal-bg: rgba(13,148,136,.08);
+  --radius: 8px; --radius-lg: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* HEADER */
+header {
+  padding: 14px 24px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.97); backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.logo { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.logo-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: grid; place-items: center; font-size: 14px; }
+.logo-text { font-size: 14px; font-weight: 700; }
+.logo-sub { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+/* ROLE SELECTOR */
+.role-selector { display: flex; gap: 4px; flex-wrap: wrap; }
+.role-btn {
+  padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text2);
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px;
+}
+.role-btn:hover { border-color: var(--border2); color: var(--text); }
+.role-btn.active { border-color: var(--accent); background: var(--blue-bg); color: var(--accent); }
+
+/* NEW OP BUTTON */
+.btn-nova-op {
+  padding: 7px 14px; background: var(--accent); border: none; color: #fff;
+  border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.btn-nova-op:hover { background: var(--accent2); }
+
+/* TABS */
+.tabs { padding: 0 24px; border-bottom: 1px solid var(--border); display: flex; background: var(--surface); }
+.tab-btn {
+  padding: 12px 16px; border: none; background: transparent;
+  color: var(--text3); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; position: relative; transition: color .15s; display: flex; align-items: center; gap: 7px;
+}
+.tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: transparent; border-radius: 2px 2px 0 0; transition: background .15s; }
+.tab-btn.active { color: var(--text); }
+.tab-btn.active::after { background: var(--accent); }
+.tab-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 7px; font-size: 10px; font-family: 'DM Mono', monospace; }
+.tab-btn.active .tab-count { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* MAIN */
+main { padding: 24px; }
+.step-header { margin-bottom: 20px; }
+.step-title { font-size: 18px; font-weight: 700; }
+.step-desc { font-size: 12px; color: var(--text3); margin-top: 3px; }
+
+/* CARD GRID */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+/* CARD */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  border-radius: var(--radius-lg); padding: 16px;
+  cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
+  animation: cardIn .25s ease both;
+}
+@keyframes cardIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.card:hover { border-color: var(--border2); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.card.actionable { border-color: rgba(37,99,235,.2); }
+.card.actionable:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,.12); }
+.card.blocked { border-color: rgba(220,38,38,.2); }
+.card.blocked:hover { border-color: var(--red); }
+
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 500; }
+.card-flags { display: flex; gap: 3px; flex-wrap: wrap; }
+.flag { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.flag-dir   { background: rgba(234,88,12,.1);  color: var(--orange); border: 1px solid rgba(234,88,12,.25); }
+.flag-div   { background: rgba(220,38,38,.1);  color: var(--red);    border: 1px solid rgba(220,38,38,.25); }
+.flag-multi { background: rgba(124,58,237,.1); color: var(--purple); border: 1px solid rgba(124,58,237,.25); }
+
+.card-client { font-size: 14px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
+.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.equip-chip { display: inline-block; padding: 2px 8px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); }
+
+.card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* BADGE */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .2px; }
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; }
+.b-blue   { background: var(--blue-bg);   color: var(--blue);   }
+.b-yellow { background: var(--yellow-bg); color: var(--yellow); }
+.b-orange { background: var(--orange-bg); color: var(--orange); }
+.b-purple { background: var(--purple-bg); color: var(--purple); }
+.b-teal   { background: var(--teal-bg);   color: var(--teal);   }
+.b-green  { background: var(--green-bg);  color: var(--green);  }
+.b-red    { background: var(--red-bg);    color: var(--red);    }
+.b-gray   { background: var(--gray-bg);   color: var(--gray);   }
+
+/* SEMA */
+.sema { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: 'DM Mono', monospace; }
+
+/* PIPELINE BAR */
+.pipe-bar { display: flex; gap: 3px; margin-bottom: 10px; }
+.pipe-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); }
+.pipe-dot.done    { background: var(--green); }
+.pipe-dot.current { background: var(--accent); }
+.pipe-dot.blocked { background: var(--red); }
+
+/* CARD LAST EVENT */
+.card-last-event { margin-top: 8px; font-size: 11px; color: var(--text3); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
+
+/* CARD FOOTER */
+.card-footer { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.btn-action { width: 100%; padding: 9px; border-radius: var(--radius); background: var(--accent); border: none; color: #fff; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-action:hover { background: var(--accent2); }
+.btn-action.danger { background: transparent; border: 1px solid rgba(220,38,38,.25); color: var(--red); }
+.btn-action.danger:hover { background: var(--red-bg); border-color: var(--red); }
+.btn-action.warn { background: transparent; border: 1px solid rgba(234,88,12,.25); color: var(--orange); }
+.btn-action.warn:hover { background: var(--orange-bg); border-color: var(--orange); }
+
+/* SECTION */
+.section { margin-bottom: 28px; }
+.section-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 10px; padding: 5px 10px; background: var(--surface2); border-radius: 6px; display: inline-block; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-icon { font-size: 32px; margin-bottom: 10px; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+.empty-desc { font-size: 12px; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; display: grid; place-items: center; padding: 20px; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 480px; transform: scale(.97) translateY(8px); transition: transform .2s; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal.wide { max-width: 620px; }
+.modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-subtitle { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.close-btn { width: 26px; height: 26px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; transition: all .15s; }
+.close-btn:hover { background: var(--border); color: var(--text); }
+.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+.op-info-block { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.op-info-client { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.op-info-meta { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* FORM FIELDS */
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
+.form-input, .form-select, .form-textarea {
+  padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 13px;
+  font-family: 'Syne', sans-serif; outline: none; transition: border-color .15s; width: 100%;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+.form-textarea { resize: vertical; min-height: 68px; }
+.form-select option { background: var(--surface); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* EQUIPMENT LIST */
+.equip-picker { display: flex; flex-direction: column; gap: 8px; }
+.equip-add-row { display: flex; gap: 6px; }
+.equip-add-row .form-select { flex: 1; }
+.btn-add-equip {
+  padding: 8px 14px; background: var(--accent); border: none; color: #fff;
+  border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background .15s; flex-shrink: 0;
+}
+.btn-add-equip:hover { background: var(--accent2); }
+.equip-list-items { display: flex; flex-direction: column; gap: 5px; }
+.equip-list-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px;
+}
+.equip-list-item-name { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text); }
+.equip-list-item-qty { display: flex; align-items: center; gap: 6px; }
+.equip-qty-btn { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; display: grid; place-items: center; transition: background .1s; }
+.equip-qty-btn:hover { background: var(--border2); }
+.equip-qty-val { font-size: 12px; font-family: 'DM Mono', monospace; width: 20px; text-align: center; }
+.equip-remove { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; padding: 0 2px; line-height: 1; transition: color .1s; }
+.equip-remove:hover { color: var(--red); }
+.equip-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 10px; background: var(--surface2); border: 1px dashed var(--border2); border-radius: 6px; }
+
+/* FILE UPLOAD */
+.file-upload-area {
+  border: 1.5px dashed var(--border2); border-radius: var(--radius);
+  padding: 14px; text-align: center; cursor: pointer; transition: all .15s;
+  background: var(--surface2);
+}
+.file-upload-area:hover { border-color: var(--accent); background: var(--blue-bg); }
+.file-upload-area.has-file { border-color: var(--green); background: var(--green-bg); border-style: solid; }
+.file-upload-text { font-size: 12px; color: var(--text3); }
+.file-upload-text.has-file { color: var(--green); font-weight: 600; }
+
+/* MULTI-FILE UPLOAD */
+.multi-file-wrap { display: flex; flex-direction: column; gap: 6px; }
+.multi-file-list { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.multi-file-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 5px 9px; }
+.multi-file-item-name { flex: 1; font-size: 11px; font-family: 'DM Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-file-item-size { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.multi-file-remove { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px; padding: 0 2px; line-height: 1; transition: color .1s; flex-shrink: 0; }
+.multi-file-remove:hover { color: var(--red); }
+.multi-file-add-btn { display: block; padding: 8px 12px; background: var(--surface2); border: 1.5px dashed var(--border2); border-radius: var(--radius); font-size: 12px; color: var(--text2); cursor: pointer; transition: all .15s; text-align: center; width: 100%; font-family: 'Syne', sans-serif; }
+.multi-file-add-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--blue-bg); }
+
+/* BUTTONS */
+.btn-primary { padding: 8px 18px; background: var(--accent); border: none; color: #fff; border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-primary.orange { background: var(--orange); }
+.btn-primary.orange:hover { background: #c94f0b; }
+.btn-primary.red { background: var(--red); }
+.btn-primary.red:hover { background: #b91c1c; }
+.btn-cancel { padding: 8px 18px; background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-cancel:hover { border-color: var(--border2); color: var(--text); }
+
+/* WARN BLOCK */
+.warn-block { padding: 10px 12px; border-radius: var(--radius); background: var(--orange-bg); border: 1px solid rgba(234,88,12,.2); font-size: 12px; color: var(--text2); line-height: 1.5; }
+.warn-block strong { color: var(--orange); }
+.info-block { padding: 10px 12px; border-radius: var(--radius); background: var(--blue-bg); border: 1px solid rgba(37,99,235,.15); font-size: 12px; color: var(--text2); line-height: 1.5; }
+.info-block strong { color: var(--accent); }
+.success-block { padding: 10px 12px; border-radius: var(--radius); background: var(--green-bg); border: 1px solid rgba(22,163,74,.15); font-size: 12px; color: var(--text2); line-height: 1.5; }
+.success-block strong { color: var(--green); }
+
+/* DETAIL GRID */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.detail-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; }
+.detail-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; color: var(--text3); margin-bottom: 3px; }
+.detail-value { font-size: 12px; font-weight: 600; }
+
+/* HISTORY */
+.history-item { display: flex; gap: 10px; }
+.history-ts { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); width: 80px; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
+.history-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.history-author { color: var(--text); font-weight: 600; }
+
+/* SKIP BADGE */
+.skip-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--teal-bg); border: 1px solid rgba(13,148,136,.2); border-radius: 20px; font-size: 10px; color: var(--teal); font-family: 'DM Mono', monospace; }
+
+/* SECTION DIVIDER */
+.form-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.badge.b-blue .badge-dot, .badge.b-yellow .badge-dot, .badge.b-orange .badge-dot, .badge.b-teal .badge-dot { animation: pulse 2s infinite; }
+@keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.api-status { font-size:10px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
+
+/* SPLIT ACTION MODAL */
+.modal.split { max-width: 880px; overflow: hidden; display: flex; flex-direction: column; }
+.modal-split-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; min-height: 0; }
+.split-pane { overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.split-pane-left { border-right: 1px solid var(--border); background: var(--surface2); }
+.split-pane-header { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .9px; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-shrink: 0; }
+.ctx-sec { display: flex; flex-direction: column; gap: 7px; }
+.ctx-sec-title { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+.ctx-row { display: flex; flex-direction: column; gap: 2px; }
+.ctx-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .4px; color: var(--text3); }
+.ctx-value { font-size: 12px; color: var(--text); line-height: 1.4; }
+@media (max-width: 680px) {
+  .modal.split { max-width: 98vw; }
+  .modal-split-body { grid-template-columns: 1fr; }
+  .split-pane-left { max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+/* ACCORDION */
+[hidden] { display: none !important; }
+.acc { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.acc + .acc { margin-top: 8px; }
+.acc-head {
+  padding: 9px 13px; display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface2); cursor: pointer; user-select: none;
+  font-size: 12px; font-weight: 700; transition: background .12s;
+}
+.acc-head:hover { background: var(--border); }
+.acc-arrow { font-size: 11px; color: var(--text3); transition: transform .18s; display: inline-block; }
+.acc-body { padding: 13px 14px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
+
+/* KANBAN */
+.kanban-wrap { overflow-x: auto; padding-bottom: 16px; }
+.kanban-board { display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px; }
+.kanban-col { width: 224px; flex-shrink: 0; display: flex; flex-direction: column; }
+.kanban-col-head {
+  padding: 8px 11px 7px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 6px;
+}
+.kanban-col-name { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.kanban-col-body {
+  background: var(--surface2); border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 6px; display: flex; flex-direction: column; gap: 6px; min-height: 60px;
+}
+.kanban-col-body .card { animation: none; }
+.kanban-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 14px 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📋</div>
+    <div>
+      <div class="logo-text">Monitor de OPs</div>
+      <div class="logo-sub">Contourline · Logística</div>
+    </div>
+  </div>
+  <div class="role-selector" id="roleSelector"></div>
+  <button class="btn-nova-op" onclick="openNovaOP()">+ Nova OP</button>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="setTab('fila',this)">Minha Fila <span class="tab-count" id="cnt-fila">0</span></button>
+  <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
+  <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
+</div>
+
+<main id="main"></main>
+
+<div class="modal-overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// STATE MACHINE
+// ═══════════════════════════════════════════════════════════════════
+
+// Equipamentos com código Protheus — formato: { name, code }
+const EQUIPAMENTOS_LISTA = [
+  { name:'UNYQUE PRO',              code:'' },
+  { name:'SCANNER S30 WHITE',       code:'' },
+  { name:'XERF',                    code:'' },
+  { name:'HIPRO MED',               code:'' },
+  { name:'HIPRO',                   code:'002215' },
+  { name:'BHS 202 UNYQUE PRO ENYGMA', code:'' },
+  { name:'ULTRAPULSE ALPHA',        code:'' },
+  { name:'ALTRO',                   code:'' },
+];
+function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
+
+const STEPS = {
+
+  aberta: {
+    // Apenas referência para histórico e pipeline bar — vendedor não precisa de ação após criar
+    label: 'Aberta', color: 'blue', owner: null, pipelineIdx: 0,
+    actionLabel: null, formFields: [],
+    getNext(op) {
+      if (op.entrada === 'pendente' && !op.liberadoDiretoria) return 'aguard_financeiro';
+      return 'aguard_nf';
+    },
+  },
+
+  aguard_financeiro: {
+    label: 'Validação Financeira', color: 'yellow', owner: 'financeiro', pipelineIdx: 1,
+    actionLabel: 'Aprovar Pagamento',
+    rejectLabel: 'Bloquear OP',
+    formFields: [
+      { key: 'descricao',  label: 'Descrição da Aprovação *', type: 'textarea', required: true },
+      { key: 'boleto',     label: 'Boleto(s)',                type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
+      { key: 'notaFiscal', label: 'Nota(s) Fiscal(is)',       type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
+    ],
+    rejectFields: [
+      { key: 'descricao',     label: 'Motivo do Bloqueio *',     type: 'textarea', required: true,  placeholder: 'Ex: Cartão recusado, aguardando novo método de pagamento...' },
+    ],
+    getNext()   { return 'aguard_nf'; },
+    getReject() { return 'bloqueada'; },
+  },
+
+  bloqueada: {
+    label: 'Bloqueada', color: 'red', owner: 'financeiro', pipelineIdx: 1,
+    actionLabel: 'Desbloquear — Retornar para Validação',
+    formFields: [
+      { key: 'descricao', label: 'Resolução / Nova tentativa *', type: 'textarea', required: true, placeholder: 'Ex: Cliente realizou PIX em 26/05 — comprovante em anexo...' },
+    ],
+    getNext() { return 'aguard_financeiro'; },
+  },
+
+  aguard_nf: {
+    label: 'Aguardando NF', color: 'orange', owner: 'logistica', pipelineIdx: 2,
+    actionLabel: 'Solicitar Emissão de NF',
+    formFields: [
+      { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
+      { key: 'numSerie',        label: 'Número de Série do Produto *',   type: 'text',     required: true },
+      { key: 'tecnico',         label: 'Técnico / Transportadora *',     type: 'text',     required: true },
+      { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
+      { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
+      { key: 'descricao',       label: 'Descrição *',                    type: 'textarea', required: true },
+    ],
+    getNext() { return 'aguard_emissao'; },
+  },
+
+  aguard_emissao: {
+    label: 'Emissão de NF', color: 'purple', owner: 'fiscal', pipelineIdx: 3,
+    actionLabel: 'Confirmar Emissão da Nota Fiscal',
+    formFields: [
+      { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
+      { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
+      { key: 'arquivoNF',   label: 'PDF da Nota Fiscal *',    type: 'file',  required: true },
+      { key: 'descricao',   label: 'Observações *',           type: 'textarea', required: true,
+        placeholder: 'Confirmação da emissão, valor da nota, observações...' },
+    ],
+    getNext() { return 'aguard_despacho'; },
+  },
+
+  // Nova etapa: Logística revisa a NF antes de despachar.
+  // Pode reprovar → volta para Fiscal com os dados corrigidos pré-preenchidos.
+  aguard_despacho: {
+    label: 'Despacho', color: 'teal', owner: 'logistica', pipelineIdx: 4,
+    actionLabel: 'Confirmar e Despachar',
+    rejectLabel: 'Solicitar Re-emissão de NF',
+    formFields: [
+      { key: 'descricao', label: 'Confirmação de Despacho *', type: 'textarea', required: true },
+      { key: 'fotos',     label: 'Fotos do Despacho',         type: 'multi-file', accept: 'image/*,.pdf' },
+    ],
+    rejectFields: [
+      { key: 'motivoReemissao', label: 'Motivo da Re-emissão *', type: 'textarea', required: true,
+        placeholder: 'Ex: Endereço incorreto — correto é Av. Inocêncio Lima nº 515, sala 302...' },
+      { key: 'dadosCorrigidos', label: 'Dados corrigidos para a nova NF *', type: 'textarea', required: true,
+        placeholder: 'Liste os campos e valores corretos que o fiscal deve usar na re-emissão.' },
+    ],
+    getNext()   { return 'transito'; },
+    getReject() { return 'aguard_emissao'; },
+  },
+
+  transito: {
+    label: 'Em Trânsito', color: 'blue', owner: 'entrega', pipelineIdx: 5,
+    actionLabel: 'Confirmar Entrega ao Cliente',
+    formFields: [
+      { key: 'dataEntrega', label: 'Data de Entrega *',         type: 'date',       required: true },
+      { key: 'fotos',       label: 'Fotos / Comprovante',       type: 'multi-file', accept: 'image/*,.pdf' },
+      { key: 'descricao',   label: 'Descrição / Comprovante *', type: 'textarea',   required: true },
+    ],
+    getNext() { return 'entregue'; },
+  },
+
+  entregue: {
+    label: 'Entregue', color: 'green', owner: null, pipelineIdx: 6,
+    actionLabel: null, formFields: [],
+    getNext() { return null; },
+  },
+};
+
+const PIPELINE_ORDER = ['aberta','aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
+const COLOR_MAP = { blue:'b-blue', yellow:'b-yellow', orange:'b-orange', purple:'b-purple', teal:'b-teal', green:'b-green', red:'b-red', gray:'b-gray' };
+
+// ═══════════════════════════════════════════════════════════════════
+// SETORES (navegação) + PESSOAS (atribuição interna de OPs)
+// ═══════════════════════════════════════════════════════════════════
+
+const SECTORS = [
+  { id:'comercial',  name:'Comercial',            role:'vendedor',   av:'COM', desc:'Abre e acompanha OPs' },
+  { id:'financeiro', name:'Financeiro',            role:'financeiro', av:'FIN', desc:'Valida pagamentos' },
+  { id:'logistica',  name:'Logística — NF',        role:'logistica',  av:'LOG', desc:'Solicita NF e aprova despacho' },
+  { id:'fiscal',     name:'Fiscal',                role:'fiscal',     av:'FIS', desc:'Emite notas fiscais' },
+  { id:'entrega',    name:'Logística — Entrega',   role:'entrega',    av:'ENT', desc:'Confirma entregas' },
+  { id:'gestor',     name:'Gestor',                role:'gestor',     av:'GES', desc:'Visão completa' },
+];
+
+// Pessoas — usadas apenas no form Nova OP e no histórico
+const VENDEDORES = [
+  { id:'barbara', name:'Barbara Kelly' },
+  { id:'ana',     name:'Ana Paula'     },
+  { id:'rebeca',  name:'Rebeca Soares' },
+  { id:'lucas',   name:'Lucas Souza'   },
+];
+
+const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA — Supabase
+// ═══════════════════════════════════════════════════════════════════
+
+let nextId = 1;
+let ops    = [];
+
+// ─── Supabase client ──────────────────────────────────────────────
+const SUPABASE_URL = 'https://hmzxqoktfzheqjjnhlam.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtenhxb2t0ZnpoZXFqam5obGFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODE4NDUsImV4cCI6MjA5NTQ1Nzg0NX0.5Ll5dRBgZ3X6a_TtMQvKXVj3IExTkaVufoh-KQQXtzI';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function rowToOp(row) {
+  // Mescla os campos indexados + objeto JSON completo
+  return { ...row.data, id: Number(row.id) };
+}
+
+async function loadOps() {
+  document.getElementById('main').innerHTML =
+    `<div class="empty"><div class="empty-icon" style="font-size:28px">⏳</div>
+     <div class="empty-title">Carregando OPs…</div></div>`;
+  const { data, error } = await sb.from('ops').select('id,data').order('id', { ascending: false });
+  if (error) {
+    console.error('Erro ao carregar OPs:', error);
+    document.getElementById('main').innerHTML =
+      `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Erro ao carregar OPs</div>
+       <div class="empty-desc">${error.message}</div></div>`;
+    return;
+  }
+  ops = (data || []).map(rowToOp);
+  const maxId = ops.reduce((m, o) => Math.max(m, Number(o.id) || 0), 0);
+  nextId = maxId + 1;
+  renderAll();
+}
+
+// Salva ou atualiza uma OP no Supabase (fire-and-forget para não bloquear UI)
+function dbSaveOp(op) {
+  sb.from('ops')
+    .update({ numero: op.numero, cliente: op.cliente, status: op.status, data: op })
+    .eq('id', op.id)
+    .then(({ error }) => { if (error) console.error('dbSaveOp error:', error); });
+}
+
+// Realtime — sincroniza mudanças de outros usuários
+function startRealtime() {
+  sb.channel('ops-monitor')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'ops' }, payload => {
+      if (payload.eventType === 'INSERT') {
+        const newOp = rowToOp(payload.new);
+        if (!ops.find(o => o.id === newOp.id)) ops.unshift(newOp);
+      } else if (payload.eventType === 'UPDATE') {
+        const updated = rowToOp(payload.new);
+        const idx = ops.findIndex(o => o.id === updated.id);
+        if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
+      } else if (payload.eventType === 'DELETE') {
+        ops = ops.filter(o => o.id !== Number(payload.old.id));
+      }
+      renderAll();
+    })
+    .subscribe();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════════
+
+let currentUserId = 'gestor';
+let currentTab    = 'fila';
+let activeOpId    = null;
+let modalMode     = null;
+let tempEquipList = []; // [{name, qty}]
+let tempFiles = {};    // { key: [File, File, ...] }
+
+const getUser = () => SECTORS.find(s => s.id === currentUserId);
+
+// ═══════════════════════════════════════════════════════════════════
+// QUEUE RESOLUTION ALGORITHM
+// ═══════════════════════════════════════════════════════════════════
+
+function getQueue(user) {
+  return ops.filter(op => {
+    const step = STEPS[op.status];
+    if (!step) return false;
+    if (user.role === 'gestor')   return false;
+    if (user.role === 'vendedor') return false; // vendedor apenas cria OPs via "+ Nova OP"
+    return step.owner === user.role;
+  });
+}
+
+function getCompleted(user) {
+  if (user.role === 'gestor')   return ops.filter(o => o.status === 'entregue');
+  if (user.role === 'vendedor') return ops; // Comercial vê todas as OPs
+  return ops.filter(op => {
+    const acted = op.history.some(h => h.actor === user.role);
+    return acted && !getQueue(user).some(q => q.id === op.id);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRANSITION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function nowTs() {
+  const d = new Date();
+  return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function advanceOP(opId, formData) {
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  const step = STEPS[op.status];
+  const next = step.getNext(op);
+  if (!next) return;
+
+  if (formData && Object.keys(formData).length) op.stepData[op.status] = { ...formData };
+
+  const user = getUser();
+  op.history.push({ step: op.status, actor: user.role, actorName: user.name, ts: nowTs(), note: formData?.descricao || step.actionLabel });
+  op.status = next;
+  dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
+  renderAll();
+}
+
+function rejectOP(opId, formData) {
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  const step = STEPS[op.status];
+  if (!step.getReject) return;
+  op.stepData[op.status + '_reject'] = formData;
+  const user = getUser();
+  op.history.push({ step: op.status, actor: user.role, actorName: user.name, ts: nowTs(), note: 'Bloqueado: ' + (formData.descricao || formData.motivoReemissao || '') });
+  op.status = step.getReject();
+  dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
+  renderAll();
+}
+
+function directorOverride(opId, nota) {
+  const op = ops.find(o => o.id === opId);
+  if (!op || (op.status !== 'aguard_financeiro' && op.status !== 'bloqueada')) return;
+  op.liberadoDiretoria = true;
+  const user = getUser();
+  op.history.push({ step: op.status, actor: 'diretoria', actorName: user.name, ts: nowTs(), note: nota || 'Liberado por autorização da diretoria. Entrada ainda pendente.' });
+  op.status = 'aguard_nf';
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+function daysSince(d)  { return Math.floor((new Date() - new Date(d)) / 86400000); }
+function fmtDate(d)    { return new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+
+function semaforo(op) {
+  if (op.status === 'entregue') return { cls:'b-gray', label:'Entregue', icon:'' };
+  const d = daysSince(op.dataAbertura);
+  if (d <= 16) return { cls:'b-green',  label:`${20-d}d restantes`, icon:'●' };
+  if (d <= 20) return { cls:'b-yellow', label:`${20-d}d p/ ótima`,  icon:'▲' };
+  if (d <= 30) return { cls:'b-red',    label:`${d-20}d atrasada`,  icon:'!' };
+  return { cls:'b-red', label:`${d-30}d crítico`, icon:'!!' };
+}
+
+function stepBadge(status) {
+  const s = STEPS[status];
+  return s ? { cls: COLOR_MAP[s.color]||'b-gray', label: s.label } : { cls:'b-gray', label: status };
+}
+
+function entradaHtml(e) {
+  if (e==='paga')     return `<span style="color:var(--green);font-size:11px">✓ Paga</span>`;
+  if (e==='pendente') return `<span style="color:var(--yellow);font-size:11px">⚠ Pendente</span>`;
+  return `<span style="color:var(--text3);font-size:11px">— Sem entrada</span>`;
+}
+
+function flagsHtml(op) {
+  return [
+    op.liberadoDiretoria ? `<span class="flag flag-dir" title="Liberado pela diretoria">DIR</span>` : '',
+    op.opDivergente      ? `<span class="flag flag-div" title="OP divergente">DIV</span>` : '',
+    op.multiOp           ? `<span class="flag flag-multi" title="Múltiplas OPs">MULTI</span>` : '',
+  ].filter(Boolean).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EQUIPMENT LIST COMPONENT
+// ═══════════════════════════════════════════════════════════════════
+
+function calcLineTotal(e) {
+  const qt = parseInt(e.qty) || 1;
+  const vu = parseFloat(e.valorUnit) || 0;
+  const dc = parseFloat(e.desconto) || 0;
+  return (qt * vu * (1 - dc / 100)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderEquipItem(e, i) {
+  const lineTotal = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+  const lt = lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="equip-list-item-name">${e.name}</span>
+      <div class="equip-list-item-qty">
+        <button class="equip-qty-btn" onclick="equipQty(${i},-1)">−</button>
+        <span class="equip-qty-val">${e.qty}</span>
+        <button class="equip-qty-btn" onclick="equipQty(${i},+1)">+</button>
+        <button class="equip-remove" onclick="equipRemove(${i})">×</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:5px;align-items:center">
+      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">R$</span>
+      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
+        type="text" inputmode="decimal"
+        value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">
+      <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
+    </div>
+  </div>`;
+}
+
+function equipListHtml() {
+  const options = EQUIPAMENTOS_LISTA.map(e => `<option value="${e.name}">${equipLabel(e)}</option>`).join('');
+  const items = tempEquipList.length
+    ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
+    : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
+
+  return `
+    <div class="form-group">
+      <label class="form-label">Equipamentos *</label>
+      <div class="equip-picker">
+        <div class="equip-add-row">
+          <select class="form-select" id="equip-select" onchange="equipSelectChange(this)">
+            <option value="">Selecionar equipamento...</option>
+            ${options}
+            <option value="__custom__">Outro (digitar)...</option>
+          </select>
+          <button type="button" class="btn-add-equip" onclick="equipAdd()">+ Adicionar</button>
+        </div>
+        <div id="equip-custom-wrap" style="display:none">
+          <input class="form-input" id="equip-custom" placeholder="Nome do equipamento">
+        </div>
+        <div class="equip-list-items" id="equip-list-items">${items}</div>
+        <div id="equip-list-total" style="font-size:11px;font-family:'DM Mono',monospace;color:var(--green);text-align:right;min-height:14px;padding-top:3px"></div>
+      </div>
+    </div>`;
+}
+
+function equipSelectChange(sel) {
+  const wrap = document.getElementById('equip-custom-wrap');
+  if (wrap) wrap.style.display = sel.value === '__custom__' ? 'block' : 'none';
+}
+
+function equipAdd() {
+  const sel = document.getElementById('equip-select');
+  if (!sel) return;
+  const custom = document.getElementById('equip-custom');
+  const name = sel.value === '__custom__'
+    ? (custom?.value?.trim() || '')
+    : sel.value;
+  if (!name) return;
+  const existing = tempEquipList.find(e => e.name === name);
+  if (existing) { existing.qty++; }
+  else { tempEquipList.push({ name, qty: 1, valorUnit: '', desconto: '' }); }
+  sel.value = '';
+  if (custom) custom.value = '';
+  const wrap = document.getElementById('equip-custom-wrap');
+  if (wrap) wrap.style.display = 'none';
+  refreshEquipList();
+}
+
+function equipQty(idx, delta) {
+  tempEquipList[idx].qty = Math.max(1, tempEquipList[idx].qty + delta);
+  refreshEquipList();
+}
+
+function equipRemove(idx) {
+  tempEquipList.splice(idx, 1);
+  refreshEquipList();
+}
+
+function equipPrice(idx, val) {
+  if (!tempEquipList[idx]) return;
+  const numVal = parseBRL(val);
+  tempEquipList[idx].valorUnit = numVal > 0 ? numVal.toString() : '';
+  const lineT = numVal ? (parseInt(tempEquipList[idx].qty)||1) * numVal : 0;
+  const el = document.getElementById('equip-total-' + idx);
+  if (el) el.textContent = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  updateEquipListTotal();
+}
+
+function equipDiscount(idx, val) { /* no-op - desconto global no formulario */ }
+
+function updateEquipListTotal() {
+  const el = document.getElementById('equip-list-total');
+  if (!el) return;
+  const subtotal = tempEquipList.reduce((sum, e) => {
+    if (!e.valorUnit) return sum;
+    return sum + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
+  }, 0);
+  el.textContent = subtotal > 0
+    ? 'Subtotal: R$ ' + subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '';
+  calcDescontoTotal();
+}
+
+function calcDescontoTotal() {
+  const subtotal = tempEquipList.reduce((sum, e) => {
+    if (!e.valorUnit) return sum;
+    return sum + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
+  }, 0);
+  const desconto = parseBRL(document.getElementById('nova-desconto')?.value) || 0;
+  const total = Math.max(0, subtotal - desconto);
+  const elDisp = document.getElementById('nova-valor-total-display');
+  if (elDisp) elDisp.textContent = total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+  const vt = document.getElementById('nova-valorTotal');
+  const vd = document.getElementById('nova-valorDesconto');
+  const vl = document.getElementById('nova-valorLiquido');
+  if (vt) vt.value = subtotal > 0 ? subtotal.toFixed(2) : '';
+  if (vd) vd.value = desconto > 0 ? desconto.toFixed(2) : '';
+  if (vl) vl.value = total > 0 ? total.toFixed(2) : '';
+}
+
+function refreshEquipList() {
+  const el = document.getElementById('equip-list-items');
+  if (!el) return;
+  el.innerHTML = tempEquipList.length
+    ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
+    : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
+  updateEquipListTotal();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BRL FORMATTING HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+function parseBRL(val) {
+  if (!val && val !== 0) return 0;
+  return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function brlFormat(input) {
+  const cur = input.selectionStart;
+  const old = input.value;
+  let val = input.value.replace(/[^\d,]/g, '');
+  if (!val) return;
+  const parts = val.split(',');
+  const intPart = parts[0].replace(/^0+/, '') || '0';
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  input.value = parts.length > 1 ? formatted + ',' + parts[1].slice(0, 2) : formatted;
+  const diff = input.value.length - old.length;
+  try { input.setSelectionRange(cur + diff, cur + diff); } catch(e) {}
+}
+
+function brlFmtNum(n) {
+  const num = parseFloat(n);
+  if (isNaN(num)) return '';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MULTI-FILE SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+function addMultiFile(input, key) {
+  if (!input.files.length) return;
+  if (!tempFiles[key]) tempFiles[key] = [];
+  Array.from(input.files).forEach(f => tempFiles[key].push(f));
+  input.value = '';
+  refreshMultiFileList(key);
+}
+
+function removeMultiFile(key, idx) {
+  if (!tempFiles[key]) return;
+  tempFiles[key].splice(idx, 1);
+  refreshMultiFileList(key);
+}
+
+function refreshMultiFileList(key) {
+  const el = document.getElementById('mfl-' + key);
+  if (!el) return;
+  const files = tempFiles[key] || [];
+  el.innerHTML = files.map((f, i) => `
+    <div class="multi-file-item">
+      <span class="multi-file-item-name">📎 ${f.name}</span>
+      <span class="multi-file-item-size">${(f.size/1024).toFixed(0)} KB</span>
+      <button class="multi-file-remove" type="button" onclick="removeMultiFile('${key}',${i})" title="Remover">×</button>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FIELD RENDERER
+// ═══════════════════════════════════════════════════════════════════
+
+function buildFieldHtml(f) {
+  if (f.type === 'equipment-list') return equipListHtml();
+
+  if (f.type === 'multi-file') return `
+    <div class="form-group">
+      <label class="form-label">${f.label}</label>
+      <div class="multi-file-wrap">
+        <div class="multi-file-list" id="mfl-${f.key}"></div>
+        <label class="multi-file-add-btn" style="cursor:pointer">
+          <input type="file" id="f-${f.key}" ${f.accept?`accept="${f.accept}"`:''}
+            style="display:none" multiple onchange="addMultiFile(this,'${f.key}')">
+          + Adicionar arquivo(s)
+        </label>
+      </div>
+    </div>`;
+
+  if (f.type === 'file') return `
+    <div class="form-group">
+      <label class="form-label">${f.label}</label>
+      <label style="cursor:pointer">
+        <input type="file" id="f-${f.key}" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+          style="display:none" onchange="handleFile(this)">
+        <div class="file-upload-area" id="file-display-${f.key}">
+          <div class="file-upload-text">📎 Clique para anexar arquivo (PDF, Word, Excel, Imagem)</div>
+        </div>
+      </label>
+    </div>`;
+
+  return `
+    <div class="form-group">
+      <label class="form-label">${f.label}</label>
+      ${f.type === 'textarea'
+        ? `<textarea class="form-textarea" id="f-${f.key}" rows="3"></textarea>`
+        : `<input class="form-input" id="f-${f.key}" type="${f.type}">`}
+    </div>`;
+}
+
+function handleFile(input) {
+  if (!input.files[0]) return;
+  const key = input.id.replace('f-','');
+  const display = document.getElementById(`file-display-${key}`);
+  if (display) {
+    display.classList.add('has-file');
+    display.innerHTML = `<div class="file-upload-text has-file">✓ ${input.files[0].name} <span style="font-weight:400;color:var(--green);opacity:.7">(${(input.files[0].size/1024).toFixed(0)} KB)</span></div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════════════════════════════════════════
+
+function renderAll() {
+  renderRoles();
+  renderCounts();
+  renderMain();
+}
+
+function renderRoles() {
+  document.getElementById('roleSelector').innerHTML = SECTORS.map(s => `
+    <button class="role-btn ${s.id===currentUserId?'active':''}" onclick="setUser('${s.id}')" title="${s.desc}">
+      <span style="font-size:9px;font-family:'DM Mono',monospace;background:${s.id===currentUserId?'var(--accent)':'var(--border)'};color:${s.id===currentUserId?'#fff':'var(--text2)'};padding:1px 5px;border-radius:3px">${s.av}</span>
+      ${s.name}
+    </button>`).join('');
+}
+
+function renderCounts() {
+  const user = getUser();
+  document.getElementById('cnt-fila').textContent       = getQueue(user).length;
+  document.getElementById('cnt-concluidas').textContent  = getCompleted(user).length;
+  document.getElementById('cnt-todas').textContent       = ops.length;
+}
+
+function renderMain() {
+  const user = getUser();
+  const el   = document.getElementById('main');
+  if      (currentTab === 'fila')       renderQueue(user, el);
+  else if (currentTab === 'concluidas') renderConcluidas(user, el);
+  else                                  renderTodas(el);
+}
+
+function renderQueue(user, el) {
+  const queue = getQueue(user);
+  const config = {
+    vendedor:   ['Minhas OPs',                                'Acompanhe as OPs que você criou. Para abrir uma nova, use o botão "+ Nova OP" no topo.'],
+    financeiro: ['Validação Financeira',                      'OPs com entrada pendente aguardando aprovação de pagamento'],
+    logistica:  ['NF a Solicitar',                            'Preencha os dados de despacho e solicite a emissão da nota fiscal'],
+    fiscal:     ['Notas Fiscais a Emitir',                    'Preencha os dados — emita a NF e registre o número aqui'],
+    entrega:    ['Em Trânsito — Aguardando Confirmação',      'Confirme a entrega ao cliente'],
+    gestor:     ['Sem ações pendentes',                       'Você tem acesso de visualização. Use "Todas as OPs" para o painel completo.'],
+  };
+  const [title, desc] = config[user.role] || ['Minha Fila',''];
+
+  if (user.role === 'gestor') {
+    el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
+      <div class="empty"><div class="empty-icon">👁</div><div class="empty-title">Acesso de visualização</div><div class="empty-desc">Use "Todas as OPs" para o painel completo.</div></div>`;
+    return;
+  }
+  if (user.role === 'vendedor') {
+    const ativas    = ops.filter(o => o.status !== 'entregue');
+    const entregues = ops.filter(o => o.status === 'entregue');
+    let html = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>`;
+    if (!ops.length) {
+      html += `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma OP ainda</div><div class="empty-desc">Clique em "+ Nova OP" para começar.</div></div>`;
+    } else {
+      if (ativas.length)    html += `<div class="section"><div class="section-label">Em andamento (${ativas.length})</div><div class="card-grid">${ativas.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
+      if (entregues.length) html += `<div class="section"><div class="section-label">Entregues (${entregues.length})</div><div class="card-grid">${entregues.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+  el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
+    ${queue.length === 0
+      ? `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Fila vazia</div><div class="empty-desc">Nenhuma OP aguardando sua ação agora.</div></div>`
+      : `<div class="card-grid">${queue.map((op,i) => card(op,true,i)).join('')}</div>`}`;
+}
+
+function renderConcluidas(user, el) {
+  const list = getCompleted(user);
+  el.innerHTML = `<div class="step-header"><div class="step-title">Concluídas por Mim</div><div class="step-desc">OPs em que você já tomou uma ação</div></div>
+    ${list.length === 0
+      ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma concluída ainda</div></div>`
+      : `<div class="card-grid">${list.map((op,i) => card(op,false,i)).join('')}</div>`}`;
+}
+
+function renderTodas(el) {
+  const order = ['bloqueada','aberta','aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
+  const groups = {};
+  ops.forEach(op => { (groups[op.status]=groups[op.status]||[]).push(op); });
+  const abertas = ops.filter(o=>o.status!=='entregue').length;
+  const cols = order.map(status => {
+    const s = STEPS[status];
+    const colOps = groups[status] || [];
+    const badgeCls = COLOR_MAP[s?.color||'gray'] || 'b-gray';
+    return `<div class="kanban-col">
+      <div class="kanban-col-head">
+        <span class="kanban-col-name">${s?.label||status}</span>
+        <span class="badge ${badgeCls}" style="font-size:9px;padding:1px 6px">${colOps.length}</span>
+      </div>
+      <div class="kanban-col-body">
+        ${colOps.length ? colOps.map((op,i)=>card(op,false,i)).join('') : '<div class="kanban-empty">—</div>'}
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="step-header">
+      <div class="step-title">Todas as OPs</div>
+      <div class="step-desc">${abertas} em aberto · ${ops.length-abertas} entregues</div>
+    </div>
+    <div class="kanban-wrap"><div class="kanban-board">${cols}</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CARD RENDERER
+// ═══════════════════════════════════════════════════════════════════
+
+function card(op, inQueue, animIdx) {
+  const user     = getUser();
+  const step     = STEPS[op.status];
+  const badge    = stepBadge(op.status);
+  const sem      = semaforo(op);
+  const isBlocked = op.status === 'bloqueada';
+
+  const dots = PIPELINE_ORDER.map(s => {
+    const sIdx   = STEPS[s]?.pipelineIdx ?? 0;
+    const curIdx = isBlocked ? 1 : (step?.pipelineIdx ?? 0);
+    if (sIdx < curIdx)  return `<div class="pipe-dot done"></div>`;
+    if (sIdx === curIdx) return `<div class="pipe-dot ${isBlocked?'blocked':'current'}"></div>`;
+    return `<div class="pipe-dot"></div>`;
+  }).join('');
+
+  const canAct = inQueue && step?.owner === user.role;
+
+  const skippedFin = op.history.some(h => h.note?.includes('Validação financeira pulada'));
+  const lastEvt    = op.history[op.history.length-1];
+
+  // Equipment chips
+  const equipList = op.equipamentos?.length
+    ? op.equipamentos.map(e=>`<span class="equip-chip">${e}</span>`).join('')
+    : `<span class="equip-chip">${op.equipamento||'—'}</span>`;
+
+  let footer = '';
+  if (canAct) {
+    footer = `<div class="card-footer">
+      <button class="btn-action" onclick="event.stopPropagation();openActionModal(${op.id},'advance')">${step.actionLabel}</button>
+      ${step.getReject ? `<button class="btn-action danger" onclick="event.stopPropagation();openActionModal(${op.id},'reject')">${step.rejectLabel||'Bloquear'}</button>` : ''}
+    </div>`;
+  }
+
+  return `
+  <div class="card ${canAct?'actionable':''} ${isBlocked?'blocked':''}" style="animation-delay:${animIdx*.04}s" onclick="openCard(${op.id})">
+    <div class="card-top">
+      <div>
+        <div class="card-op">OP ${op.numero}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorName}</div>
+      </div>
+      <div class="card-flags">${flagsHtml(op)}</div>
+    </div>
+    <div class="card-client">${op.cliente}</div>
+    <div class="equip-chips">${equipList}</div>
+    <div class="card-meta">
+      <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
+      ${op.status!=='entregue' ? `<span class="sema ${sem.cls}">${sem.icon?sem.icon+' ':''}${sem.label}</span>` : ''}
+      ${skippedFin ? `<span class="skip-badge">↷ Fin. pulado</span>` : ''}
+    </div>
+    <div class="pipe-bar">${dots}</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato} <span>${entradaHtml(op.entrada)}</span></div>
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${lastEvt.note.substring(0,90)}${lastEvt.note.length>90?'…':''}</div>` : ''}
+    ${footer}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTEXT PANEL — acumula respostas anteriores
+// ═══════════════════════════════════════════════════════════════════
+
+function buildContextPanel(op) {
+  const pv = op.pedidoVenda;
+  const sd = op.stepData || {};
+  const sem = semaforo(op);
+  const badge = stepBadge(op.status);
+
+  const cRow = (label, val) => {
+    if (!val) return '';
+    return `<div class="ctx-row"><span class="ctx-label">${label}</span><span class="ctx-value">${val}</span></div>`;
+  };
+  const sec = (title, rows) => {
+    const content = rows.filter(Boolean).join('');
+    if (!content) return '';
+    return `<div class="ctx-sec"><div class="ctx-sec-title">${title}</div>${content}</div>`;
+  };
+
+  let parts = [];
+
+  // OP summary header
+  parts.push(`<div style="display:flex;flex-direction:column;gap:5px">
+    <div style="font-size:13px;font-weight:700;line-height:1.3">${op.cliente}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+      <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
+      ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${[op.numContrato||op.contrato||'',op.vendedorName,daysSince(op.dataAbertura)+'d'].filter(Boolean).join(' · ')}</div>
+    ${op.obs?`<div style="font-size:11px;color:var(--text2)">${op.obs}</div>`:''}
+  </div>`);
+
+  // Pedido do Cliente
+  if (pv) {
+    const equipLines = (pv.equipamentos||[]).map(e=>`${e.name}${e.qty>1?' ×'+e.qty:''}`).join('<br>');
+    const addrParts  = [pv.endRua, pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
+
+    const payRows = [];
+    if (pv.tipoContrato)   payRows.push(cRow('Tipo de Contrato', `<strong>${pv.tipoContrato}</strong>`));
+    if (pv.valorTotal)     payRows.push(cRow('Valor Bruto', fmtBRL(pv.valorTotal)));
+    if (pv.valorDesconto && parseFloat(pv.valorDesconto) > 0)
+                           payRows.push(cRow('Desconto', '− ' + fmtBRL(pv.valorDesconto)));
+    if (pv.valorLiquido)   payRows.push(cRow('Valor Total', fmtBRL(pv.valorLiquido)));
+    if (pv.detalhesPagamento) payRows.push(cRow('Pagamento', pv.detalhesPagamento.replace(/\n/g,'<br>')));
+    if (pv.simulador && parseFloat(pv.simulador) > 0)
+                           payRows.push(cRow('Simulador', fmtBRL(pv.simulador)));
+    if (pv.entrada === 'pendente')
+                           payRows.push(cRow('Entrada', (pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir') + ' — PENDENTE'));
+
+    parts.push(sec('Pedido do Cliente', [
+      cRow('Vendedor(a)', pv.vendedorCanal),
+      cRow('Equipamentos', equipLines),
+      pv.voltagem ? cRow('Voltagem', pv.voltagem) : '',
+      cRow('CPF / CNPJ', pv.cpf),
+      cRow('Tel.', pv.tel),
+      cRow('E-mail', pv.email),
+      cRow('Endereço', endDisplay),
+      ...payRows,
+      pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay
+                       ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
+      cRow('Contato responsável', pv.contatoEntrega),
+      pv.dataPrevista  ? cRow('Prazo / Previsão', (pv.prazo ? pv.prazo + ' dias úteis' + (pv.aContarDe ? ' a contar de ' + pv.aContarDe : '') + ' — ' : '') + pv.dataPrevista) : '',
+      cRow('Treinamento', pv.treinamento),
+    ]));
+  } else {
+    parts.push(sec('Pedido', [
+      cRow('Equipamentos', (op.equipamentos||[op.equipamento||'—']).join(', ')),
+      cRow('Contrato', op.numContrato||op.contrato),
+    ]));
+  }
+
+  // Validação financeira
+  if (sd.aguard_financeiro) {
+    parts.push(sec('Validação Financeira', [
+      cRow('Aprovação', sd.aguard_financeiro.descricao),
+    ]));
+  }
+
+  // Logística — solicitação de NF
+  if (sd.aguard_nf) {
+    const d = sd.aguard_nf;
+    parts.push(sec('Solicitação de NF (Logística)', [
+      cRow('Endereço de entrega', d.enderecoEntrega),
+      cRow('Técnico / Transportadora', d.tecnico),
+      (d.volumes||d.peso) ? cRow('Vol / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : '',
+      cRow('Obs.', d.descricao),
+    ]));
+  }
+
+  // Emissão da NF
+  if (sd.aguard_emissao) {
+    const d = sd.aguard_emissao;
+    parts.push(sec('Nota Fiscal Emitida', [
+      cRow('Número NF', d.numeroNF),
+      d.dataEmissao ? cRow('Data de emissão', fmtDate(d.dataEmissao)) : '',
+      cRow('Obs.', d.descricao),
+    ]));
+  }
+
+  // Re-emissão solicitada (logística rejeitou despacho)
+  if (sd.aguard_despacho_reject) {
+    const d = sd.aguard_despacho_reject;
+    parts.push(`<div style="background:var(--red-bg);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:6px">
+      <div class="ctx-sec-title" style="color:var(--red);border-color:rgba(220,38,38,.2)">Re-emissão Solicitada</div>
+      ${d.motivoReemissao?`<div class="ctx-row">${cRow('Motivo',d.motivoReemissao)}</div>`:''}
+      ${d.dadosCorrigidos?`<div class="ctx-row">${cRow('Dados corrigidos',d.dadosCorrigidos.replace(/\n/g,'<br>'))}</div>`:''}
+    </div>`);
+  }
+
+  // Despacho confirmado
+  if (sd.aguard_despacho) {
+    parts.push(sec('Despacho Confirmado', [
+      cRow('Confirmação', sd.aguard_despacho.descricao),
+    ]));
+  }
+
+  // Arquivo da OP
+  if (sd.aberta?.arquivoOP) {
+    parts.push(sec('Arquivo', [
+      cRow('Arquivo da OP', '📎 ' + sd.aberta.arquivoOP),
+    ]));
+  }
+
+  return parts.join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════════
+
+function openCard(opId) {
+  const op   = ops.find(o => o.id === opId);
+  const user = getUser();
+  const step = STEPS[op.status];
+  const canAct = step?.owner === user.role;
+  canAct ? openActionModal(opId,'advance') : openInfoModal(opId);
+}
+
+function openActionModal(opId, mode) {
+  activeOpId = opId; modalMode = mode; tempFiles = {};
+  const op   = ops.find(o => o.id === opId);
+  const step = STEPS[op.status];
+  const fields = mode==='reject' ? (step.rejectFields||[]) : (step.formFields||[]);
+
+  // Reset and pre-seed equipment list for aberta step
+  if (op.status === 'aberta' && mode === 'advance') {
+    tempEquipList = (op.equipamentos||[])
+      .filter(e => e && e !== '—')
+      .map(e => {
+        const m = e.match(/^(.+)\s\(x(\d+)\)$/);
+        return m ? { name: m[1], qty: parseInt(m[2]) } : { name: e, qty: 1 };
+      });
+  } else {
+    tempEquipList = [];
+  }
+
+  const titles = { advance: step.actionLabel, reject: step.rejectLabel||'Bloquear OP' };
+  const btnCls  = { advance: '', reject: ' red' };
+  const btnLbl  = { advance: 'Confirmar →', reject: 'Bloquear' };
+
+  // Algorithm note for "aberta" step
+  let algoNote = '';
+  if (op.status === 'aberta' && mode === 'advance') {
+    algoNote = op.entrada === 'pendente'
+      ? `<div class="warn-block">⚠ Entrada <strong>pendente</strong> — esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</div>`
+      : `<div class="success-block">✓ Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</div>`;
+  }
+
+  const dirNote = '';
+
+  // Rejection warning when aguard_emissao reopens after Logística rejection
+  let rejectionNote = '';
+  if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && mode === 'advance') {
+    const rej = op.stepData.aguard_despacho_reject;
+    rejectionNote = `
+      <div style="background:var(--red-bg);border:1.5px solid rgba(220,38,38,.3);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.2px">⚠ RE-EMISSÃO SOLICITADA PELA LOGÍSTICA</div>
+        ${rej.motivoReemissao ? `<div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Motivo:</strong> ${rej.motivoReemissao}</div>` : ''}
+        ${rej.dadosCorrigidos ? `<div style="font-size:12px;color:var(--text);line-height:1.5;padding:8px;background:rgba(0,0,0,.03);border-radius:6px;border:1px solid rgba(220,38,38,.15)"><strong>Dados corrigidos:</strong><br>${rej.dadosCorrigidos.replace(/\n/g,'<br>')}</div>` : ''}
+        <div style="font-size:11px;color:var(--text3)">Os campos abaixo foram pré-preenchidos com os dados anteriores. Corrija conforme necessário e re-emita.</div>
+      </div>`;
+  }
+
+  let fieldsHtml;
+  if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && mode === 'advance') {
+    const nfData = op.stepData.aguard_nf || {};
+    const emData = op.stepData.aguard_emissao || {};
+    const sh2 = l => `<div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border);padding:8px 0 2px;margin-top:2px">${l}</div>`;
+    fieldsHtml = `
+      ${sh2('Dados de Despacho — verificar e corrigir')}
+      <div class="form-group">
+        <label class="form-label">Endereço de Entrega Completo *</label>
+        <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2" placeholder="Rua, número, bairro, cidade/UF, CEP">${nfData.enderecoEntrega||''}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Técnico / Transportadora *</label>
+        <input class="form-input" id="f-reNF_tecnico" placeholder="Ex: Alexandre - Expert - SHY8C17" value="${nfData.tecnico||''}">
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nº de Volumes *</label>
+          <input class="form-input" id="f-reNF_volumes" type="number" value="${nfData.volumes||''}"></div>
+        <div class="form-group"><label class="form-label">Peso Total (kg) *</label>
+          <input class="form-input" id="f-reNF_peso" type="number" value="${nfData.peso||''}"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Obs. do Despacho</label>
+        <textarea class="form-textarea" id="f-reNF_descricao" rows="2">${nfData.descricao||''}</textarea>
+      </div>
+      ${sh2('Emissão da Nota Fiscal')}
+      <div class="form-group">
+        <label class="form-label">Número da NF *</label>
+        <input class="form-input" id="f-numeroNF" value="${emData.numeroNF||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data de Emissão *</label>
+        <input class="form-input" id="f-dataEmissao" type="date" value="${emData.dataEmissao||''}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PDF da Nota Fiscal *</label>
+        <label style="cursor:pointer">
+          <input type="file" id="f-arquivoNF" accept=".pdf" style="display:none" onchange="handleFile(this)">
+          <div class="file-upload-area" id="file-display-arquivoNF">
+            <div class="file-upload-text">📎 ${emData.arquivoNF ? 'Anterior: '+emData.arquivoNF+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
+          </div>
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações *</label>
+        <textarea class="form-textarea" id="f-descricao" rows="2" placeholder="Descreva as correções feitas na re-emissão...">${emData.descricao||''}</textarea>
+      </div>`;
+  } else {
+    fieldsHtml = fields.map(f => buildFieldHtml(f)).join('');
+  }
+
+  document.getElementById('modal').classList.add('split');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-split-body">
+      <div class="split-pane split-pane-left">
+        <div class="split-pane-header">Respostas anteriores</div>
+        ${buildContextPanel(op)}
+      </div>
+      <div class="split-pane split-pane-right">
+        <div class="split-pane-header">Preencher agora</div>
+        ${algoNote}${dirNote}${rejectionNote}${fieldsHtml}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary${btnCls[mode]}" onclick="submitModal()">${btnLbl[mode]}</button>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function openInfoModal(opId) {
+  const op    = ops.find(o => o.id === opId);
+  const badge = stepBadge(op.status);
+  const sem   = semaforo(op);
+
+  const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
+
+  let detailsHtml = '';
+  if (op.stepData?.aguard_nf) {
+    const d = op.stepData.aguard_nf;
+    detailsHtml += `<div><div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">Dados de Despacho</div>
+      <div class="detail-grid">
+        <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>
+        <div class="detail-item"><div class="detail-label">Técnico</div><div class="detail-value" style="font-size:12px">${d.tecnico}</div></div>
+        <div class="detail-item"><div class="detail-label">Vol / Peso</div><div class="detail-value" style="font-size:12px">${d.volumes} vol · ${d.peso} kg</div></div>
+        ${d.descricao?`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Descrição</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.descricao}</div></div>`:''}
+      </div></div>`;
+  }
+  if (op.stepData?.aguard_emissao) {
+    const d = op.stepData.aguard_emissao;
+    detailsHtml += `<div class="detail-grid">
+      <div class="detail-item"><div class="detail-label">Nº NF</div><div class="detail-value">${d.numeroNF}</div></div>
+      <div class="detail-item"><div class="detail-label">Emissão</div><div class="detail-value">${fmtDate(d.dataEmissao)}</div></div>
+      ${d.descricao?`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Descrição</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.descricao}</div></div>`:''}
+    </div>`;
+  }
+
+  const historyHtml = op.history.length
+    ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName}:</span> ${h.note}</div></div>`).join('')
+    : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="op-info-block">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
+          ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
+          ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
+        </div>
+        <div class="op-info-meta">
+          <span>${op.vendedorName}</span><span>${op.numContrato||op.contrato}</span>
+          <span>${entradaHtml(op.entrada)}</span><span>${daysSince(op.dataAbertura)} dias</span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
+        ${op.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">${op.obs}</div>`:''}
+      </div>
+      ${op.pedidoVenda ? `<div style="background:var(--blue-bg);border:1px solid rgba(37,99,235,.15);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:12px;color:var(--accent);font-weight:600">📄 Pedido de Venda gerado</span><button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="printPedidoVenda(${opId})">Exportar PDF</button></div>` : ''}
+      ${detailsHtml}
+      <div>
+        <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:10px;letter-spacing:.6px">Histórico</div>
+        <div style="display:flex;flex-direction:column;gap:10px">${historyHtml}</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('modal').classList.remove('wide', 'split');
+  activeOpId = null; modalMode = null; tempEquipList = []; tempFiles = {};
+}
+
+function submitModal() {
+  if (!activeOpId || !modalMode) return;
+  const op   = ops.find(o => o.id === activeOpId);
+  const step = STEPS[op.status];
+
+  // Re-emission: combined aguard_nf + aguard_emissao form
+  if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && modalMode === 'advance') {
+    const err = id => { const e = document.getElementById(id); if(e){e.style.borderColor='var(--red)';e.style.boxShadow='0 0 0 3px rgba(220,38,38,.12)';e.focus();} };
+    const addr  = document.getElementById('f-reNF_enderecoEntrega')?.value?.trim();
+    const tec   = document.getElementById('f-reNF_tecnico')?.value?.trim();
+    const numNF = document.getElementById('f-numeroNF')?.value?.trim();
+    const dtNF  = document.getElementById('f-dataEmissao')?.value;
+    const descNF= document.getElementById('f-descricao')?.value?.trim();
+    if (!addr)  { err('f-reNF_enderecoEntrega'); return; }
+    if (!tec)   { err('f-reNF_tecnico');         return; }
+    if (!numNF) { err('f-numeroNF');              return; }
+    if (!dtNF)  { err('f-dataEmissao');           return; }
+    if (!descNF){ err('f-descricao');             return; }
+    op.stepData.aguard_nf = {
+      enderecoEntrega: addr,
+      tecnico: tec,
+      volumes: document.getElementById('f-reNF_volumes')?.value || '',
+      peso:    document.getElementById('f-reNF_peso')?.value    || '',
+      descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
+    };
+    const fileNF = document.getElementById('f-arquivoNF')?.files[0]?.name || op.stepData.aguard_emissao?.arquivoNF || '';
+    advanceOP(activeOpId, { numeroNF: numNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
+    closeModal(); return;
+  }
+
+  const fields = modalMode==='reject' ? (step.rejectFields||[]) : (step.formFields||[]);
+  const formData = {};
+
+  for (const f of fields) {
+    if (f.type === 'equipment-list') {
+      if (f.required && !tempEquipList.length) {
+        const el = document.getElementById('equip-list-items');
+        if (el) el.style.outline = '2px solid var(--red)';
+        return;
+      }
+      formData.equipamentos = [...tempEquipList];
+      continue;
+    }
+    if (f.type === 'multi-file') {
+      formData[f.key] = (tempFiles[f.key] || []).map(file => file.name);
+      continue;
+    }
+    if (f.type === 'file') {
+      const input = document.getElementById('f-' + f.key);
+      formData[f.key] = input?.files[0]?.name || '';
+      continue;
+    }
+    const el  = document.getElementById('f-' + f.key);
+    const val = el?.value?.trim();
+    if (f.required && !val) { el.style.borderColor='var(--red)'; el.style.boxShadow='0 0 0 3px rgba(220,38,38,.12)'; el.focus(); return; }
+    formData[f.key] = val || '';
+  }
+
+  modalMode === 'reject' ? rejectOP(activeOpId, formData) : advanceOP(activeOpId, formData);
+  closeModal();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NOVA OP — Pedido de Venda completo
+// ═══════════════════════════════════════════════════════════════════
+
+function openNovaOP() {
+  tempEquipList = [];
+  const todayISO = new Date().toISOString().split('T')[0];
+  const analistaOptions = VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
+  const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">▾</span></div><div class="acc-body">`;
+
+  document.getElementById('modal').classList.add('wide');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">Nova OP — Pedido do Cliente</div>
+        <div class="modal-subtitle">Contourline · CNPJ 14.458.149/0001-23 · Frete: EMPRESA</div></div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:8px">
+
+      <div class="acc"><div ${acc('Dados do Pedido')}
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Vendedor(a) *</label>
+              <input class="form-input" id="nova-vendedorCanal"></div>
+            <div class="form-group"><label class="form-label">Data</label>
+              <input class="form-input" id="nova-data" type="date" value="${todayISO}"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Analista *</label>
+              <select class="form-select" id="nova-analista">${analistaOptions}</select></div>
+            <div class="form-group"><label class="form-label">Contrato</label>
+              <input class="form-input" id="nova-numContrato"></div>
+          </div>
+        </div></div>
+
+      <div class="acc"><div ${acc('Dados do Cliente')}
+          <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
+            <div class="form-group" style="flex:1"><label class="form-label">CPF / CNPJ</label>
+              <input class="form-input" id="nova-cpf" oninput="onCpfCnpjInput(this.value)"
+                onkeydown="if(event.key==='Enter')searchClientBtn()">
+              <div class="api-status" id="cnpj-status"></div></div>
+            <button type="button" onclick="searchClientBtn()"
+              style="padding:8px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;height:36px">
+              &#128269; Buscar
+            </button>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Nome / Razão Social *</label>
+              <input class="form-input" id="nova-cliente"></div>
+            <div class="form-group"><label class="form-label">DN</label>
+              <input class="form-input" id="nova-dn" type="date"></div>
+          </div>
+          <div id="nova-pf-fields">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">RG</label>
+                <input class="form-input" id="nova-rg"></div>
+              <div class="form-group"><label class="form-label">E-mail</label>
+                <input class="form-input" id="nova-email" type="email"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Profissão</label>
+                <input class="form-input" id="nova-profissao"></div>
+              <div class="form-group"><label class="form-label">Nº documento</label>
+                <input class="form-input" id="nova-numDocumento"></div>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Endereço</label>
+            <input class="form-input" id="nova-endRua"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Bairro</label>
+              <input class="form-input" id="nova-endBairro"></div>
+            <div class="form-group"><label class="form-label">Cidade</label>
+              <input class="form-input" id="nova-endCidade"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:120px 70px 1fr">
+            <div class="form-group"><label class="form-label">CEP</label>
+              <input class="form-input" id="nova-cep-cliente"
+                oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPSplit(this.value,'nova-endRua','nova-endBairro','nova-endCidade','nova-endEstado','cep-status-cliente')">
+              <div class="api-status" id="cep-status-cliente"></div></div>
+            <div class="form-group"><label class="form-label">Estado</label>
+              <select class="form-select" id="nova-endEstado"><option value="">UF</option>${estadoOptions}</select></div>
+            <div class="form-group"><label class="form-label">Tel.</label>
+              <input class="form-input" id="nova-tel"></div>
+          </div>
+        </div></div>
+
+      <div class="acc"><div ${acc('Equipamentos')}
+          ${equipListHtml()}
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:6px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Desconto (R$)</span>
+              <input class="form-input" id="nova-desconto" type="text" inputmode="decimal"
+                oninput="brlFormat(this);calcDescontoTotal()"
+                style="width:130px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px"></div>
+            <div style="display:flex;align-items:center;gap:7px">
+              <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Valor Total</span>
+              <span id="nova-valor-total-display" style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);min-width:110px;text-align:right">—</span>
+            </div>
+          </div>
+          <input type="hidden" id="nova-valorTotal">
+          <input type="hidden" id="nova-valorDesconto">
+          <input type="hidden" id="nova-valorLiquido">
+          <div class="form-group" style="margin-top:8px"><label class="form-label">Voltagem</label>
+            <select class="form-select" id="nova-voltagem">
+              <option value="">Selecionar...</option>
+              <option value="110 Volts">110 Volts</option>
+              <option value="220 Volts">220 Volts</option>
+              <option value="Bivolt">Bivolt</option>
+            </select></div>
+        </div></div>
+
+      <div class="acc"><div ${acc('Pagamento')}
+          <div class="form-group"><label class="form-label">Tipo de Contrato</label>
+            <select class="form-select" id="nova-tipoContrato">
+              <option value="">Selecionar...</option>
+              <option value="CONTRATO À VISTA">Contrato à Vista</option>
+              <option value="FINANCIAMENTO">Financiamento</option>
+              <option value="PARCELADO">Parcelado</option>
+              <option value="CARTÃO DE CRÉDITO">Cartão de Crédito</option>
+              <option value="RESERVA DE DOMÍNIO">Reserva de Domínio</option>
+              <option value="OUTROS">Outros</option>
+            </select></div>
+          <div class="form-group"><label class="form-label">Detalhes do Pagamento</label>
+            <textarea class="form-textarea" id="nova-detalhesPagamento" rows="6"></textarea></div>
+          <div class="form-group"><label class="form-label">Simulador <span style="font-weight:400;color:var(--text3)">(R$ — opcional)</span></label>
+            <input class="form-input" id="nova-simulador" type="text" inputmode="decimal"
+              oninput="brlFormat(this)" style="font-family:'DM Mono',monospace"></div>
+          <hr class="form-divider">
+          <div class="form-group"><label class="form-label">Status da Entrada <span style="font-weight:400;color:var(--text3)">(fluxo interno)</span></label>
+            <select class="form-select" id="nova-entrada" onchange="updateEntradaHint(this.value)">
+              <option value="sem">Sem entrada</option>
+              <option value="pendente">Entrada pendente</option>
+            </select></div>
+          <div class="form-group" id="nova-entrada-row" style="display:none"><label class="form-label">Valor da Entrada (R$)</label>
+            <input class="form-input" id="nova-valorEntrada" type="text" inputmode="decimal"
+              oninput="brlFormat(this)" style="font-family:'DM Mono',monospace"></div>
+        </div></div>
+
+      <div class="acc"><div ${acc('Observações')}
+          <div class="form-group"><label class="form-label">Endereço de entrega</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:6px">
+              <input type="checkbox" id="nova-same-address" onchange="toggleSameAddress(this.checked)">
+              Mesmo endereço do cliente</label>
+            <textarea class="form-textarea" id="nova-enderecoEntrega" rows="2"></textarea></div>
+          <div class="form-group"><label class="form-label">Contato responsável</label>
+            <input class="form-input" id="nova-contatoEntrega"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Prazo de entrega (dias úteis)</label>
+              <input class="form-input" id="nova-prazo" type="number" min="1"
+                oninput="calcDataPrevista()"></div>
+            <div class="form-group"><label class="form-label">A contar de</label>
+              <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}"
+                oninput="calcDataPrevista()"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:-4px;padding-bottom:8px">
+            Previsão: <span id="nova-data-prevista" style="color:var(--accent)">—</span></div>
+          <div class="form-group"><label class="form-label">Treinamento</label>
+            <input class="form-input" id="nova-treinamento"></div>
+          <div class="form-group" style="margin-top:6px"><label class="form-label">Arquivo da OP</label>
+            <label style="cursor:pointer">
+              <input type="file" id="nova-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                style="display:none" onchange="handleFile(this)">
+              <div class="file-upload-area" id="file-display-nova-arquivo">
+                <div class="file-upload-text">📎 Clique para anexar o arquivo da OP (PDF, Word, Excel)</div>
+              </div></label></div>
+          <div class="form-group"><label class="form-label">Observações / Pedido de Venda</label>
+            <textarea class="form-textarea" id="nova-descricao" rows="3"></textarea></div>
+        </div></div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-criar-op" onclick="submitNovaOP()">Criar OP →</button>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function updateEntradaHint(v) {
+  const row = document.getElementById('nova-entrada-row');
+  if (row) row.style.display = v === 'pendente' ? '' : 'none';
+}
+function updateValorLiquido() {
+  const total = parseFloat(document.getElementById('nova-valorTotal')?.value) || 0;
+  const desc  = parseFloat(document.getElementById('nova-valorDesconto')?.value) || 0;
+  const liq   = Math.max(0, total - desc);
+  const el    = document.getElementById('nova-valorLiquido');
+  if (el) { el.value = (total > 0) ? liq.toFixed(2) : ''; }
+  updateValorParcela();
+}
+
+function updateValorParcela() {
+  const liq     = parseFloat(document.getElementById('nova-valorLiquido')?.value) || 0;
+  const parc    = parseInt(document.getElementById('nova-numParcelas')?.value) || 0;
+  const el      = document.getElementById('nova-valorParcela');
+  if (el) el.value = (liq && parc) ? (liq / parc).toFixed(2) : '';
+}
+
+function toggleAccordion(head) {
+  const body = head.nextElementSibling;
+  const arrow = head.querySelector('.acc-arrow');
+  const isOpen = !body.hidden;
+  body.hidden = isOpen;
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : '';
+}
+
+function updatePaymentFields(val) {
+  const show = (id, s) => { const e = document.getElementById(id); if (e) e.style.display = s ? '' : 'none'; };
+  const hasParc  = ['Parcelado','Cartão de crédito','Financiamento','Reserva de Domínio'].includes(val);
+  const hasBanco = ['Financiamento','Reserva de Domínio'].includes(val);
+  show('row-forma-receb', val === 'À vista');
+  show('row-banco',       hasBanco);
+  show('row-taxa',        val === 'Financiamento');
+  show('row-parcelas',    hasParc);
+  show('row-bandeira',    val === 'Cartão de crédito');
+  show('row-outros-desc', val === 'Outros');
+  updateValorParcela();
+}
+
+function calcDataPrevista() {
+  const prazo = parseInt(document.getElementById('nova-prazo')?.value);
+  const aContarDe = document.getElementById('nova-aContarDe')?.value;
+  const el = document.getElementById('nova-data-prevista');
+  if (!el) return;
+  if (!prazo || prazo <= 0) { el.textContent = '—'; return; }
+  const d = aContarDe ? new Date(aContarDe + 'T12:00:00') : new Date();
+  let dias = 0;
+  while (dias < prazo) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+  }
+  el.textContent = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function toggleSameAddress(checked) {
+  const entrega = document.getElementById('nova-enderecoEntrega');
+  if (!entrega) return;
+  if (checked) {
+    const rua    = document.getElementById('nova-endRua')?.value || '';
+    const bairro = document.getElementById('nova-endBairro')?.value || '';
+    const cidade = document.getElementById('nova-endCidade')?.value || '';
+    const estado = document.getElementById('nova-endEstado')?.value || '';
+    const cep    = document.getElementById('nova-cep-cliente')?.value || '';
+    const parts  = [rua, bairro, [cidade, estado].filter(Boolean).join('/'), cep].filter(Boolean);
+    entrega.value    = parts.join(', ');
+    entrega.disabled = true;
+    entrega.style.opacity = '0.6';
+  } else {
+    entrega.disabled = false;
+    entrega.style.opacity = '1';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROTHEUS API — via Vercel function /api/protheus (sem CORS)
+// ═══════════════════════════════════════════════════════════════════
+
+function fillClientFromProtheus(d) {
+  const fill = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = String(val).trim(); };
+  fill('nova-cliente', d.name || d.shortName);
+  const addr = d.address || {};
+  const ruaParts = [addr.address, addr.number, addr.complement].map(s => (s||'').trim()).filter(Boolean);
+  fill('nova-endRua',    ruaParts.join(', '));
+  fill('nova-endBairro', addr.district);
+  fill('nova-endCidade', addr.city && addr.city.cityDescription);
+  const estEl = document.getElementById('nova-endEstado');
+  const stateId = addr.state && addr.state.stateId && addr.state.stateId.trim();
+  if (estEl && !estEl.value && stateId) estEl.value = stateId;
+  const rawCep = (addr.zipCode || '').replace(/\D/g, '');
+  if (rawCep.length === 8) fill('nova-cep-cliente', rawCep.replace(/^(\d{5})(\d{3})$/, '$1-$2'));
+  const comm = (d.listOfCommunicationInformation || [])[0] || {};
+  const ddd = (comm.diallingCode || '').trim();
+  const tel = (comm.phoneNumber || '').trim();
+  if (tel) fill('nova-tel', ddd ? '(' + ddd + ') ' + tel : tel);
+  fill('nova-email', comm.email);
+  const govInfo = d.GovernmentalInformation || [];
+  const rgEntry = govInfo.find(function(g){ return g.name === 'RG'; });
+  if (rgEntry && rgEntry.id && rgEntry.id.trim()) fill('nova-rg', rgEntry.id.trim());
+  togglePFFields(d.entityType !== 'J');
+}
+
+function lookupProtheusClient(rawVal) {
+  const digits = rawVal.replace(/\D/g, '');
+  if (digits.length < 11) return Promise.resolve(false);
+  setStatus('cnpj-status', 'Buscando no Protheus…', 'loading');
+  // Chama a Vercel function /api/protheus — sem CORS, sem credenciais no frontend
+  return fetch('/api/protheus?cpfCnpj=' + digits)
+    .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
+    .then(({ ok, status, data }) => {
+      if (!ok) {
+        setStatus('cnpj-status', 'Protheus: ' + (data.error || data.message || ('HTTP ' + status)), 'err');
+        return false;
+      }
+      const items = data.items || (Array.isArray(data) ? data : []);
+      if (!items.length) {
+        setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
+        return false;
+      }
+      fillClientFromProtheus(items[0]);
+      setStatus('cnpj-status', 'OK: ' + (items[0].name || items[0].shortName || '').trim().substring(0, 35) + ' (Protheus)', 'ok');
+      showToast('Cliente encontrado no Protheus');
+      return true;
+    })
+    .catch(err => {
+      setStatus('cnpj-status', 'Erro: ' + err.message, 'err');
+      return false;
+    });
+}
+
+function searchClientBtn() {
+  var cpfVal = (document.getElementById('nova-cpf') || {}).value || '';
+  var digits = cpfVal.replace(/\D/g, '');
+  if (!digits) { setStatus('cnpj-status', 'Digite o CPF ou CNPJ primeiro', 'err'); return; }
+  lookupProtheusClient(cpfVal).then(function(found) {
+    if (!found && digits.length === 14) lookupCNPJ(cpfVal);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BRASIL API — CEP e CNPJ
+// ═══════════════════════════════════════════════════════════════════
+
+function fmtCEP(input) {
+  let v = input.value.replace(/\D/g, '').slice(0, 8);
+  if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5);
+  input.value = v;
+}
+
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = type === 'ok' ? 'var(--green)' : type === 'err' ? 'var(--red)' : 'var(--text3)';
+}
+
+function showToast(msg, type = 'ok') {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:22px;right:22px;background:${type==='ok'?'var(--green)':'var(--red)'};color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:toastIn .2s ease;pointer-events:none`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+async function lookupCEP(rawVal, targetId, statusId) {
+  const digits = rawVal.replace(/\D/g, '');
+  if (digits.length !== 8) return;
+  setStatus(statusId, 'Buscando…', 'loading');
+  try {
+    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const el = document.getElementById(targetId);
+    if (el && !el.disabled) {
+      const parts = [d.street, d.neighborhood, [d.city, d.state].filter(Boolean).join('/'), d.cep].filter(Boolean);
+      el.value = parts.join(', ');
+    }
+    setStatus(statusId, '✓ ' + [d.city, d.state].filter(Boolean).join('/'), 'ok');
+  } catch {
+    setStatus(statusId, '✗ CEP não encontrado', 'err');
+  }
+}
+
+async function lookupCEPSplit(rawVal, ruaId, bairroId, cidadeId, estadoId, statusId) {
+  const digits = rawVal.replace(/\D/g, '');
+  if (digits.length !== 8) return;
+  setStatus(statusId, 'Buscando…', 'loading');
+  try {
+    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const fillEl = (id, val) => { const e = document.getElementById(id); if (e && !e.value && val) e.value = val; };
+    fillEl(ruaId, d.street);
+    fillEl(bairroId, d.neighborhood);
+    fillEl(cidadeId, d.city);
+    const estEl = document.getElementById(estadoId);
+    if (estEl && !estEl.value && d.state) estEl.value = d.state;
+    setStatus(statusId, '✓ ' + [d.city, d.state].filter(Boolean).join('/'), 'ok');
+  } catch {
+    setStatus(statusId, '✗ CEP não encontrado', 'err');
+  }
+}
+
+function togglePFFields(show) {
+  const el = document.getElementById('nova-pf-fields');
+  if (el) el.style.display = show ? '' : 'none';
+}
+
+function onCpfCnpjInput(val) {
+  const d = val.replace(/\D/g, '');
+  togglePFFields(d.length !== 14);
+}
+
+async function lookupCNPJ(rawVal) {
+  const digits = rawVal.replace(/\D/g, '');
+  if (digits.length !== 14) return;
+  setStatus('cnpj-status', 'Buscando CNPJ…', 'loading');
+  try {
+    const res = await fetch('https://brasilapi.com.br/api/cnpj/v1/' + digits);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const fill = (id, val) => { const el = document.getElementById(id); if (el && !el.value && val) el.value = val; };
+    fill('nova-cliente', d.razao_social || d.nome_fantasia);
+    fill('nova-tel', d.ddd_telefone_1);
+    fill('nova-email', d.email ? d.email.toLowerCase() : '');
+    if (d.logradouro) fill('nova-endRua', d.logradouro + (d.numero && d.numero !== '0' ? ', ' + d.numero : '') + (d.complemento ? ' ' + d.complemento : ''));
+    fill('nova-endBairro', d.bairro);
+    fill('nova-endCidade', d.municipio);
+    const estEl = document.getElementById('nova-endEstado');
+    if (estEl && !estEl.value && d.uf) estEl.value = d.uf;
+    if (d.cep) fill('nova-cep-cliente', d.cep.replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/,'$1-$2'));
+    togglePFFields(false);
+    setStatus('cnpj-status', '✓ ' + (d.razao_social || d.nome_fantasia || 'CNPJ encontrado'), 'ok');
+    showToast('CNPJ encontrado — dados preenchidos automaticamente');
+  } catch {
+    setStatus('cnpj-status', '✗ CNPJ não encontrado ou inválido', 'err');
+  }
+}
+
+async function submitNovaOP() {
+  const g = id => document.getElementById(id);
+  const v = id => g(id)?.value?.trim();
+
+  const vendedorCanal    = v('nova-vendedorCanal');
+  const dataPedido       = g('nova-data')?.value;
+  const analistaId       = g('nova-analista')?.value;
+  const numContrato      = v('nova-numContrato');
+  const cliente          = v('nova-cliente');
+  const dn               = g('nova-dn')?.value;
+  const cpf              = v('nova-cpf');
+  const rg               = v('nova-rg');
+  const email            = v('nova-email');
+  const profissao        = v('nova-profissao');
+  const numDocumento     = v('nova-numDocumento') || 'N/A';
+  const endRua           = v('nova-endRua');
+  const endBairro        = v('nova-endBairro');
+  const endCidade        = v('nova-endCidade');
+  const endEstado        = g('nova-endEstado')?.value;
+  const endCEP           = v('nova-cep-cliente');
+  const tel              = v('nova-tel');
+  const voltagem         = g('nova-voltagem')?.value;
+  const tipoContrato     = g('nova-tipoContrato')?.value;
+  const detalhesPagamento= v('nova-detalhesPagamento');
+  const simuladorRaw     = parseBRL(g('nova-simulador')?.value);
+  const simulador        = simuladorRaw > 0 ? simuladorRaw.toString() : '';
+  const entrada          = g('nova-entrada')?.value;
+  const valorEntradaRaw  = parseBRL(g('nova-valorEntrada')?.value);
+  const valorEntrada     = valorEntradaRaw > 0 ? valorEntradaRaw.toString() : '';
+  const valorTotal       = g('nova-valorTotal')?.value;
+  const valorDesconto    = g('nova-valorDesconto')?.value;
+  const valorLiquido     = g('nova-valorLiquido')?.value;
+  const enderecoEntrega  = v('nova-enderecoEntrega');
+  const contatoEntrega   = v('nova-contatoEntrega');
+  const prazo            = g('nova-prazo')?.value;
+  const aContarDe        = g('nova-aContarDe')?.value;
+  const dataPrevista     = g('nova-data-prevista')?.textContent;
+  const treinamento      = v('nova-treinamento');
+  const descricao        = v('nova-descricao');
+  const arquivo          = g('nova-arquivo')?.files[0]?.name || '';
+
+  const enderecoCliente = [endRua, endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
+
+  if (!vendedorCanal) { highlightError('nova-vendedorCanal'); return; }
+  if (!cliente)       { highlightError('nova-cliente');       return; }
+  if (!tempEquipList.length) {
+    const el = g('equip-list-items');
+    if (el) { el.style.outline='2px solid var(--red)'; el.style.borderRadius='6px'; }
+    return;
+  }
+
+  const vUser = VENDEDORES.find(vv => vv.id === analistaId);
+  const initialStatus = STEPS.aberta.getNext({ entrada, liberadoDiretoria: false });
+  const pulou = initialStatus === 'aguard_nf';
+  const equipNames = tempEquipList.map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
+  const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+
+  // Constrói o objeto OP sem ID ainda — Supabase vai gerar
+  const opData = {
+    id: 0,            // placeholder; será substituído pelo ID real do DB
+    numero: 'PENDENTE',
+    cliente: cliente.toUpperCase(),
+    equipamentos: equipNames,
+    equipamento: equipNames.join(', '),
+    vendedor: analistaId,
+    vendedorName: vUser?.name || analistaId,
+    vendedorCanal,
+    contrato: numContrato || '',
+    numContrato: numContrato || '',
+    entrada,
+    dataAbertura: new Date().toISOString().split('T')[0],
+    status: initialStatus,
+    liberadoDiretoria: false, opDivergente: false, multiOp: false,
+    pedidoVenda: {
+      empresa: 'Contourline Equipamentos Médicos e Diagnósticos Ltda',
+      cnpj: '14.458.149/0001-23',
+      data: fmtD(dataPedido) || new Date().toLocaleDateString('pt-BR'),
+      vendedorCanal,
+      analista: vUser?.name || analistaId,
+      numContrato, frete: 'EMPRESA',
+      cliente: cliente.toUpperCase(),
+      dn: fmtD(dn), cpf, rg, email, profissao, numDocumento,
+      endRua, endBairro, endCidade, endEstado, endCEP, enderecoCliente, tel,
+      voltagem, tipoContrato, detalhesPagamento,
+      simulador: simulador || '',
+      valorTotal, valorDesconto, valorLiquido,
+      entrada, valorEntrada,
+      enderecoEntrega: enderecoEntrega || enderecoCliente || '',
+      contatoEntrega, prazo,
+      aContarDe: fmtD(aContarDe),
+      dataPrevista: (dataPrevista && dataPrevista !== '—') ? dataPrevista : '',
+      treinamento,
+      equipamentos: tempEquipList.map(e => ({ ...e })),
+    },
+    stepData: {
+      aberta: { clienteNome: cliente, equipamentos: [...tempEquipList], arquivoOP: arquivo, descricao },
+    },
+    history: [{
+      step: 'aberta', actor: 'vendedor', actorName: vUser?.name || analistaId, ts: nowTs(),
+      note: (descricao || '') + (pulou ? ' — Validação financeira pulada.' : ''),
+    }],
+    obs: '',
+  };
+
+  // Desabilita botão durante o insert
+  const btnCriar = g('btn-criar-op');
+  if (btnCriar) { btnCriar.disabled = true; btnCriar.textContent = 'Salvando…'; }
+
+  // Insere no Supabase para obter o ID real
+  const { data: rows, error } = await sb.from('ops').insert({
+    cliente:  opData.cliente,
+    status:   opData.status,
+    data:     opData,
+  }).select('id');
+
+  if (error || !rows?.length) {
+    console.error('Erro ao inserir OP:', error);
+    showToast('Erro ao salvar OP: ' + (error?.message || 'sem resposta'), 'err');
+    if (btnCriar) { btnCriar.disabled = false; btnCriar.textContent = 'Criar OP →'; }
+    return;
+  }
+
+  // Atualiza com ID e numero reais
+  const newId  = Number(rows[0].id);
+  const numero = newId + '/' + new Date().getFullYear();
+  opData.id     = newId;
+  opData.numero = numero;
+  if (opData.pedidoVenda) opData.pedidoVenda.numero = numero;
+
+  // Atualiza Supabase com numero correto (fire-and-forget)
+  sb.from('ops').update({ numero, data: opData }).eq('id', newId);
+
+  ops.unshift(opData);
+  nextId = newId + 1;
+
+  closeModal();
+  currentTab = 'todas';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===2));
+  renderAll();
+  openInfoModal(newId);
+}
+
+function highlightError(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = 'var(--red)';
+  el.style.boxShadow   = '0 0 0 3px rgba(220,38,38,.12)';
+  el.focus();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PDF EXPORT — Pedido de Venda
+// ═══════════════════════════════════════════════════════════════════
+
+function fmtBRL(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? '—' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function printPedidoVenda(opId) {
+  const op = ops.find(o => o.id === opId);
+  if (!op?.pedidoVenda) { alert('Pedido do Cliente não disponível para esta OP.'); return; }
+  const pv = op.pedidoVenda;
+
+  const equipRows = (pv.equipamentos || (op.equipamentos||[]).map(n => ({ name:n, qty:1, valorUnit:'', desconto:'' })))
+    .map(e => {
+      const vu = e.valorUnit ? fmtBRL(e.valorUnit) : '—';
+      const lineT = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+      const vt = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+      return `<tr><td style="text-align:center">${e.qty||1}</td><td>${e.name}</td><td style="text-align:right">${vu}</td><td style="text-align:right">${vt}</td></tr>`;
+    }).join('');
+
+  const hasDesconto = pv.valorDesconto && parseFloat(pv.valorDesconto) > 0;
+  const descontoRow = hasDesconto
+    ? `<tr><td colspan="3" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Desconto</td><td style="text-align:right;font-weight:700">R$ ${parseFloat(pv.valorDesconto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`
+    : '';
+  const totalRow = pv.valorLiquido && parseFloat(pv.valorLiquido) > 0
+    ? `<tr class="tr-total"><td colspan="3" style="text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Valor Total</td><td style="text-align:right">${fmtBRL(pv.valorLiquido)}</td></tr>`
+    : '';
+
+  const payLines = pv.detalhesPagamento
+    ? pv.detalhesPagamento.split('\n').filter(l=>l.trim()).map(l=>`<div class="pay-line">${l}</div>`).join('')
+    : '';
+  const simLine = pv.simulador && parseFloat(pv.simulador) > 0
+    ? `<div class="pay-line" style="margin-top:4px">Simulador: ${fmtBRL(pv.simulador)}</div>`
+    : '';
+
+  const obsDescricao = op.stepData?.aberta?.descricao;
+  const obsParts = [];
+  if (obsDescricao)       obsParts.push(`Observações: ${obsDescricao}`);
+  if (pv.enderecoEntrega) obsParts.push(`Endereço de entrega: ${pv.enderecoEntrega}`);
+  if (pv.contatoEntrega)  obsParts.push(`Contato responsável: ${pv.contatoEntrega}`);
+  if (pv.prazo) {
+    let prazoStr = `${pv.prazo} dias úteis`;
+    if (pv.aContarDe) prazoStr += ` (a contar de ${pv.aContarDe})`;
+    if (pv.dataPrevista) prazoStr += ` — Previsão: ${pv.dataPrevista}`;
+    obsParts.push(`Prazo de entrega: ${prazoStr}`);
+  }
+  if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
+  const obsHtml = obsParts.map(p=>`<div class="obs-line">${p}</div>`).join('');
+
+  const w = window.open('', '_blank', 'width=860,height=1100');
+  w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Pedido do Cliente — OP ${op.numero}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
+.page{max-width:210mm;margin:0 auto;padding:14mm 16mm}
+/* header */
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2.5px solid #162C45;padding-bottom:10px;margin-bottom:12px}
+.brand{font-size:19px;font-weight:900;color:#162C45;letter-spacing:-1px}
+.brand-sub{font-size:9px;color:#555;margin-top:3px}
+.doc-title{text-align:right;text-decoration:underline;font-size:17px;font-weight:800;color:#162C45}
+/* meta grid */
+.meta-grid{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
+.meta-grid td{padding:3px 8px;border:1px solid #c8d0dc;vertical-align:top}
+.meta-grid .lbl{font-weight:700;background:#f0f4f8;white-space:nowrap;width:100px}
+/* client block */
+.cli{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
+.cli td{padding:4px 8px;border:1px solid #c8d0dc;vertical-align:top}
+.cli .lbl{font-weight:700;white-space:nowrap}
+/* equipment table */
+table.equip{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}
+table.equip th{background:#162C45;color:#fff;font-size:9px;text-transform:uppercase;padding:5px 7px;letter-spacing:.4px}
+table.equip td{border-bottom:.5px solid #e5e8ee;padding:5px 7px;vertical-align:middle}
+table.equip tr:nth-child(even) td{background:#f7f9fc}
+.tr-total td{font-weight:700;border-top:1.5px solid #162C45;background:#eef2fa!important;font-size:12px}
+/* payment */
+.pay-type{font-weight:800;font-size:11px;text-transform:uppercase;margin-bottom:5px;padding:3px 0}
+.pay-line{font-size:11px;line-height:1.8}
+/* obs */
+.obs-box{background:#f7f9fc;border:1px solid #d8dfe8;border-radius:4px;padding:10px 12px;margin-top:10px}
+.obs-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#162C45;margin-bottom:6px}
+.obs-line{font-size:11px;line-height:1.8}
+/* footer */
+.footer-bar{margin-top:10px;display:flex;justify-content:space-between;border-top:1.5px solid #162C45;padding-top:7px;font-size:12px}
+.footer-bar .val{font-weight:800}
+.sig-block{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.sig{border-bottom:1px solid #333;height:28px;margin-bottom:4px}
+.sig-lbl{font-size:9px;color:#666;text-align:center}
+.no-print{text-align:right;margin-bottom:14px}
+.no-print button{padding:8px 18px;background:#162C45;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:700}
+@media print{@page{margin:12mm;size:A4}.no-print{display:none!important}}
+</style></head><body><div class="page">
+<div class="no-print"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>
+
+<div class="hdr">
+  <div>
+    <div class="brand">CONTOURLINE</div>
+    <div class="brand-sub">Equipamentos Médicos e Diagnósticos Ltda<br>CNPJ: ${pv.cnpj}</div>
+  </div>
+  <div class="doc-title">Pedido do Cliente</div>
+</div>
+
+<table class="meta-grid">
+  <tr>
+    <td class="lbl">Vendedor(a)</td><td>${pv.vendedorCanal||'—'}</td>
+    <td class="lbl">Data</td><td>${pv.data||'—'}</td>
+  </tr>
+  <tr>
+    <td class="lbl">Analista</td><td>${pv.analista||'—'}</td>
+    <td class="lbl">Contrato</td><td>${pv.numContrato||'—'}</td>
+  </tr>
+</table>
+
+<table class="cli">
+  <tr>
+    <td colspan="3"><strong>{ X } Nome: ${pv.cliente||'—'}</strong></td>
+    <td style="white-space:nowrap"><span class="lbl">DN: </span>${pv.dn||'—'}</td>
+  </tr>
+  <tr>
+    <td><span class="lbl">CPF: </span>${pv.cpf||'—'}</td>
+    <td><span class="lbl">RG: </span>${pv.rg||'—'}</td>
+    <td colspan="2"><span class="lbl">E-mail: </span>${pv.email||'—'}</td>
+  </tr>
+  <tr>
+    <td colspan="4"><span class="lbl">Endereço: </span>${pv.endRua||pv.enderecoCliente||'—'}</td>
+  </tr>
+  <tr>
+    <td><span class="lbl">Bairro: </span>${pv.endBairro||'—'}</td>
+    <td><span class="lbl">Cidade: </span>${pv.endCidade||'—'}</td>
+    <td><span class="lbl">CEP: </span>${pv.endCEP||'—'}</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><span class="lbl">Estado: </span>${pv.endEstado||'—'}</td>
+    <td colspan="3"><span class="lbl">Tel.: </span>${pv.tel||'—'}</td>
+  </tr>
+  <tr>
+    <td><span class="lbl">Profissão: </span>${pv.profissao||'—'}</td>
+    <td colspan="3"><span class="lbl">Nº documento: </span>${pv.numDocumento||'N/A'}</td>
+  </tr>
+</table>
+
+<table class="equip">
+  <thead><tr>
+    <th style="text-align:center;width:50px">Quant.</th>
+    <th>Descrição</th>
+    <th style="text-align:right;width:120px">Valor Unitário</th>
+    <th style="text-align:right;width:120px">Valor Total</th>
+  </tr></thead>
+  <tbody>
+    ${equipRows}
+    ${descontoRow}
+    ${totalRow}
+  </tbody>
+</table>
+
+${pv.voltagem ? `<div style="font-size:11px;margin-bottom:8px">Voltagem: ${pv.voltagem}</div>` : ''}
+
+<div style="margin:8px 0 4px">
+  ${pv.tipoContrato ? `<div class="pay-type">${pv.tipoContrato}</div>` : ''}
+  ${payLines}
+  ${simLine}
+</div>
+
+${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsHtml}</div>` : ''}
+
+<div class="footer-bar">
+  <div>Valor total da compra: <span class="val">${fmtBRL(pv.valorLiquido||pv.valorTotal)}</span></div>
+  <div>Frete: <strong>${pv.frete||'EMPRESA'}</strong></div>
+</div>
+</div></body></html>`);
+  w.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+
+function setUser(id) { currentUserId = id; renderAll(); }
+function setTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMain(); renderCounts();
+}
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT — carrega do Supabase e inicia Realtime
+// ═══════════════════════════════════════════════════════════════════
+renderRoles();
+loadOps().then(() => startRealtime());
+</script>
+</body>
+</html>

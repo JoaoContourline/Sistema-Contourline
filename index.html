@@ -299,24 +299,28 @@ main { padding: 24px; }
 .api-status { font-size:10px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
 
 /* SPLIT ACTION MODAL */
+/* NOTA: overlay usa display:grid;place-items:center — max-height sozinho não
+   dá altura definitiva ao modal, então flex:1 nos filhos não funciona.
+   Solução: height:90vh dá altura concreta para a cadeia de flex/grid funcionar. */
 .modal.split {
   max-width: 940px;
-  overflow: hidden !important;   /* override base .modal overflow-y: auto */
-  overflow-y: hidden !important;
+  height: 90vh;
   max-height: 90vh;
+  overflow: hidden !important;
+  overflow-y: hidden !important;
   display: flex;
   flex-direction: column;
 }
 .modal-split-body {
   flex: 1;
-  min-height: 0;                 /* critical: lets flex child shrink below content size */
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   overflow: hidden;
 }
 .split-pane {
   overflow-y: auto;
-  min-height: 0;                 /* critical: lets grid child scroll independently */
+  min-height: 0;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
@@ -352,8 +356,8 @@ main { padding: 24px; }
 .ctx-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .4px; color: var(--text3); }
 .ctx-value { font-size: 12px; color: var(--text); line-height: 1.4; }
 @media (max-width: 760px) {
-  .modal.split { max-width: 98vw; }
-  .modal-split-body { grid-template-columns: 1fr; overflow-y: auto; min-height: unset; }
+  .modal.split { max-width: 98vw; height: 95vh; max-height: 95vh; }
+  .modal-split-body { grid-template-columns: 1fr; overflow-y: auto; }
   .split-pane-left { max-height: 260px; border-right: none; border-bottom: 1px solid var(--border); order: 2; }
   .split-pane-right { order: 1; overflow-y: visible; }
 }

@@ -99,6 +99,8 @@ main { padding: 24px; }
 .card.actionable:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(38,114,184,.15); }
 .card.blocked { border-color: rgba(220,38,38,.2); }
 .card.blocked:hover { border-color: var(--red); }
+.card.entregue { border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.025); }
+.card.entregue:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(22,163,74,.1); }
 
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
@@ -365,7 +367,7 @@ main { padding: 24px; }
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="setTab('fila',this)">Minha Fila <span class="tab-count" id="cnt-fila">0</span></button>
+  <button class="tab-btn active" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
 </div>
@@ -396,6 +398,12 @@ function icon(name, size = 16, style = '') {
     'plus':           `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
     'search':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
     'upload':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+    'download':       `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+    'truck':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+    'package':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+    'map-pin':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    'clock':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    'external-link':  `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
   };
   return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
 }
@@ -541,9 +549,10 @@ const STEPS = {
     label: 'Aguardando NF', color: 'orange', owner: 'logistica', pipelineIdx: 2,
     actionLabel: 'Solicitar Emissão de NF',
     formFields: [
+      { key: 'cepEntrega',      label: 'CEP de Entrega',                 type: 'cep-lookup', targetKey: 'enderecoEntrega' },
       { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
       { key: 'numSerie',        label: 'Número de Série do Produto *',   type: 'text',     required: true },
-      { key: 'tecnico',         label: 'Técnico / Transportadora *',     type: 'text',     required: true },
+      { key: 'tecnico',         label: 'Motorista / Transportadora *',   type: 'text',     required: true },
       { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
       { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
       { key: 'descricao',       label: 'Descrição *',                    type: 'textarea', required: true },
@@ -564,16 +573,12 @@ const STEPS = {
     getNext() { return 'aguard_despacho'; },
   },
 
-  // Nova etapa: Logística revisa a NF antes de despachar.
-  // Pode reprovar → volta para Fiscal com os dados corrigidos pré-preenchidos.
+  // Logística revisa a NF antes de despachar. Data/hora é registrada na confirmação.
   aguard_despacho: {
     label: 'Despacho', color: 'teal', owner: 'logistica', pipelineIdx: 4,
     actionLabel: 'Confirmar e Despachar',
     rejectLabel: 'Solicitar Re-emissão de NF',
-    formFields: [
-      { key: 'descricao', label: 'Confirmação de Despacho *', type: 'textarea', required: true },
-      { key: 'fotos',     label: 'Fotos do Despacho',         type: 'multi-file', accept: 'image/*,.pdf' },
-    ],
+    formFields: [], // data/hora são coletados via modal especial (não via formFields genérico)
     rejectFields: [
       { key: 'motivoReemissao', label: 'Motivo da Re-emissão *', type: 'textarea', required: true,
         placeholder: 'Ex: Endereço incorreto — correto é Av. Inocêncio Lima nº 515, sala 302...' },
@@ -585,12 +590,12 @@ const STEPS = {
   },
 
   transito: {
-    label: 'Em Trânsito', color: 'blue', owner: 'entrega', pipelineIdx: 5,
+    label: 'Em Trânsito', color: 'blue', owner: 'logistica', pipelineIdx: 5,
     actionLabel: 'Confirmar Entrega ao Cliente',
     formFields: [
-      { key: 'dataEntrega', label: 'Data de Entrega *',         type: 'date',       required: true },
-      { key: 'fotos',       label: 'Fotos / Comprovante',       type: 'multi-file', accept: 'image/*,.pdf' },
-      { key: 'descricao',   label: 'Descrição / Comprovante *', type: 'textarea',   required: true },
+      { key: 'dataEntrega', label: 'Data de Entrega *',   type: 'date',       required: true },
+      { key: 'fotos',       label: 'Fotos / Comprovante', type: 'multi-file', accept: 'image/*,.pdf' },
+      { key: 'descricao',   label: 'Observações *',       type: 'textarea',   required: true },
     ],
     getNext() { return 'entregue'; },
   },
@@ -610,12 +615,11 @@ const COLOR_MAP = { blue:'b-blue', yellow:'b-yellow', orange:'b-orange', purple:
 // ═══════════════════════════════════════════════════════════════════
 
 const SECTORS = [
-  { id:'comercial',  name:'Comercial',            role:'vendedor',   av:'COM', desc:'Abre e acompanha OPs' },
-  { id:'financeiro', name:'Financeiro',            role:'financeiro', av:'FIN', desc:'Valida pagamentos' },
-  { id:'logistica',  name:'Logística — NF',        role:'logistica',  av:'LOG', desc:'Solicita NF e aprova despacho' },
-  { id:'fiscal',     name:'Fiscal',                role:'fiscal',     av:'FIS', desc:'Emite notas fiscais' },
-  { id:'entrega',    name:'Logística — Entrega',   role:'entrega',    av:'ENT', desc:'Confirma entregas' },
-  { id:'gestor',     name:'Gestor',                role:'gestor',     av:'GES', desc:'Visão completa' },
+  { id:'comercial',  name:'Comercial',  role:'vendedor',   av:'COM', desc:'Abre e acompanha OPs' },
+  { id:'financeiro', name:'Financeiro', role:'financeiro', av:'FIN', desc:'Valida pagamentos' },
+  { id:'logistica',  name:'Logística',  role:'logistica',  av:'LOG', desc:'Solicita NF, despacho e entregas' },
+  { id:'fiscal',     name:'Fiscal',     role:'fiscal',     av:'FIS', desc:'Emite notas fiscais' },
+  { id:'gestor',     name:'Gestor',     role:'gestor',     av:'GES', desc:'Visão completa' },
 ];
 
 // Pessoas — usadas apenas no form Nova OP e no histórico
@@ -699,7 +703,8 @@ let currentTab    = 'fila';
 let activeOpId    = null;
 let modalMode     = null;
 let tempEquipList = []; // [{name, qty}]
-let tempFiles = {};    // { key: [File, File, ...] }
+let tempFiles     = {}; // { key: [File, ...] } — only used for File object reference
+let tempFilesData = {}; // { key: [{name, size, dataUrl}] } — persisted in formData
 
 const getUser = () => SECTORS.find(s => s.id === currentUserId);
 
@@ -708,21 +713,25 @@ const getUser = () => SECTORS.find(s => s.id === currentUserId);
 // ═══════════════════════════════════════════════════════════════════
 
 function getQueue(user) {
+  if (user.role === 'gestor')   return [];
+  if (user.role === 'vendedor') return ops.filter(o => o.status !== 'entregue'); // pendentes = em andamento
+  if (user.role === 'logistica') return ops.filter(o =>
+    o.status === 'aguard_nf' || o.status === 'aguard_despacho' || o.status === 'transito'
+  );
   return ops.filter(op => {
     const step = STEPS[op.status];
     if (!step) return false;
-    if (user.role === 'gestor')   return false;
-    if (user.role === 'vendedor') return false; // vendedor apenas cria OPs via "+ Nova OP"
     return step.owner === user.role;
   });
 }
 
 function getCompleted(user) {
   if (user.role === 'gestor')   return ops.filter(o => o.status === 'entregue');
-  if (user.role === 'vendedor') return ops; // Comercial vê todas as OPs
+  if (user.role === 'vendedor') return ops.filter(o => o.status === 'entregue');
+  const queue = getQueue(user);
   return ops.filter(op => {
     const acted = op.history.some(h => h.actor === user.role);
-    return acted && !getQueue(user).some(q => q.id === op.id);
+    return acted && !queue.some(q => q.id === op.id);
   });
 }
 
@@ -1035,32 +1044,75 @@ function brlFmtNum(n) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MULTI-FILE SYSTEM
+// FILE SYSTEM — base64 storage para visualização/download no app
 // ═══════════════════════════════════════════════════════════════════
 
-function addMultiFile(input, key) {
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload  = e => resolve(e.target.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// Gera HTML de link para visualizar/baixar arquivo armazenado
+function fileLinkHtml(f, compact = false) {
+  if (!f) return '—';
+  if (typeof f === 'string') {
+    // legado: apenas nome sem dataUrl
+    return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
+  }
+  const ext = f.name.split('.').pop().toLowerCase();
+  const isImg = ['jpg','jpeg','png','gif','webp','bmp'].includes(ext);
+  const kb = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
+  return `<a href="${f.dataUrl}" target="_blank" download="${f.name}"
+    style="display:inline-flex;align-items:center;gap:5px;font-size:${compact?'11':'12'}px;color:var(--accent);text-decoration:none;
+           padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
+           transition:border-color .1s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+    ${icon(isImg?'file-text':'file-text',12,'color:var(--accent)')} ${f.name}
+    ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
+    ${icon('external-link',11,'color:var(--text3)')}
+  </a>`;
+}
+
+function fileLinksHtml(files) {
+  if (!files || !files.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${
+    (Array.isArray(files) ? files : [files]).map(f => fileLinkHtml(f)).join('')
+  }</div>`;
+}
+
+async function addMultiFile(input, key) {
   if (!input.files.length) return;
-  if (!tempFiles[key]) tempFiles[key] = [];
-  Array.from(input.files).forEach(f => tempFiles[key].push(f));
+  if (!tempFilesData[key]) tempFilesData[key] = [];
+  for (const f of Array.from(input.files)) {
+    if (f.size > 15 * 1024 * 1024) { showToast('Arquivo muito grande (máx 15 MB): ' + f.name, 'err'); continue; }
+    const dataUrl = await fileToDataUrl(f);
+    tempFilesData[key].push({ name: f.name, size: f.size, dataUrl });
+  }
   input.value = '';
   refreshMultiFileList(key);
 }
 
 function removeMultiFile(key, idx) {
-  if (!tempFiles[key]) return;
-  tempFiles[key].splice(idx, 1);
+  if (!tempFilesData[key]) return;
+  tempFilesData[key].splice(idx, 1);
   refreshMultiFileList(key);
 }
 
 function refreshMultiFileList(key) {
   const el = document.getElementById('mfl-' + key);
   if (!el) return;
-  const files = tempFiles[key] || [];
+  const files = tempFilesData[key] || [];
   el.innerHTML = files.map((f, i) => `
     <div class="multi-file-item">
-      <span class="multi-file-item-name" style="display:flex;align-items:center;gap:5px">${icon('paperclip',12,'color:var(--text3)')} ${f.name}</span>
+      <span class="multi-file-item-name" style="display:flex;align-items:center;gap:5px;overflow:hidden">
+        ${icon('paperclip',12,'color:var(--text3);flex-shrink:0')}
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+      </span>
       <span class="multi-file-item-size">${(f.size/1024).toFixed(0)} KB</span>
-      <button class="multi-file-remove" type="button" onclick="removeMultiFile('${key}',${i})" title="Remover">×</button>
+      <button class="multi-file-remove" type="button" onclick="removeMultiFile('${key}',${i})" title="Remover">${icon('x',12)}</button>
     </div>`).join('');
 }
 
@@ -1070,6 +1122,17 @@ function refreshMultiFileList(key) {
 
 function buildFieldHtml(f) {
   if (f.type === 'equipment-list') return equipListHtml();
+
+  if (f.type === 'cep-lookup') return `
+    <div class="form-group">
+      <label class="form-label">${f.label}</label>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input class="form-input" id="f-${f.key}" placeholder="00000-000" style="max-width:150px"
+          oninput="fmtCEP(this)"
+          onkeyup="if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'f-${f.targetKey}','cep-field-status-${f.key}')">
+        <div id="cep-field-status-${f.key}" class="api-status" style="display:flex;align-items:center"></div>
+      </div>
+    </div>`;
 
   if (f.type === 'multi-file') return `
     <div class="form-group">
@@ -1105,13 +1168,17 @@ function buildFieldHtml(f) {
     </div>`;
 }
 
-function handleFile(input) {
+async function handleFile(input) {
   if (!input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 15 * 1024 * 1024) { showToast('Arquivo muito grande (máx 15 MB)', 'err'); return; }
   const key = input.id.replace('f-','');
+  const dataUrl = await fileToDataUrl(file);
+  tempFilesData[key] = { name: file.name, size: file.size, dataUrl };
   const display = document.getElementById(`file-display-${key}`);
   if (display) {
     display.classList.add('has-file');
-    display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${input.files[0].name} <span style="font-weight:400;opacity:.7">(${(input.files[0].size/1024).toFixed(0)} KB)</span></div>`;
+    display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${file.name} <span style="font-weight:400;opacity:.7">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
   }
 }
 
@@ -1149,35 +1216,67 @@ function renderMain() {
 }
 
 function renderQueue(user, el) {
-  const queue = getQueue(user);
-  const config = {
-    vendedor:   ['Minhas OPs',                                'Acompanhe as OPs que você criou. Para abrir uma nova, use o botão "+ Nova OP" no topo.'],
-    financeiro: ['Validação Financeira',                      'OPs com entrada pendente aguardando aprovação de pagamento'],
-    logistica:  ['NF a Solicitar',                            'Preencha os dados de despacho e solicite a emissão da nota fiscal'],
-    fiscal:     ['Notas Fiscais a Emitir',                    'Preencha os dados — emita a NF e registre o número aqui'],
-    entrega:    ['Em Trânsito — Aguardando Confirmação',      'Confirme a entrega ao cliente'],
-    gestor:     ['Sem ações pendentes',                       'Você tem acesso de visualização. Use "Todas as OPs" para o painel completo.'],
-  };
-  const [title, desc] = config[user.role] || ['Minha Fila',''];
-
+  // ── GESTOR ───────────────────────────────────────────────────────
   if (user.role === 'gestor') {
-    el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
+    el.innerHTML = `<div class="step-header"><div class="step-title">Sem pendências</div><div class="step-desc">Você tem acesso de visualização. Use "Todas as OPs" para o painel completo.</div></div>
       <div class="empty"><div class="empty-icon">${icon('eye',32,'color:var(--text3)')}</div><div class="empty-title">Acesso de visualização</div><div class="empty-desc">Use "Todas as OPs" para o painel completo.</div></div>`;
     return;
   }
+
+  // ── COMERCIAL — pendentes = em andamento ─────────────────────────
   if (user.role === 'vendedor') {
-    const ativas    = ops.filter(o => o.status !== 'entregue');
-    const entregues = ops.filter(o => o.status === 'entregue');
-    let html = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>`;
+    const pendentes = ops.filter(o => o.status !== 'entregue');
+    let html = `<div class="step-header"><div class="step-title">Minhas OPs — Pendentes</div>
+      <div class="step-desc">OPs ainda em andamento. Acompanhe o progresso ou clique para ver detalhes.</div></div>`;
     if (!ops.length) {
       html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP ainda</div><div class="empty-desc">Clique em "+ Nova OP" para começar.</div></div>`;
+    } else if (!pendentes.length) {
+      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Todas as OPs foram entregues!</div></div>`;
     } else {
-      if (ativas.length)    html += `<div class="section"><div class="section-label">Em andamento (${ativas.length})</div><div class="card-grid">${ativas.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
-      if (entregues.length) html += `<div class="section"><div class="section-label">Entregues (${entregues.length})</div><div class="card-grid">${entregues.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
+      html += `<div class="card-grid">${pendentes.map((op,i) => card(op,false,i)).join('')}</div>`;
     }
     el.innerHTML = html;
     return;
   }
+
+  // ── LOGÍSTICA UNIFICADA ──────────────────────────────────────────
+  if (user.role === 'logistica') {
+    const nfOps      = ops.filter(o => o.status === 'aguard_nf');
+    const despachoOps= ops.filter(o => o.status === 'aguard_despacho');
+    const transitoOps= ops.filter(o => o.status === 'transito');
+    const total = nfOps.length + despachoOps.length + transitoOps.length;
+    let html = `<div class="step-header"><div class="step-title">Logística — Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Solicitação NF, despacho e entregas</div></div>`;
+    if (!total) {
+      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Nenhuma pendência agora</div><div class="empty-desc">Todas as etapas de logística estão em dia.</div></div>`;
+    } else {
+      if (nfOps.length) html += `
+        <div class="section">
+          <div class="section-label">${icon('file-text',11,'color:var(--accent)')} Solicitar Emissão de NF (${nfOps.length})</div>
+          <div class="card-grid">${nfOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+      if (despachoOps.length) html += `
+        <div class="section">
+          <div class="section-label">${icon('truck',11,'color:var(--teal)')} Aguardando Despacho (${despachoOps.length})</div>
+          <div class="card-grid">${despachoOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+      if (transitoOps.length) html += `
+        <div class="section">
+          <div class="section-label">${icon('package',11,'color:var(--blue)')} Em Trânsito — Confirmar Entrega (${transitoOps.length})</div>
+          <div class="card-grid">${transitoOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+
+  // ── DEMAIS SETORES ───────────────────────────────────────────────
+  const config = {
+    financeiro: ['Validação Financeira',   'OPs com entrada pendente aguardando aprovação de pagamento'],
+    fiscal:     ['Notas Fiscais a Emitir', 'Preencha os dados — emita a NF e registre o número aqui'],
+  };
+  const [title, desc] = config[user.role] || ['Pendentes', ''];
+  const queue = getQueue(user);
   el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
     ${queue.length === 0
       ? `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Fila vazia</div><div class="empty-desc">Nenhuma OP aguardando sua ação agora.</div></div>`
@@ -1256,14 +1355,18 @@ function card(op, inQueue, animIdx) {
     </div>`;
   }
 
+  const isEntregue = op.status === 'entregue';
   return `
-  <div class="card ${canAct?'actionable':''} ${isBlocked?'blocked':''}" style="animation-delay:${animIdx*.04}s" onclick="openCard(${op.id})">
+  <div class="card ${canAct?'actionable':''} ${isBlocked?'blocked':''} ${isEntregue?'entregue':''}" style="animation-delay:${animIdx*.04}s" onclick="openCard(${op.id})">
     <div class="card-top">
       <div>
         <div class="card-op">OP ${op.numero}</div>
         <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorName}</div>
       </div>
-      <div class="card-flags">${flagsHtml(op)}</div>
+      <div class="card-flags">
+        ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
+        ${flagsHtml(op)}
+      </div>
     </div>
     <div class="card-client">${op.cliente}</div>
     <div class="equip-chips">${equipList}</div>
@@ -1420,7 +1523,7 @@ function openCard(opId) {
 }
 
 function openActionModal(opId, mode) {
-  activeOpId = opId; modalMode = mode; tempFiles = {};
+  activeOpId = opId; modalMode = mode; tempFiles = {}; tempFilesData = {};
   const op   = ops.find(o => o.id === opId);
   const step = STEPS[op.status];
   const fields = mode==='reject' ? (step.rejectFields||[]) : (step.formFields||[]);
@@ -1476,7 +1579,7 @@ function openActionModal(opId, mode) {
         <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2" placeholder="Rua, número, bairro, cidade/UF, CEP">${nfData.enderecoEntrega||''}</textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Técnico / Transportadora *</label>
+        <label class="form-label">Motorista / Transportadora *</label>
         <input class="form-input" id="f-reNF_tecnico" placeholder="Ex: Alexandre - Expert - SHY8C17" value="${nfData.tecnico||''}">
       </div>
       <div class="form-row">
@@ -1511,6 +1614,25 @@ function openActionModal(opId, mode) {
         <label class="form-label">Observações *</label>
         <textarea class="form-textarea" id="f-descricao" rows="2" placeholder="Descreva as correções feitas na re-emissão...">${emData.descricao||''}</textarea>
       </div>`;
+  } else if (op.status === 'aguard_despacho' && mode === 'advance') {
+    // Despacho: só data + hora, sem anexo
+    const nowDate = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toTimeString().slice(0,5);
+    fieldsHtml = `
+      <div class="success-block" style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">
+        ${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}
+        <span>Confirme os dados à esquerda e registre a data e hora do despacho.</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data do Despacho *</label>
+          <input class="form-input" id="f-dataDespacho" type="date" value="${nowDate}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora do Despacho *</label>
+          <input class="form-input" id="f-horaDespacho" type="time" value="${nowTime}">
+        </div>
+      </div>`;
   } else {
     fieldsHtml = fields.map(f => buildFieldHtml(f)).join('');
   }
@@ -1539,62 +1661,171 @@ function openActionModal(opId, mode) {
   document.getElementById('overlay').classList.add('open');
 }
 
+// Helper: constrói um accordion para o info modal
+function infoAcc(title, iconName, contentHtml, open = false) {
+  const arrowStyle = open ? 'rotate(0deg)' : 'rotate(-90deg)';
+  return `<div class="acc">
+    <div class="acc-head" onclick="toggleAccordion(this)" style="font-size:12px">
+      <span style="display:flex;align-items:center;gap:7px">${icon(iconName,14,'color:var(--text3)')} ${title}</span>
+      <span class="acc-arrow" style="transform:${arrowStyle}">${icon('chevron-down',14)}</span>
+    </div>
+    <div class="acc-body" ${open?'':'hidden'}>${contentHtml}</div>
+  </div>`;
+}
+
 function openInfoModal(opId) {
   const op    = ops.find(o => o.id === opId);
   const badge = stepBadge(op.status);
   const sem   = semaforo(op);
+  const pv    = op.pedidoVenda;
+  const sd    = op.stepData || {};
+  const dItem = (label, val) => val
+    ? `<div class="detail-item"><div class="detail-label">${label}</div><div class="detail-value" style="font-size:12px;font-weight:400">${val}</div></div>`
+    : '';
 
-  const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
+  const sections = [];
 
-  let detailsHtml = '';
-  if (op.stepData?.aguard_nf) {
-    const d = op.stepData.aguard_nf;
-    detailsHtml += `<div><div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">Dados de Despacho</div>
-      <div class="detail-grid">
-        <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>
-        <div class="detail-item"><div class="detail-label">Técnico</div><div class="detail-value" style="font-size:12px">${d.tecnico}</div></div>
-        <div class="detail-item"><div class="detail-label">Vol / Peso</div><div class="detail-value" style="font-size:12px">${d.volumes} vol · ${d.peso} kg</div></div>
-        ${d.descricao?`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Descrição</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.descricao}</div></div>`:''}
-      </div></div>`;
-  }
-  if (op.stepData?.aguard_emissao) {
-    const d = op.stepData.aguard_emissao;
-    detailsHtml += `<div class="detail-grid">
-      <div class="detail-item"><div class="detail-label">Nº NF</div><div class="detail-value">${d.numeroNF}</div></div>
-      <div class="detail-item"><div class="detail-label">Emissão</div><div class="detail-value">${fmtDate(d.dataEmissao)}</div></div>
-      ${d.descricao?`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Descrição</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.descricao}</div></div>`:''}
+  // ── PEDIDO DE VENDA ───────────────────────────────────────────────
+  if (pv) {
+    const equipLines = (pv.equipamentos||[]).map(e => {
+      const lt = e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
+      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}</div>`;
+    }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
+
+    const addrParts = [pv.endRua, pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
+
+    let pvHtml = `
+      <div class="detail-grid" style="margin-bottom:8px">
+        ${dItem('Vendedor(a)', pv.vendedorCanal)}
+        ${dItem('Data', pv.data)}
+        ${dItem('Analista', pv.analista)}
+        ${dItem('Contrato', pv.numContrato)}
+      </div>
+      <div style="font-size:9px;font-family:\'DM Mono\',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:.6px">Equipamentos</div>
+      <div style="margin-bottom:10px">${equipLines}</div>`;
+
+    if (pv.valorLiquido || pv.valorTotal) {
+      pvHtml += `<div class="detail-grid" style="margin-bottom:8px">
+        ${pv.valorTotal && parseFloat(pv.valorTotal)>0 ? dItem('Valor Bruto', fmtBRL(pv.valorTotal)) : ''}
+        ${pv.valorDesconto && parseFloat(pv.valorDesconto)>0 ? dItem('Desconto', '− '+fmtBRL(pv.valorDesconto)) : ''}
+        ${pv.valorLiquido && parseFloat(pv.valorLiquido)>0 ? dItem('Valor Total', `<strong style="color:var(--green)">${fmtBRL(pv.valorLiquido)}</strong>`) : ''}
+        ${pv.tipoContrato ? dItem('Tipo', pv.tipoContrato) : ''}
+      </div>`;
+    }
+    if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
+
+    pvHtml += `<div class="detail-grid">
+      ${dItem('Cliente', `<strong>${pv.cliente||'—'}</strong>`)}
+      ${dItem('CPF/CNPJ', pv.cpf)}
+      ${dItem('Tel.', pv.tel)}
+      ${dItem('E-mail', pv.email)}
+      ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
+      ${pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
+      ${dItem('Prazo', pv.prazo ? pv.prazo+' dias úteis'+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
+      ${dItem('Treinamento', pv.treinamento)}
+      ${dItem('Voltagem', pv.voltagem)}
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Exportar PDF</button>
     </div>`;
+    sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
+  } else {
+    const basicHtml = `<div class="detail-grid">
+      ${dItem('Equipamentos', (op.equipamentos||[op.equipamento||'—']).join(', '))}
+      ${dItem('Contrato', op.numContrato||op.contrato)}
+      ${dItem('Vendedor', op.vendedorName)}
+    </div>`;
+    sections.push(infoAcc('Pedido', 'clipboard-list', basicHtml, true));
   }
 
-  const historyHtml = op.history.length
+  // ── FINANCEIRO ────────────────────────────────────────────────────
+  if (sd.aguard_financeiro || op.status === 'aguard_financeiro' || op.status === 'bloqueada') {
+    const df = sd.aguard_financeiro || {};
+    const dr = sd.aguard_financeiro_reject || {};
+    let finHtml = `<div class="detail-grid">
+      ${dItem('Aprovação', df.descricao)}
+      ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
+    </div>`;
+    if (df.boleto?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Boleto(s)</div>${fileLinksHtml(df.boleto)}</div>`;
+    if (df.notaFiscal?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Nota(s) Fiscal(is)</div>${fileLinksHtml(df.notaFiscal)}</div>`;
+    sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
+  }
+
+  // ── DADOS DE ENTREGA ──────────────────────────────────────────────
+  if (sd.aguard_nf) {
+    const d = sd.aguard_nf;
+    let entHtml = `<div class="detail-grid">
+      ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>` : ''}
+      ${dItem('Motorista / Transportadora', d.tecnico)}
+      ${d.volumes||d.peso ? dItem('Vol / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
+      ${dItem('Observações', d.descricao)}
+    </div>`;
+    if (sd.aguard_despacho) {
+      const dd = sd.aguard_despacho;
+      entHtml += `<div class="success-block" style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        ${icon('truck',14,'color:var(--green)')}
+        <span><strong>Despachado</strong> em ${dd.dataDespacho ? fmtDate(dd.dataDespacho) : ''}${dd.horaDespacho ? ' às '+dd.horaDespacho : ''}</span>
+      </div>`;
+    }
+    sections.push(infoAcc('Dados de Entrega', 'truck', entHtml));
+  }
+
+  // ── NOTA FISCAL ───────────────────────────────────────────────────
+  if (sd.aguard_emissao) {
+    const d = sd.aguard_emissao;
+    let nfeHtml = `<div class="detail-grid">
+      ${dItem('Número NF', d.numeroNF)}
+      ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
+      ${dItem('Observações', d.descricao)}
+    </div>`;
+    if (d.arquivoNF) nfeHtml += `<div style="margin-top:8px">${fileLinkHtml(d.arquivoNF)}</div>`;
+    sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
+  }
+
+  // ── CONFIRMAÇÃO DE ENTREGA ────────────────────────────────────────
+  if (sd.transito || op.status === 'entregue') {
+    const d = sd.transito || {};
+    let confHtml = `<div class="detail-grid">
+      ${d.dataEntrega ? dItem('Data de Entrega', fmtDate(d.dataEntrega)) : ''}
+      ${dItem('Observações', d.descricao)}
+    </div>`;
+    if (d.fotos?.length) confHtml += `<div style="margin-top:8px">${fileLinksHtml(d.fotos)}</div>`;
+    sections.push(infoAcc('Confirmação de Entrega', 'package', confHtml, op.status === 'entregue'));
+  }
+
+  // ── HISTÓRICO ─────────────────────────────────────────────────────
+  const histHtml = op.history.length
     ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName}:</span> ${h.note}</div></div>`).join('')
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
+  sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
 
+  // ── STATUS HEADER ─────────────────────────────────────────────────
+  const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
+  const statusHeader = `
+    <div class="op-info-block" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
+        ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
+        ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
+        ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
+      </div>
+      <div class="op-info-meta">
+        <span>${op.vendedorName}</span><span>${op.numContrato||op.contrato||''}</span>
+        <span>${entradaHtml(op.entrada)}</span><span>${daysSince(op.dataAbertura)}d</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
+    </div>`;
+
+  document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
-    <div class="modal-body">
-      <div class="op-info-block">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
-          <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
-          ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
-          ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
-        </div>
-        <div class="op-info-meta">
-          <span>${op.vendedorName}</span><span>${op.numContrato||op.contrato}</span>
-          <span>${entradaHtml(op.entrada)}</span><span>${daysSince(op.dataAbertura)} dias</span>
-        </div>
-        <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
-        ${op.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">${op.obs}</div>`:''}
-      </div>
-      ${op.pedidoVenda ? `<div style="background:var(--blue-bg);border:1px solid rgba(38,114,184,.15);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:12px;color:var(--accent);font-weight:600;display:flex;align-items:center;gap:6px">${icon('file-text',14,'color:var(--accent)')} Pedido de Venda gerado</span><button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Exportar PDF</button></div>` : ''}
-      ${detailsHtml}
-      <div>
-        <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:10px;letter-spacing:.6px">Histórico</div>
-        <div style="display:flex;flex-direction:column;gap:10px">${historyHtml}</div>
-      </div>
+    <div class="modal-body" style="gap:0;padding:16px 22px">
+      ${statusHeader}
+      <div style="display:flex;flex-direction:column;gap:6px">${sections.join('')}</div>
     </div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
@@ -1604,13 +1835,23 @@ function openInfoModal(opId) {
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('modal').classList.remove('wide', 'split');
-  activeOpId = null; modalMode = null; tempEquipList = []; tempFiles = {};
+  activeOpId = null; modalMode = null; tempEquipList = []; tempFiles = {}; tempFilesData = {};
 }
 
 function submitModal() {
   if (!activeOpId || !modalMode) return;
   const op   = ops.find(o => o.id === activeOpId);
   const step = STEPS[op.status];
+
+  // Caso especial: Confirmar e Despachar (aguard_despacho → transito)
+  if (op.status === 'aguard_despacho' && modalMode === 'advance') {
+    const dataD = document.getElementById('f-dataDespacho')?.value;
+    const horaD = document.getElementById('f-horaDespacho')?.value;
+    if (!dataD || !horaD) { showToast('Preencha data e hora do despacho', 'err'); return; }
+    const descDespacho = `Despachado em ${fmtDate(dataD)} às ${horaD}`;
+    advanceOP(activeOpId, { dataDespacho: dataD, horaDespacho: horaD, descricao: descDespacho });
+    closeModal(); return;
+  }
 
   // Re-emission: combined aguard_nf + aguard_emissao form
   if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && modalMode === 'advance') {
@@ -1632,7 +1873,7 @@ function submitModal() {
       peso:    document.getElementById('f-reNF_peso')?.value    || '',
       descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
     };
-    const fileNF = document.getElementById('f-arquivoNF')?.files[0]?.name || op.stepData.aguard_emissao?.arquivoNF || '';
+    const fileNF = tempFilesData['arquivoNF'] || op.stepData.aguard_emissao?.arquivoNF || null;
     advanceOP(activeOpId, { numeroNF: numNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }
@@ -1651,14 +1892,14 @@ function submitModal() {
       continue;
     }
     if (f.type === 'multi-file') {
-      formData[f.key] = (tempFiles[f.key] || []).map(file => file.name);
+      formData[f.key] = tempFilesData[f.key] || [];
       continue;
     }
     if (f.type === 'file') {
-      const input = document.getElementById('f-' + f.key);
-      formData[f.key] = input?.files[0]?.name || '';
+      formData[f.key] = tempFilesData[f.key] || null;
       continue;
     }
+    if (f.type === 'cep-lookup') continue; // CEP é auxiliar, não salva
     const el  = document.getElementById('f-' + f.key);
     const val = el?.value?.trim();
     if (f.required && !val) { el.style.borderColor='var(--red)'; el.style.boxShadow='0 0 0 3px rgba(220,38,38,.12)'; el.focus(); return; }
@@ -2029,6 +2270,28 @@ async function lookupCEP(rawVal, targetId, statusId) {
       el.value = parts.join(', ');
     }
     setStatus(statusId, '✓ ' + [d.city, d.state].filter(Boolean).join('/'), 'ok');
+  } catch {
+    setStatus(statusId, '✗ CEP não encontrado', 'err');
+  }
+}
+
+// CEP lookup genérico: preenche um campo textarea pelo ID
+async function lookupCEPforField(rawVal, targetId, statusId) {
+  const digits = rawVal.replace(/\D/g, '');
+  if (digits.length !== 8) return;
+  setStatus(statusId, 'Buscando…', 'loading');
+  try {
+    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const el = document.getElementById(targetId);
+    if (el) {
+      const cepFmt = digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+      const parts = [d.street, d.neighborhood, [d.city, d.state].filter(Boolean).join('/'), cepFmt].filter(Boolean);
+      if (!el.value) el.value = parts.join(', ');
+      else el.value = parts.join(', ');
+    }
+    setStatus(statusId, `✓ ${[d.city, d.state].filter(Boolean).join('/')}`, 'ok');
   } catch {
     setStatus(statusId, '✗ CEP não encontrado', 'err');
   }

@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/api/protheus", "destination": "/api/protheus" },
+    { "source": "/api/login",    "destination": "/api/login"    },
+    { "source": "/api/verify",   "destination": "/api/verify"   },
     { "source": "/(.*)",         "destination": "/index.html"   }
   ]
 }

@@ -151,7 +151,25 @@ main { padding: 24px; }
 .btn-action.warn:hover { background: var(--orange-bg); border-color: var(--orange); }
 
 /* SECTION */
-.section { margin-bottom: 28px; }
+.section { margin-bottom: 32px; }
+.section-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 14px;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(22,44,69,.06);
+}
+.section-header-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.section-header-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.section-header-desc  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.section-header-count {
+  font-size: 12px; font-weight: 700; min-width: 24px; height: 24px;
+  border-radius: 12px; display: grid; place-items: center; padding: 0 7px;
+}
+/* legado */
 .section-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 10px; padding: 5px 10px; background: var(--surface2); border-radius: 6px; display: inline-block; }
 
 /* EMPTY */
@@ -550,11 +568,11 @@ const STEPS = {
     formFields: [
       { key: 'cepEntrega',      label: 'CEP de Entrega',                 type: 'cep-lookup', targetKey: 'enderecoEntrega' },
       { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
-      { key: 'numSerie',        label: 'Número de Série do Produto *',   type: 'text',     required: true },
+      { key: 'numSerie',        label: 'Número(s) de Série',             type: 'ns-equipamentos' },
       { key: 'tecnico',         label: 'Motorista / Transportadora *',   type: 'text',     required: true },
       { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
       { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
-      { key: 'descricao',       label: 'Descrição *',                    type: 'textarea', required: true },
+      { key: 'descricao',       label: 'Descrição',                      type: 'textarea' },
     ],
     getNext() { return 'aguard_emissao'; },
   },
@@ -565,8 +583,8 @@ const STEPS = {
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
-      { key: 'arquivoNF',   label: 'PDF da Nota Fiscal *',    type: 'file',  required: true },
-      { key: 'descricao',   label: 'Observações *',           type: 'textarea', required: true,
+      { key: 'arquivoNF',   label: 'Arquivo(s) da NF',         type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml' },
+      { key: 'descricao',   label: 'Observações',             type: 'textarea',
         placeholder: 'Confirmação da emissão, valor da nota, observações...' },
     ],
     getNext() { return 'aguard_despacho'; },
@@ -1063,17 +1081,24 @@ function fileLinkHtml(f, compact = false) {
     // legado: apenas nome sem dataUrl
     return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
   }
-  const ext = f.name.split('.').pop().toLowerCase();
-  const isImg = ['jpg','jpeg','png','gif','webp','bmp'].includes(ext);
   const kb = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
-  return `<a href="${f.dataUrl}" target="_blank" download="${f.name}"
-    style="display:inline-flex;align-items:center;gap:5px;font-size:${compact?'11':'12'}px;color:var(--accent);text-decoration:none;
-           padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
-           transition:border-color .1s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-    ${icon(isImg?'file-text':'file-text',12,'color:var(--accent)')} ${f.name}
-    ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
-    ${icon('external-link',11,'color:var(--text3)')}
-  </a>`;
+  const btnBase = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
+    padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
+    transition:border-color .1s;cursor:pointer;font-family:inherit`;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">
+    <span style="font-size:${compact?'11':'12'}px;color:var(--text);display:inline-flex;align-items:center;gap:4px">
+      ${icon('paperclip',12,'color:var(--text3)')} ${f.name}
+      ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
+    </span>
+    <a href="${f.dataUrl}" target="_blank" style="${btnBase};color:var(--accent)"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      ${icon('external-link',11,'color:var(--accent)')} Visualizar
+    </a>
+    <a href="${f.dataUrl}" download="${f.name}" style="${btnBase};color:var(--text2)"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      ${icon('download',11,'color:var(--text2)')} Baixar
+    </a>
+  </span>`;
 }
 
 function fileLinksHtml(files) {
@@ -1122,6 +1147,27 @@ function refreshMultiFileList(key) {
 
 function buildFieldHtml(f) {
   if (f.type === 'equipment-list') return equipListHtml();
+
+  if (f.type === 'ns-equipamentos') {
+    const op = ops.find(o => o.id === activeOpId);
+    const rawList = op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
+    // Normaliza: pode ser array de strings ou array de objetos {name, qty}
+    const names = rawList.flatMap(e => {
+      const qty = (typeof e === 'object' ? e.qty : 1) || 1;
+      const nm  = typeof e === 'object' ? e.name : e;
+      return Array.from({ length: qty }, () => nm);
+    });
+    if (!names.length) return `
+      <div class="form-group">
+        <label class="form-label">Número de Série</label>
+        <input class="form-input" id="f-numSerie_0" placeholder="Ex: SN123456">
+      </div>`;
+    return names.map((nm, i) => `
+      <div class="form-group">
+        <label class="form-label">Nº de Série — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${nm}</span></label>
+        <input class="form-input" id="f-numSerie_${i}" placeholder="Ex: SN123456">
+      </div>`).join('');
+  }
 
   if (f.type === 'cep-lookup') return `
     <div class="form-group">
@@ -1252,17 +1298,44 @@ function renderQueue(user, el) {
     } else {
       if (nfOps.length) html += `
         <div class="section">
-          <div class="section-label">${icon('file-text',11,'color:var(--accent)')} Solicitar Emissão de NF (${nfOps.length})</div>
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--blue-bg)">
+              ${icon('file-text',16,'color:var(--accent)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Solicitar Emissão de NF</div>
+              <div class="section-header-desc">Preencha os dados de entrega e envie para o fiscal emitir</div>
+            </div>
+            <span class="section-header-count" style="background:var(--blue-bg);color:var(--accent)">${nfOps.length}</span>
+          </div>
           <div class="card-grid">${nfOps.map((op,i) => card(op,true,i)).join('')}</div>
         </div>`;
       if (despachoOps.length) html += `
         <div class="section">
-          <div class="section-label">${icon('truck',11,'color:var(--teal)')} Aguardando Despacho (${despachoOps.length})</div>
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--teal-bg)">
+              ${icon('truck',16,'color:var(--teal)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Aguardando Despacho</div>
+              <div class="section-header-desc">NF emitida — confirme a data e hora do despacho</div>
+            </div>
+            <span class="section-header-count" style="background:var(--teal-bg);color:var(--teal)">${despachoOps.length}</span>
+          </div>
           <div class="card-grid">${despachoOps.map((op,i) => card(op,true,i)).join('')}</div>
         </div>`;
       if (transitoOps.length) html += `
         <div class="section">
-          <div class="section-label">${icon('package',11,'color:var(--blue)')} Em Trânsito — Confirmar Entrega (${transitoOps.length})</div>
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--orange-bg)">
+              ${icon('package',16,'color:var(--orange)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Em Trânsito — Confirmar Entrega</div>
+              <div class="section-header-desc">Produto despachado — registre a entrega ao cliente</div>
+            </div>
+            <span class="section-header-count" style="background:var(--orange-bg);color:var(--orange)">${transitoOps.length}</span>
+          </div>
           <div class="card-grid">${transitoOps.map((op,i) => card(op,true,i)).join('')}</div>
         </div>`;
     }
@@ -1376,7 +1449,7 @@ function card(op, inQueue, animIdx) {
       ${skippedFin ? `<span class="skip-badge">↷ Fin. pulado</span>` : ''}
     </div>
     <div class="pipe-bar">${dots}</div>
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato} <span>${isEntregue ? '' : entradaHtml(op.entrada)}</span></div>
+    <div style="font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato}</div>
     ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${lastEvt.note.substring(0,90)}${lastEvt.note.length>90?'…':''}</div>` : ''}
     ${footer}
   </div>`;
@@ -1755,10 +1828,18 @@ function openInfoModal(opId) {
   // ── DADOS DE ENTREGA ──────────────────────────────────────────────
   if (sd.aguard_nf) {
     const d = sd.aguard_nf;
+    // NS por equipamento: pode ser array (numSeries) ou string legada (numSerie)
+    const nsRows = (() => {
+      if (d.numSeries?.length) {
+        return d.numSeries.map((ns, i) => ns ? dItem(`Nº Série ${i+1}`, ns) : '').join('');
+      }
+      return d.numSerie ? dItem('Nº de Série', d.numSerie) : '';
+    })();
     let entHtml = `<div class="detail-grid">
       ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>` : ''}
       ${dItem('Motorista / Transportadora', d.tecnico)}
       ${d.volumes||d.peso ? dItem('Vol / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
+      ${nsRows}
       ${dItem('Observações', d.descricao)}
     </div>`;
     if (sd.aguard_despacho) {
@@ -1779,7 +1860,8 @@ function openInfoModal(opId) {
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
       ${dItem('Observações', d.descricao)}
     </div>`;
-    if (d.arquivoNF) nfeHtml += `<div style="margin-top:8px">${fileLinkHtml(d.arquivoNF)}</div>`;
+    if (d.arquivoNF?.length) nfeHtml += `<div style="margin-top:8px">${fileLinksHtml(d.arquivoNF)}</div>`;
+    else if (d.arquivoNF && typeof d.arquivoNF !== 'object') nfeHtml += `<div style="margin-top:8px">${fileLinkHtml(d.arquivoNF)}</div>`;
     sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
   }
 
@@ -1900,6 +1982,17 @@ function submitModal() {
       continue;
     }
     if (f.type === 'cep-lookup') continue; // CEP é auxiliar, não salva
+    if (f.type === 'ns-equipamentos') {
+      // coleta todos os campos f-numSerie_N dinamicamente
+      const series = [];
+      let i = 0;
+      while (document.getElementById(`f-numSerie_${i}`)) {
+        series.push(document.getElementById(`f-numSerie_${i}`).value.trim());
+        i++;
+      }
+      formData.numSeries = series;
+      continue;
+    }
     const el  = document.getElementById('f-' + f.key);
     const val = el?.value?.trim();
     if (f.required && !val) { el.style.borderColor='var(--red)'; el.style.boxShadow='0 0 0 3px rgba(220,38,38,.12)'; el.focus(); return; }

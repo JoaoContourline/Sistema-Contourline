@@ -301,18 +301,20 @@ main { padding: 24px; }
 /* SPLIT ACTION MODAL */
 .modal.split { max-width: 940px; overflow: hidden; display: flex; flex-direction: column; }
 .modal-split-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; min-height: 0; }
-.split-pane { overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.split-pane { overflow-y: auto; min-height: 0; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .split-pane-left { border-right: 1px solid var(--border); background: var(--surface2); }
+.split-pane-left-scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
 .split-pane-header { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .9px; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-shrink: 0; }
 .ctx-sec { display: flex; flex-direction: column; gap: 7px; }
 .ctx-sec-title { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 3px; }
 .ctx-row { display: flex; flex-direction: column; gap: 2px; }
 .ctx-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .4px; color: var(--text3); }
 .ctx-value { font-size: 12px; color: var(--text); line-height: 1.4; }
-@media (max-width: 680px) {
+@media (max-width: 760px) {
   .modal.split { max-width: 98vw; }
-  .modal-split-body { grid-template-columns: 1fr; }
-  .split-pane-left { max-height: 300px; border-right: none; border-bottom: 1px solid var(--border); }
+  .modal-split-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+  .split-pane-left { max-height: 260px; border-right: none; border-bottom: 1px solid var(--border); order: 2; }
+  .split-pane-right { order: 1; overflow-y: visible; }
 }
 
 /* ACCORDION */
@@ -1756,7 +1758,7 @@ function openActionModal(opId, mode) {
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
         </div>
-        <div style="padding:10px 12px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px">
+        <div class="split-pane-left-scroll">
           ${buildInfoSections(op, op.id)}
         </div>
       </div>

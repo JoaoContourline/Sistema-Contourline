@@ -1575,9 +1575,10 @@ function buildContextPanel(op) {
 
   // Arquivo da OP
   if (sd.aberta?.arquivoOP) {
-    parts.push(sec('Arquivo', [
-      cRow('Arquivo da OP', sd.aberta.arquivoOP),
-    ]));
+    const arq = sd.aberta.arquivoOP;
+    parts.push(`<div class="ctx-sec"><div class="ctx-sec-title">Arquivo da OP</div>
+      <div style="padding:4px 0">${fileLinkHtml(arq, true)}</div>
+    </div>`);
   }
 
   return parts.join('');
@@ -1799,8 +1800,9 @@ function openInfoModal(opId) {
       ${dItem('Treinamento', pv.treinamento)}
       ${dItem('Voltagem', pv.voltagem)}
     </div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Exportar PDF</button>
+      ${sd.aberta?.arquivoOP ? fileLinkHtml(sd.aberta.arquivoOP, true) : ''}
     </div>`;
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
@@ -2485,7 +2487,7 @@ async function submitNovaOP() {
   const dataPrevista     = g('nova-data-prevista')?.textContent;
   const treinamento      = v('nova-treinamento');
   const descricao        = v('nova-descricao');
-  const arquivo          = g('nova-arquivo')?.files[0]?.name || '';
+  const arquivo          = tempFilesData['nova-arquivo'] || null;
 
   const enderecoCliente = [endRua, endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
 

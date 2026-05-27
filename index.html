@@ -365,15 +365,15 @@ main { padding: 24px; }
 
 /* ACCORDION */
 [hidden] { display: none !important; }
-.acc { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.acc { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; flex-shrink: 0; }
 .acc + .acc { margin-top: 8px; }
 .acc-head {
-  padding: 9px 13px; display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 13px; min-height: 40px; display: flex; justify-content: space-between; align-items: center;
   background: var(--surface2); cursor: pointer; user-select: none;
   font-size: 12px; font-weight: 700; transition: background .12s;
 }
 .acc-head:hover { background: var(--border); }
-.acc-arrow { color: var(--text3); transition: transform .18s; display: inline-flex; align-items: center; }
+.acc-arrow { color: var(--text3); transition: transform .18s; display: inline-flex; align-items: center; flex-shrink: 0; }
 .acc-body { padding: 13px 14px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
 
 /* EQUIP SEARCH DROPDOWN */

@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from:    'Fluxo de Vendas <noreply@contourline.com.br>',
+        from:    'Fluxo de Vendas <ti@contourline.com.br>',
         to:      email,
         subject: `${code} é seu código de acesso — Fluxo de Vendas`,
         html:    emailHtml,

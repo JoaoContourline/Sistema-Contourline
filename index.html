@@ -1074,6 +1074,31 @@ function fileToDataUrl(file) {
   });
 }
 
+// Abre arquivo como Blob URL (evita restrição do Chrome com data: URLs em target="_blank")
+function openFileBlob(btn) {
+  const dataUrl = btn.getAttribute('data-fileurl');
+  const name    = btn.getAttribute('data-filename') || 'arquivo';
+  if (!dataUrl) return;
+  try {
+    const parts = dataUrl.split(',');
+    const mime  = parts[0].match(/:(.*?);/)[1];
+    const bin   = atob(parts[1]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob  = new Blob([bytes], { type: mime });
+    const url   = URL.createObjectURL(blob);
+    const w     = window.open(url, '_blank');
+    if (!w) { // popup bloqueado — faz download como fallback
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch(e) {
+    showToast('Não foi possível abrir o arquivo.', 'err');
+  }
+}
+
 // Gera HTML de link para visualizar/baixar arquivo armazenado
 function fileLinkHtml(f, compact = false) {
   if (!f) return '—';
@@ -1084,17 +1109,21 @@ function fileLinkHtml(f, compact = false) {
   const kb = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
   const btnBase = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
     padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
-    transition:border-color .1s;cursor:pointer;font-family:inherit`;
+    transition:border-color .1s;cursor:pointer;font-family:inherit;border-style:solid`;
+  const safeDataUrl = f.dataUrl || '';
+  const safeName    = (f.name || 'arquivo').replace(/"/g, '&quot;');
   return `<span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">
     <span style="font-size:${compact?'11':'12'}px;color:var(--text);display:inline-flex;align-items:center;gap:4px">
       ${icon('paperclip',12,'color:var(--text3)')} ${f.name}
       ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
     </span>
-    <a href="${f.dataUrl}" target="_blank" style="${btnBase};color:var(--accent)"
+    <button type="button" style="${btnBase};color:var(--accent)"
+      data-fileurl="${safeDataUrl}" data-filename="${safeName}"
+      onclick="openFileBlob(this)"
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
       ${icon('external-link',11,'color:var(--accent)')} Visualizar
-    </a>
-    <a href="${f.dataUrl}" download="${f.name}" style="${btnBase};color:var(--text2)"
+    </button>
+    <a href="${safeDataUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
       ${icon('download',11,'color:var(--text2)')} Baixar
     </a>

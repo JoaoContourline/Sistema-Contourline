@@ -358,7 +358,10 @@ main { padding: 24px; }
     </div>
   </div>
   <div class="role-selector" id="roleSelector"></div>
-  <button class="btn-nova-op" onclick="openNovaOP()">${icon('plus',14,'color:var(--azul-noturno)')} Nova OP</button>
+  <button class="btn-nova-op" onclick="openNovaOP()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nova OP
+  </button>
 </header>
 
 <div class="tabs">
@@ -929,7 +932,7 @@ function equipListHtml() {
       <div class="equip-picker">
         <div class="equip-search-wrap">
           <input class="form-input" id="equip-search-input"
-            placeholder="${icon('search',13,'margin-right:4px')} Buscar por nome ou código Protheus..."
+            placeholder="Buscar por nome ou código Protheus..."
             autocomplete="off"
             oninput="filterEquipSearch(this.value)"
             onkeydown="equipSearchKeydown(event)"
@@ -1702,15 +1705,17 @@ function openNovaOP() {
         </div></div>
 
       <div class="acc"><div ${acc('Dados do Cliente')}
-          <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:4px">
-            <div class="form-group" style="flex:1"><label class="form-label">CPF / CNPJ</label>
+          <div class="form-group" style="margin-bottom:4px">
+            <label class="form-label">CPF / CNPJ</label>
+            <div style="display:flex;gap:6px">
               <input class="form-input" id="nova-cpf" oninput="onCpfCnpjInput(this.value)"
-                onkeydown="if(event.key==='Enter')searchClientBtn()">
-              <div class="api-status" id="cnpj-status"></div></div>
-            <button type="button" onclick="searchClientBtn()"
-              style="padding:8px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;height:36px;display:flex;align-items:center;gap:6px">
-              ${icon('search',13,'color:#fff')} Buscar
-            </button>
+                onkeydown="if(event.key==='Enter')searchClientBtn()" style="flex:1;min-width:0">
+              <button type="button" onclick="searchClientBtn()"
+                style="padding:0 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px;height:auto;align-self:stretch">
+                ${icon('search',13,'color:#fff')} Buscar
+              </button>
+            </div>
+            <div class="api-status" id="cnpj-status"></div>
           </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Nome / Razão Social *</label>

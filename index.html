@@ -332,6 +332,7 @@ main { padding: 24px; }
   order: 1;
   padding: 0;
   gap: 0;
+  overflow-y: hidden; /* scroll é gerenciado pelo .split-pane-left-scroll interno */
 }
 .split-pane-right { order: 2; }
 .split-pane-left-header {
@@ -1818,6 +1819,20 @@ function openActionModal(opId, mode) {
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
+
+  // Força a altura do modal split via JS (CSS cascade não é confiável no grid do overlay)
+  requestAnimationFrame(() => {
+    const modal  = document.getElementById('modal');
+    if (!modal.classList.contains('split')) return;
+    const hEl  = modal.querySelector('.modal-header');
+    const fEl  = modal.querySelector('.modal-footer');
+    const body = modal.querySelector('.modal-split-body');
+    if (!body) return;
+    const maxH = Math.min(window.innerHeight * 0.9, window.innerHeight - 40);
+    modal.style.height    = maxH + 'px';
+    modal.style.maxHeight = maxH + 'px';
+    body.style.height     = (maxH - (hEl?.offsetHeight||0) - (fEl?.offsetHeight||0)) + 'px';
+  });
 }
 
 // Helper: constrói um accordion para o info modal

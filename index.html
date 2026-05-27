@@ -1365,7 +1365,7 @@ function renderConcluidas(user, el) {
 }
 
 function renderTodas(el) {
-  const order = ['bloqueada','aberta','aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
+  const order = ['aberta','aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
   const groups = {};
   ops.forEach(op => { (groups[op.status]=groups[op.status]||[]).push(op); });
   const abertas = ops.filter(o=>o.status!=='entregue').length;

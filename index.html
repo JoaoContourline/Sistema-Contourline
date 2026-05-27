@@ -302,7 +302,8 @@ main { padding: 24px; }
 .modal.split { max-width: 940px; overflow: hidden; display: flex; flex-direction: column; }
 .modal-split-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; min-height: 0; }
 .split-pane { overflow-y: auto; min-height: 0; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
-.split-pane-left { border-right: 1px solid var(--border); background: var(--surface2); }
+.split-pane-left { border-right: 1px solid var(--border); background: var(--surface2); order: 1; }
+.split-pane-right { order: 2; }
 .split-pane-left-scroll { overflow-y: auto; flex: 1; min-height: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
 .split-pane-header { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .9px; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-shrink: 0; }
 .ctx-sec { display: flex; flex-direction: column; gap: 7px; }
@@ -312,7 +313,7 @@ main { padding: 24px; }
 .ctx-value { font-size: 12px; color: var(--text); line-height: 1.4; }
 @media (max-width: 760px) {
   .modal.split { max-width: 98vw; }
-  .modal-split-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+  .modal-split-body { grid-template-columns: 1fr; overflow-y: auto; }
   .split-pane-left { max-height: 260px; border-right: none; border-bottom: 1px solid var(--border); order: 2; }
   .split-pane-right { order: 1; overflow-y: visible; }
 }
@@ -565,7 +566,7 @@ const STEPS = {
   },
 
   aguard_nf: {
-    label: 'Aguardando NF', color: 'orange', owner: 'logistica', pipelineIdx: 2,
+    label: 'Dados Transporte', color: 'orange', owner: 'logistica', pipelineIdx: 2,
     actionLabel: 'Solicitar Emissão de NF',
     formFields: [
       { key: 'cepEntrega',      label: 'CEP de Entrega',                 type: 'cep-lookup', targetKey: 'enderecoEntrega' },
@@ -1749,6 +1750,10 @@ function openActionModal(opId, mode) {
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
+      <div class="split-pane split-pane-right">
+        <div class="split-pane-header">Preencher agora</div>
+        ${algoNote}${dirNote}${rejectionNote}${fieldsHtml}
+      </div>
       <div class="split-pane split-pane-left" style="padding:0;gap:0">
         <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface2)">
           <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
@@ -1761,10 +1766,6 @@ function openActionModal(opId, mode) {
         <div class="split-pane-left-scroll">
           ${buildInfoSections(op, op.id)}
         </div>
-      </div>
-      <div class="split-pane split-pane-right">
-        <div class="split-pane-header">Preencher agora</div>
-        ${algoNote}${dirNote}${rejectionNote}${fieldsHtml}
       </div>
     </div>
     <div class="modal-footer">

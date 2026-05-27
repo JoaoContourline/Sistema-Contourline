@@ -4,68 +4,70 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Monitor de OPs — Contourline</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg: #f4f5f7; --surface: #ffffff; --surface2: #f0f2f5;
-  --border: #e2e5eb; --border2: #d0d5de;
-  --text: #111827; --text2: #4b5563; --text3: #9ca3af;
-  --accent: #2563eb; --accent2: #1d4ed8;
+  --bg: #f0f3f7; --surface: #ffffff; --surface2: #f0f4f8;
+  --border: #dde3ed; --border2: #c8d3e3;
+  --text: #0f1f35; --text2: #3d5170; --text3: #8096b3;
+  --accent: #2672B8; --accent2: #162C45;
+  --azul-claro: #91B0DC; --azul-noturno: #162C45;
   --green: #16a34a; --green-bg: rgba(22,163,74,.08);
   --yellow: #ca8a04; --yellow-bg: rgba(202,138,4,.08);
   --orange: #ea580c; --orange-bg: rgba(234,88,12,.08);
   --red: #dc2626; --red-bg: rgba(220,38,38,.08);
   --gray: #6b7280; --gray-bg: rgba(107,114,128,.08);
-  --blue: #2563eb; --blue-bg: rgba(37,99,235,.08);
+  --blue: #2672B8; --blue-bg: rgba(38,114,184,.08);
   --purple: #7c3aed; --purple-bg: rgba(124,58,237,.08);
   --teal: #0d9488; --teal-bg: rgba(13,148,136,.08);
   --radius: 8px; --radius-lg: 12px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: var(--azul-claro); border-radius: 3px; }
 
 /* HEADER */
 header {
-  padding: 14px 24px; border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,.97); backdrop-filter: blur(12px);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #162C45 0%, #24336E 100%);
   position: sticky; top: 0; z-index: 100;
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  box-shadow: 0 2px 16px rgba(22,44,69,.35);
 }
 .logo { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-.logo-icon { width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: grid; place-items: center; font-size: 14px; }
-.logo-text { font-size: 14px; font-weight: 700; }
-.logo-sub { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.logo-icon { width: 32px; height: 32px; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; display: grid; place-items: center; color: #fff; }
+.logo-text { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
+.logo-sub { font-size: 10px; color: rgba(255,255,255,.55); font-family: 'DM Mono', monospace; }
 
 /* ROLE SELECTOR */
 .role-selector { display: flex; gap: 4px; flex-wrap: wrap; }
 .role-btn {
-  padding: 5px 11px; border-radius: 20px; border: 1px solid var(--border);
-  background: var(--surface2); color: var(--text2);
-  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 5px 11px; border-radius: 20px; border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.08); color: rgba(255,255,255,.75);
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
   cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px;
 }
-.role-btn:hover { border-color: var(--border2); color: var(--text); }
-.role-btn.active { border-color: var(--accent); background: var(--blue-bg); color: var(--accent); }
+.role-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
+.role-btn.active { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.22); color: #fff; }
 
 /* NEW OP BUTTON */
 .btn-nova-op {
-  padding: 7px 14px; background: var(--accent); border: none; color: #fff;
-  border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
-  cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 7px 14px; background: #fff; border: none; color: var(--azul-noturno);
+  border-radius: var(--radius); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
 }
-.btn-nova-op:hover { background: var(--accent2); }
+.btn-nova-op:hover { background: rgba(255,255,255,.88); }
 
 /* TABS */
-.tabs { padding: 0 24px; border-bottom: 1px solid var(--border); display: flex; background: var(--surface); }
+.tabs { padding: 0 24px; border-bottom: 1px solid var(--border); display: flex; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 .tab-btn {
   padding: 12px 16px; border: none; background: transparent;
-  color: var(--text3); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+  color: var(--text3); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
   cursor: pointer; position: relative; transition: color .15s; display: flex; align-items: center; gap: 7px;
 }
 .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: transparent; border-radius: 2px 2px 0 0; transition: background .15s; }
@@ -93,13 +95,13 @@ main { padding: 24px; }
 }
 @keyframes cardIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 .card:hover { border-color: var(--border2); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-.card.actionable { border-color: rgba(37,99,235,.2); }
-.card.actionable:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,.12); }
+.card.actionable { border-color: rgba(38,114,184,.2); }
+.card.actionable:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(38,114,184,.15); }
 .card.blocked { border-color: rgba(220,38,38,.2); }
 .card.blocked:hover { border-color: var(--red); }
 
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 500; }
+.card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
 .card-flags { display: flex; gap: 3px; flex-wrap: wrap; }
 .flag { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; font-family: 'DM Mono', monospace; }
 .flag-dir   { background: rgba(234,88,12,.1);  color: var(--orange); border: 1px solid rgba(234,88,12,.25); }
@@ -139,7 +141,7 @@ main { padding: 24px; }
 
 /* CARD FOOTER */
 .card-footer { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.btn-action { width: 100%; padding: 9px; border-radius: var(--radius); background: var(--accent); border: none; color: #fff; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-action { width: 100%; padding: 9px; border-radius: var(--radius); background: var(--accent); border: none; color: #fff; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-action:hover { background: var(--accent2); }
 .btn-action.danger { background: transparent; border: 1px solid rgba(220,38,38,.25); color: var(--red); }
 .btn-action.danger:hover { background: var(--red-bg); border-color: var(--red); }
@@ -180,9 +182,9 @@ main { padding: 24px; }
 .form-input, .form-select, .form-textarea {
   padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--text); font-size: 13px;
-  font-family: 'Syne', sans-serif; outline: none; transition: border-color .15s; width: 100%;
+  font-family: 'Inter', sans-serif; outline: none; transition: border-color .15s; width: 100%;
 }
-.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(38,114,184,.1); }
 .form-textarea { resize: vertical; min-height: 68px; }
 .form-select option { background: var(--surface); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -193,7 +195,7 @@ main { padding: 24px; }
 .equip-add-row .form-select { flex: 1; }
 .btn-add-equip {
   padding: 8px 14px; background: var(--accent); border: none; color: #fff;
-  border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+  border-radius: var(--radius); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
   cursor: pointer; white-space: nowrap; transition: background .15s; flex-shrink: 0;
 }
 .btn-add-equip:hover { background: var(--accent2); }
@@ -218,7 +220,7 @@ main { padding: 24px; }
   padding: 14px; text-align: center; cursor: pointer; transition: all .15s;
   background: var(--surface2);
 }
-.file-upload-area:hover { border-color: var(--accent); background: var(--blue-bg); }
+.file-upload-area:hover { border-color: var(--accent); background: rgba(38,114,184,.05); }
 .file-upload-area.has-file { border-color: var(--green); background: var(--green-bg); border-style: solid; }
 .file-upload-text { font-size: 12px; color: var(--text3); }
 .file-upload-text.has-file { color: var(--green); font-weight: 600; }
@@ -231,23 +233,23 @@ main { padding: 24px; }
 .multi-file-item-size { font-size: 10px; color: var(--text3); white-space: nowrap; }
 .multi-file-remove { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px; padding: 0 2px; line-height: 1; transition: color .1s; flex-shrink: 0; }
 .multi-file-remove:hover { color: var(--red); }
-.multi-file-add-btn { display: block; padding: 8px 12px; background: var(--surface2); border: 1.5px dashed var(--border2); border-radius: var(--radius); font-size: 12px; color: var(--text2); cursor: pointer; transition: all .15s; text-align: center; width: 100%; font-family: 'Syne', sans-serif; }
-.multi-file-add-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--blue-bg); }
+.multi-file-add-btn { display: block; padding: 8px 12px; background: var(--surface2); border: 1.5px dashed var(--border2); border-radius: var(--radius); font-size: 12px; color: var(--text2); cursor: pointer; transition: all .15s; text-align: center; width: 100%; font-family: 'Inter', sans-serif; }
+.multi-file-add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(38,114,184,.05); }
 
 /* BUTTONS */
-.btn-primary { padding: 8px 18px; background: var(--accent); border: none; color: #fff; border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-primary { padding: 8px 18px; background: var(--accent); border: none; color: #fff; border-radius: var(--radius); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-primary:hover { background: var(--accent2); }
 .btn-primary.orange { background: var(--orange); }
 .btn-primary.orange:hover { background: #c94f0b; }
 .btn-primary.red { background: var(--red); }
 .btn-primary.red:hover { background: #b91c1c; }
-.btn-cancel { padding: 8px 18px; background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-cancel { padding: 8px 18px; background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: var(--radius); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
 .btn-cancel:hover { border-color: var(--border2); color: var(--text); }
 
 /* WARN BLOCK */
 .warn-block { padding: 10px 12px; border-radius: var(--radius); background: var(--orange-bg); border: 1px solid rgba(234,88,12,.2); font-size: 12px; color: var(--text2); line-height: 1.5; }
 .warn-block strong { color: var(--orange); }
-.info-block { padding: 10px 12px; border-radius: var(--radius); background: var(--blue-bg); border: 1px solid rgba(37,99,235,.15); font-size: 12px; color: var(--text2); line-height: 1.5; }
+.info-block { padding: 10px 12px; border-radius: var(--radius); background: var(--blue-bg); border: 1px solid rgba(38,114,184,.15); font-size: 12px; color: var(--text2); line-height: 1.5; }
 .info-block strong { color: var(--accent); }
 .success-block { padding: 10px 12px; border-radius: var(--radius); background: var(--green-bg); border: 1px solid rgba(22,163,74,.15); font-size: 12px; color: var(--text2); line-height: 1.5; }
 .success-block strong { color: var(--green); }
@@ -271,6 +273,7 @@ main { padding: 24px; }
 .form-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .badge.b-blue .badge-dot, .badge.b-yellow .badge-dot, .badge.b-orange .badge-dot, .badge.b-teal .badge-dot { animation: pulse 2s infinite; }
 @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 .api-status { font-size:10px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
@@ -302,8 +305,28 @@ main { padding: 24px; }
   font-size: 12px; font-weight: 700; transition: background .12s;
 }
 .acc-head:hover { background: var(--border); }
-.acc-arrow { font-size: 11px; color: var(--text3); transition: transform .18s; display: inline-block; }
+.acc-arrow { color: var(--text3); transition: transform .18s; display: inline-flex; align-items: center; }
 .acc-body { padding: 13px 14px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
+
+/* EQUIP SEARCH DROPDOWN */
+.equip-search-wrap { position: relative; }
+.equip-dropdown {
+  position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 250;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 8px 28px rgba(22,44,69,.14);
+  max-height: 220px; overflow-y: auto; display: none;
+}
+.equip-dropdown.open { display: block; }
+.equip-dropdown-item {
+  padding: 7px 12px; cursor: pointer; font-size: 12px;
+  font-family: 'DM Mono', monospace; transition: background .08s;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.equip-dropdown-item:last-child { border-bottom: none; }
+.equip-dropdown-item:hover, .equip-dropdown-item.focused { background: var(--surface2); }
+.equip-dropdown-name { flex: 1; color: var(--text); font-size: 11.5px; }
+.equip-dropdown-code { font-size: 10px; color: var(--accent); background: var(--blue-bg); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 
 /* KANBAN */
 .kanban-wrap { overflow-x: auto; padding-bottom: 16px; }
@@ -328,14 +351,14 @@ main { padding: 24px; }
 
 <header>
   <div class="logo">
-    <div class="logo-icon">📋</div>
+    <div class="logo-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
     <div>
       <div class="logo-text">Monitor de OPs</div>
       <div class="logo-sub">Contourline · Logística</div>
     </div>
   </div>
   <div class="role-selector" id="roleSelector"></div>
-  <button class="btn-nova-op" onclick="openNovaOP()">+ Nova OP</button>
+  <button class="btn-nova-op" onclick="openNovaOP()">${icon('plus',14,'color:var(--azul-noturno)')} Nova OP</button>
 </header>
 
 <div class="tabs">
@@ -352,19 +375,125 @@ main { padding: 24px; }
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
+// ICON HELPER — Lucide inline SVG (no DOM dependency)
+// ═══════════════════════════════════════════════════════════════════
+function icon(name, size = 16, style = '') {
+  const s = `width:${size}px;height:${size}px;display:inline-block;vertical-align:middle;flex-shrink:0${style?';'+style:''}`;
+  const SVG = {
+    'clipboard-list': `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>`,
+    'loader-circle':  `<svg style="${s};animation:spin 1s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+    'alert-triangle': `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    'paperclip':      `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,
+    'check-circle':   `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+    'eye':            `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    'x':              `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    'printer':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+    'file-text':      `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+    'chevron-down':   `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+    'plus':           `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    'search':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+    'upload':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+  };
+  return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // STATE MACHINE
 // ═══════════════════════════════════════════════════════════════════
 
 // Equipamentos com código Protheus — formato: { name, code }
 const EQUIPAMENTOS_LISTA = [
-  { name:'UNYQUE PRO',              code:'' },
-  { name:'SCANNER S30 WHITE',       code:'' },
-  { name:'XERF',                    code:'' },
-  { name:'HIPRO MED',               code:'' },
-  { name:'HIPRO',                   code:'002215' },
-  { name:'BHS 202 UNYQUE PRO ENYGMA', code:'' },
-  { name:'ULTRAPULSE ALPHA',        code:'' },
-  { name:'ALTRO',                   code:'' },
+  // BHS Series
+  { name:'BHS 156 FULL',                   code:'000016' },
+  { name:'BHS 156 ENYGMA',                 code:'001767' },
+  { name:'BHS 156 ICONYC',                 code:'003356' },
+  { name:'BHS 156 ICONYC PRO',             code:'010125' },
+  { name:'BHS 201 BODYSCULPT',             code:'002120' },
+  { name:'BHS 202',                        code:'004590' },
+  { name:'BHS 202 UNYQUE',                 code:'002954' },
+  { name:'BHS 202 UNYQUE PRO',             code:'006692' },
+  { name:'BHS 202 UNYQUE PRO ENYGMA',      code:'006693' },
+  { name:'BHS 401 SUPREME PRO',            code:'007860' },
+  { name:'BHS 501 LASER CRYSTAL 3D',       code:'001792' },
+  { name:'BHS 501 PLUS',                   code:'002813' },
+  // HIPRO Series
+  { name:'HIPRO',                          code:'002215' },
+  { name:'HIPRO MED',                      code:'002832' },
+  { name:'HIPRO HOF',                      code:'003672' },
+  { name:'HIPRO COM DOIS APLICADORES',     code:'003103' },
+  // SCANNER Series
+  { name:'SCANNER S30 WHITE',              code:'005900' },
+  { name:'SCANNER S30 BLACK',              code:'011348' },
+  { name:'SCANNER M30',                    code:'005862' },
+  { name:'SCANNER M60',                    code:'010434' },
+  { name:'SCANNER R EXPLORER',             code:'004395' },
+  // XTONUS Series
+  { name:'XTONUS',                         code:'003287' },
+  { name:'XTONUS V1',                      code:'003359' },
+  { name:'XTONUS V2',                      code:'003360' },
+  { name:'XTONUS V3',                      code:'003361' },
+  { name:'XTONUS COM RF',                  code:'005766' },
+  // XERF
+  { name:'XERF',                           code:'010940' },
+  // UNYQUE PRO (standalone)
+  { name:'UNYQUE PRO',                     code:'006692' },
+  // LASER Series
+  { name:'LASER SAFIRA',                   code:'003366' },
+  { name:'LASER SAFIRA COMPACT',           code:'003364' },
+  { name:'LASER SAFIRA PLATINUM',          code:'003365' },
+  { name:'LASER SAFIRA PRO',               code:'007056' },
+  { name:'LASER CO2 FRACIONADO',           code:'003333' },
+  { name:'THULIUM LASER',                  code:'005169' },
+  { name:'PICOLASER',                      code:'004977' },
+  // ULTRAPULSE
+  { name:'ULTRAPULSE ALPHA',               code:'009550' },
+  // RENNOVER Series
+  { name:'RENNOVER',                       code:'006351' },
+  // MULTISHAPE Series
+  { name:'MULTISHAPE',                     code:'001134' },
+  { name:'MINI MULTISHAPE',                code:'009488' },
+  // RECARE Series
+  { name:'RECARE VISURI',                  code:'002239' },
+  { name:'RECARE PLUS 4 CH',              code:'005297' },
+  { name:'RECARE PLUS 6 CH',              code:'005298' },
+  { name:'RECARE PLUS 12 CH',             code:'005299' },
+  // MAGCARE Series
+  { name:'MAGCARE MULT',                   code:'007049' },
+  { name:'MAGCARE MULT PRO',              code:'007048' },
+  // FOCUSKIN / HIFU
+  { name:'FOCUSKIN',                       code:'005899' },
+  { name:'HIFU',                           code:'006635' },
+  // HS Series
+  { name:'HS 910',                         code:'002855' },
+  { name:'HS-900 SAPHIRE',                 code:'003362' },
+  { name:'HS 770 SKINLED',                 code:'003289' },
+  { name:'HS-232 VITALIEN',               code:'006501' },
+  // INKIE Series
+  { name:'INKIE LASER HS-220',             code:'002274' },
+  { name:'INKIE BABY',                     code:'005152' },
+  { name:'INKIE HOF',                      code:'009395' },
+  // SPLENDOR Series
+  { name:'SPLENDOR X',                     code:'009622' },
+  { name:'SPLENDOR X 2.0',                 code:'010667' },
+  // CRYO
+  { name:'CRYO 6',                         code:'009611' },
+  // STELLAR M22 Series
+  { name:'STELLAR M22 IPL',               code:'009837' },
+  { name:'STELLAR M22 IPL + RESURFX',     code:'009832' },
+  // ECO / LASEMD / MOSAIC
+  { name:'ECO2 3D',                        code:'011269' },
+  { name:'LASEMD ULTRA',                   code:'011270' },
+  { name:'MOSAIC 3D',                      code:'011271' },
+  // EM TIME / NUERA / REBELT
+  { name:'EM TIME',                        code:'006477' },
+  { name:'NUERA TIGHT',                    code:'009814' },
+  { name:'REBELT',                         code:'003367' },
+  // POLLOGEN / LINE SKIN / DUET
+  { name:'POLLOGEN LEGEND',               code:'011207' },
+  { name:'LINE SKIN ULTRA',               code:'007853' },
+  { name:'DUET V',                         code:'010251' },
+  // Outros
+  { name:'ALTRO',                          code:'' },
 ];
 function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
 
@@ -515,13 +644,13 @@ function rowToOp(row) {
 
 async function loadOps() {
   document.getElementById('main').innerHTML =
-    `<div class="empty"><div class="empty-icon" style="font-size:28px">⏳</div>
+    `<div class="empty"><div class="empty-icon">${icon('loader-circle',32,'color:var(--accent)')}</div>
      <div class="empty-title">Carregando OPs…</div></div>`;
   const { data, error } = await sb.from('ops').select('id,data').order('id', { ascending: false });
   if (error) {
     console.error('Erro ao carregar OPs:', error);
     document.getElementById('main').innerHTML =
-      `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Erro ao carregar OPs</div>
+      `<div class="empty"><div class="empty-icon">${icon('alert-triangle',32,'color:var(--red)')}</div><div class="empty-title">Erro ao carregar OPs</div>
        <div class="empty-desc">${error.message}</div></div>`;
     return;
   }
@@ -665,8 +794,8 @@ function stepBadge(status) {
 }
 
 function entradaHtml(e) {
-  if (e==='paga')     return `<span style="color:var(--green);font-size:11px">✓ Paga</span>`;
-  if (e==='pendente') return `<span style="color:var(--yellow);font-size:11px">⚠ Pendente</span>`;
+  if (e==='paga')     return `<span style="color:var(--green);font-size:11px;display:inline-flex;align-items:center;gap:3px">${icon('check-circle',11,'color:var(--green)')} Paga</span>`;
+  if (e==='pendente') return `<span style="color:var(--yellow);font-size:11px;display:inline-flex;align-items:center;gap:3px">${icon('alert-triangle',11,'color:var(--yellow)')} Pendente</span>`;
   return `<span style="color:var(--text3);font-size:11px">— Sem entrada</span>`;
 }
 
@@ -712,8 +841,84 @@ function renderEquipItem(e, i) {
   </div>`;
 }
 
+let equipSearchFocusIdx = -1;
+
+function filterEquipSearch(val) {
+  const q = val.toLowerCase().trim();
+  const dd = document.getElementById('equip-dropdown');
+  if (!dd) return;
+  if (!q) { dd.classList.remove('open'); equipSearchFocusIdx = -1; return; }
+  const filtered = EQUIPAMENTOS_LISTA.filter(e =>
+    e.name.toLowerCase().includes(q) || e.code.includes(q)
+  ).slice(0, 24);
+  if (!filtered.length) { dd.classList.remove('open'); return; }
+  equipSearchFocusIdx = -1;
+  dd.innerHTML = filtered.map((e, i) =>
+    `<div class="equip-dropdown-item" onclick="selectEquipFromSearch(${JSON.stringify(e.name)})" data-idx="${i}">
+      <span class="equip-dropdown-name">${e.name}</span>
+      ${e.code ? `<span class="equip-dropdown-code">${e.code}</span>` : ''}
+    </div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function selectEquipFromSearch(name) {
+  const existing = tempEquipList.find(e => e.name === name);
+  if (existing) { existing.qty++; }
+  else { tempEquipList.push({ name, qty: 1, valorUnit: '', desconto: '' }); }
+  const inp = document.getElementById('equip-search-input');
+  if (inp) inp.value = '';
+  const dd = document.getElementById('equip-dropdown');
+  if (dd) dd.classList.remove('open');
+  equipSearchFocusIdx = -1;
+  refreshEquipList();
+}
+
+function equipSearchKeydown(e) {
+  const dd = document.getElementById('equip-dropdown');
+  if (!dd || !dd.classList.contains('open')) {
+    // Allow Enter on empty to add custom text
+    if (e.key === 'Enter') {
+      const val = document.getElementById('equip-search-input')?.value?.trim();
+      if (val) { e.preventDefault(); selectEquipFromSearch(val); }
+    }
+    return;
+  }
+  const items = dd.querySelectorAll('.equip-dropdown-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    equipSearchFocusIdx = Math.min(equipSearchFocusIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('focused', i === equipSearchFocusIdx));
+    items[equipSearchFocusIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    equipSearchFocusIdx = Math.max(equipSearchFocusIdx - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('focused', i === equipSearchFocusIdx));
+    items[equipSearchFocusIdx]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (equipSearchFocusIdx >= 0 && items[equipSearchFocusIdx]) {
+      items[equipSearchFocusIdx].click();
+    } else {
+      const val = document.getElementById('equip-search-input')?.value?.trim();
+      if (val) selectEquipFromSearch(val);
+    }
+  } else if (e.key === 'Escape') {
+    dd.classList.remove('open');
+    equipSearchFocusIdx = -1;
+  }
+}
+
+function hideEquipDropdownDelayed() {
+  setTimeout(() => {
+    const dd = document.getElementById('equip-dropdown');
+    if (dd) dd.classList.remove('open');
+    equipSearchFocusIdx = -1;
+  }, 160);
+}
+
 function equipListHtml() {
-  const options = EQUIPAMENTOS_LISTA.map(e => `<option value="${e.name}">${equipLabel(e)}</option>`).join('');
   const items = tempEquipList.length
     ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
     : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
@@ -722,44 +927,19 @@ function equipListHtml() {
     <div class="form-group">
       <label class="form-label">Equipamentos *</label>
       <div class="equip-picker">
-        <div class="equip-add-row">
-          <select class="form-select" id="equip-select" onchange="equipSelectChange(this)">
-            <option value="">Selecionar equipamento...</option>
-            ${options}
-            <option value="__custom__">Outro (digitar)...</option>
-          </select>
-          <button type="button" class="btn-add-equip" onclick="equipAdd()">+ Adicionar</button>
-        </div>
-        <div id="equip-custom-wrap" style="display:none">
-          <input class="form-input" id="equip-custom" placeholder="Nome do equipamento">
+        <div class="equip-search-wrap">
+          <input class="form-input" id="equip-search-input"
+            placeholder="${icon('search',13,'margin-right:4px')} Buscar por nome ou código Protheus..."
+            autocomplete="off"
+            oninput="filterEquipSearch(this.value)"
+            onkeydown="equipSearchKeydown(event)"
+            onblur="hideEquipDropdownDelayed()">
+          <div id="equip-dropdown" class="equip-dropdown"></div>
         </div>
         <div class="equip-list-items" id="equip-list-items">${items}</div>
         <div id="equip-list-total" style="font-size:11px;font-family:'DM Mono',monospace;color:var(--green);text-align:right;min-height:14px;padding-top:3px"></div>
       </div>
     </div>`;
-}
-
-function equipSelectChange(sel) {
-  const wrap = document.getElementById('equip-custom-wrap');
-  if (wrap) wrap.style.display = sel.value === '__custom__' ? 'block' : 'none';
-}
-
-function equipAdd() {
-  const sel = document.getElementById('equip-select');
-  if (!sel) return;
-  const custom = document.getElementById('equip-custom');
-  const name = sel.value === '__custom__'
-    ? (custom?.value?.trim() || '')
-    : sel.value;
-  if (!name) return;
-  const existing = tempEquipList.find(e => e.name === name);
-  if (existing) { existing.qty++; }
-  else { tempEquipList.push({ name, qty: 1, valorUnit: '', desconto: '' }); }
-  sel.value = '';
-  if (custom) custom.value = '';
-  const wrap = document.getElementById('equip-custom-wrap');
-  if (wrap) wrap.style.display = 'none';
-  refreshEquipList();
 }
 
 function equipQty(idx, delta) {
@@ -875,7 +1055,7 @@ function refreshMultiFileList(key) {
   const files = tempFiles[key] || [];
   el.innerHTML = files.map((f, i) => `
     <div class="multi-file-item">
-      <span class="multi-file-item-name">📎 ${f.name}</span>
+      <span class="multi-file-item-name" style="display:flex;align-items:center;gap:5px">${icon('paperclip',12,'color:var(--text3)')} ${f.name}</span>
       <span class="multi-file-item-size">${(f.size/1024).toFixed(0)} KB</span>
       <button class="multi-file-remove" type="button" onclick="removeMultiFile('${key}',${i})" title="Remover">×</button>
     </div>`).join('');
@@ -908,7 +1088,7 @@ function buildFieldHtml(f) {
         <input type="file" id="f-${f.key}" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
           style="display:none" onchange="handleFile(this)">
         <div class="file-upload-area" id="file-display-${f.key}">
-          <div class="file-upload-text">📎 Clique para anexar arquivo (PDF, Word, Excel, Imagem)</div>
+          <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para anexar arquivo (PDF, Word, Excel, Imagem)</div>
         </div>
       </label>
     </div>`;
@@ -928,7 +1108,7 @@ function handleFile(input) {
   const display = document.getElementById(`file-display-${key}`);
   if (display) {
     display.classList.add('has-file');
-    display.innerHTML = `<div class="file-upload-text has-file">✓ ${input.files[0].name} <span style="font-weight:400;color:var(--green);opacity:.7">(${(input.files[0].size/1024).toFixed(0)} KB)</span></div>`;
+    display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${input.files[0].name} <span style="font-weight:400;opacity:.7">(${(input.files[0].size/1024).toFixed(0)} KB)</span></div>`;
   }
 }
 
@@ -945,7 +1125,7 @@ function renderAll() {
 function renderRoles() {
   document.getElementById('roleSelector').innerHTML = SECTORS.map(s => `
     <button class="role-btn ${s.id===currentUserId?'active':''}" onclick="setUser('${s.id}')" title="${s.desc}">
-      <span style="font-size:9px;font-family:'DM Mono',monospace;background:${s.id===currentUserId?'var(--accent)':'var(--border)'};color:${s.id===currentUserId?'#fff':'var(--text2)'};padding:1px 5px;border-radius:3px">${s.av}</span>
+      <span style="font-size:9px;font-family:'DM Mono',monospace;background:${s.id===currentUserId?'rgba(255,255,255,.35)':'rgba(255,255,255,.12)'};color:#fff;padding:1px 5px;border-radius:3px">${s.av}</span>
       ${s.name}
     </button>`).join('');
 }
@@ -979,7 +1159,7 @@ function renderQueue(user, el) {
 
   if (user.role === 'gestor') {
     el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
-      <div class="empty"><div class="empty-icon">👁</div><div class="empty-title">Acesso de visualização</div><div class="empty-desc">Use "Todas as OPs" para o painel completo.</div></div>`;
+      <div class="empty"><div class="empty-icon">${icon('eye',32,'color:var(--text3)')}</div><div class="empty-title">Acesso de visualização</div><div class="empty-desc">Use "Todas as OPs" para o painel completo.</div></div>`;
     return;
   }
   if (user.role === 'vendedor') {
@@ -987,7 +1167,7 @@ function renderQueue(user, el) {
     const entregues = ops.filter(o => o.status === 'entregue');
     let html = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>`;
     if (!ops.length) {
-      html += `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma OP ainda</div><div class="empty-desc">Clique em "+ Nova OP" para começar.</div></div>`;
+      html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP ainda</div><div class="empty-desc">Clique em "+ Nova OP" para começar.</div></div>`;
     } else {
       if (ativas.length)    html += `<div class="section"><div class="section-label">Em andamento (${ativas.length})</div><div class="card-grid">${ativas.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
       if (entregues.length) html += `<div class="section"><div class="section-label">Entregues (${entregues.length})</div><div class="card-grid">${entregues.map((op,i)=>card(op,false,i)).join('')}</div></div>`;
@@ -997,7 +1177,7 @@ function renderQueue(user, el) {
   }
   el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>
     ${queue.length === 0
-      ? `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Fila vazia</div><div class="empty-desc">Nenhuma OP aguardando sua ação agora.</div></div>`
+      ? `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Fila vazia</div><div class="empty-desc">Nenhuma OP aguardando sua ação agora.</div></div>`
       : `<div class="card-grid">${queue.map((op,i) => card(op,true,i)).join('')}</div>`}`;
 }
 
@@ -1005,7 +1185,7 @@ function renderConcluidas(user, el) {
   const list = getCompleted(user);
   el.innerHTML = `<div class="step-header"><div class="step-title">Concluídas por Mim</div><div class="step-desc">OPs em que você já tomou uma ação</div></div>
     ${list.length === 0
-      ? `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma concluída ainda</div></div>`
+      ? `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma concluída ainda</div></div>`
       : `<div class="card-grid">${list.map((op,i) => card(op,false,i)).join('')}</div>`}`;
 }
 
@@ -1217,7 +1397,7 @@ function buildContextPanel(op) {
   // Arquivo da OP
   if (sd.aberta?.arquivoOP) {
     parts.push(sec('Arquivo', [
-      cRow('Arquivo da OP', '📎 ' + sd.aberta.arquivoOP),
+      cRow('Arquivo da OP', sd.aberta.arquivoOP),
     ]));
   }
 
@@ -1262,8 +1442,8 @@ function openActionModal(opId, mode) {
   let algoNote = '';
   if (op.status === 'aberta' && mode === 'advance') {
     algoNote = op.entrada === 'pendente'
-      ? `<div class="warn-block">⚠ Entrada <strong>pendente</strong> — esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</div>`
-      : `<div class="success-block">✓ Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</div>`;
+      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> — esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</span></div>`
+      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</span></div>`;
   }
 
   const dirNote = '';
@@ -1274,7 +1454,7 @@ function openActionModal(opId, mode) {
     const rej = op.stepData.aguard_despacho_reject;
     rejectionNote = `
       <div style="background:var(--red-bg);border:1.5px solid rgba(220,38,38,.3);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.2px">⚠ RE-EMISSÃO SOLICITADA PELA LOGÍSTICA</div>
+        <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.2px;display:flex;align-items:center;gap:6px">${icon('alert-triangle',14,'color:var(--red)')} RE-EMISSÃO SOLICITADA PELA LOGÍSTICA</div>
         ${rej.motivoReemissao ? `<div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Motivo:</strong> ${rej.motivoReemissao}</div>` : ''}
         ${rej.dadosCorrigidos ? `<div style="font-size:12px;color:var(--text);line-height:1.5;padding:8px;background:rgba(0,0,0,.03);border-radius:6px;border:1px solid rgba(220,38,38,.15)"><strong>Dados corrigidos:</strong><br>${rej.dadosCorrigidos.replace(/\n/g,'<br>')}</div>` : ''}
         <div style="font-size:11px;color:var(--text3)">Os campos abaixo foram pré-preenchidos com os dados anteriores. Corrija conforme necessário e re-emita.</div>
@@ -1320,7 +1500,7 @@ function openActionModal(opId, mode) {
         <label style="cursor:pointer">
           <input type="file" id="f-arquivoNF" accept=".pdf" style="display:none" onchange="handleFile(this)">
           <div class="file-upload-area" id="file-display-arquivoNF">
-            <div class="file-upload-text">📎 ${emData.arquivoNF ? 'Anterior: '+emData.arquivoNF+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
+            <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} ${emData.arquivoNF ? 'Anterior: '+emData.arquivoNF+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
           </div>
         </label>
       </div>
@@ -1336,7 +1516,7 @@ function openActionModal(opId, mode) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
-      <button class="close-btn" onclick="closeModal()">✕</button>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
       <div class="split-pane split-pane-left">
@@ -1390,7 +1570,7 @@ function openInfoModal(opId) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
-      <button class="close-btn" onclick="closeModal()">✕</button>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-body">
       <div class="op-info-block">
@@ -1406,7 +1586,7 @@ function openInfoModal(opId) {
         <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
         ${op.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">${op.obs}</div>`:''}
       </div>
-      ${op.pedidoVenda ? `<div style="background:var(--blue-bg);border:1px solid rgba(37,99,235,.15);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:12px;color:var(--accent);font-weight:600">📄 Pedido de Venda gerado</span><button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="printPedidoVenda(${opId})">Exportar PDF</button></div>` : ''}
+      ${op.pedidoVenda ? `<div style="background:var(--blue-bg);border:1px solid rgba(38,114,184,.15);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:12px;color:var(--accent);font-weight:600;display:flex;align-items:center;gap:6px">${icon('file-text',14,'color:var(--accent)')} Pedido de Venda gerado</span><button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Exportar PDF</button></div>` : ''}
       ${detailsHtml}
       <div>
         <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:10px;letter-spacing:.6px">Histórico</div>
@@ -1495,14 +1675,14 @@ function openNovaOP() {
   const todayISO = new Date().toISOString().split('T')[0];
   const analistaOptions = VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
-  const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">▾</span></div><div class="acc-body">`;
+  const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
   document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Nova OP — Pedido do Cliente</div>
         <div class="modal-subtitle">Contourline · CNPJ 14.458.149/0001-23 · Frete: EMPRESA</div></div>
-      <button class="close-btn" onclick="closeModal()">✕</button>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-body" style="gap:8px">
 
@@ -1528,8 +1708,8 @@ function openNovaOP() {
                 onkeydown="if(event.key==='Enter')searchClientBtn()">
               <div class="api-status" id="cnpj-status"></div></div>
             <button type="button" onclick="searchClientBtn()"
-              style="padding:8px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;height:36px">
-              &#128269; Buscar
+              style="padding:8px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;height:36px;display:flex;align-items:center;gap:6px">
+              ${icon('search',13,'color:#fff')} Buscar
             </button>
           </div>
           <div class="form-row">
@@ -1649,7 +1829,7 @@ function openNovaOP() {
               <input type="file" id="nova-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                 style="display:none" onchange="handleFile(this)">
               <div class="file-upload-area" id="file-display-nova-arquivo">
-                <div class="file-upload-text">📎 Clique para anexar o arquivo da OP (PDF, Word, Excel)</div>
+                <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para anexar o arquivo da OP (PDF, Word, Excel)</div>
               </div></label></div>
           <div class="form-group"><label class="form-label">Observações / Pedido de Venda</label>
             <textarea class="form-textarea" id="nova-descricao" rows="3"></textarea></div>
@@ -1689,7 +1869,7 @@ function toggleAccordion(head) {
   const arrow = head.querySelector('.acc-arrow');
   const isOpen = !body.hidden;
   body.hidden = isOpen;
-  if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : '';
+  if (arrow) arrow.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
 function updatePaymentFields(val) {
@@ -2149,7 +2329,7 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
 .no-print button{padding:8px 18px;background:#162C45;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:700}
 @media print{@page{margin:12mm;size:A4}.no-print{display:none!important}}
 </style></head><body><div class="page">
-<div class="no-print"><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>
+<div class="no-print"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
 
 <div class="hdr">
   <div>

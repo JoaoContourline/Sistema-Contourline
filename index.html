@@ -299,7 +299,7 @@ main { padding: 24px; }
 .api-status { font-size:10px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
 
 /* SPLIT ACTION MODAL */
-.modal.split { max-width: 880px; overflow: hidden; display: flex; flex-direction: column; }
+.modal.split { max-width: 940px; overflow: hidden; display: flex; flex-direction: column; }
 .modal-split-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; min-height: 0; }
 .split-pane { overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .split-pane-left { border-right: 1px solid var(--border); background: var(--surface2); }
@@ -312,7 +312,7 @@ main { padding: 24px; }
 @media (max-width: 680px) {
   .modal.split { max-width: 98vw; }
   .modal-split-body { grid-template-columns: 1fr; }
-  .split-pane-left { max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
+  .split-pane-left { max-height: 300px; border-right: none; border-bottom: 1px solid var(--border); }
 }
 
 /* ACCORDION */
@@ -1747,9 +1747,18 @@ function openActionModal(opId, mode) {
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
-      <div class="split-pane split-pane-left">
-        <div class="split-pane-header">Respostas anteriores</div>
-        ${buildContextPanel(op)}
+      <div class="split-pane split-pane-left" style="padding:0;gap:0">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface2)">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+            <span class="badge ${stepBadge(op.status).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status).label}</span>
+            ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
+        </div>
+        <div style="padding:10px 12px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:4px">
+          ${buildInfoSections(op, op.id)}
+        </div>
       </div>
       <div class="split-pane split-pane-right">
         <div class="split-pane-header">Preencher agora</div>
@@ -1776,25 +1785,25 @@ function infoAcc(title, iconName, contentHtml, open = false) {
   </div>`;
 }
 
-function openInfoModal(opId) {
-  const op    = ops.find(o => o.id === opId);
-  const badge = stepBadge(op.status);
-  const sem   = semaforo(op);
-  const pv    = op.pedidoVenda;
-  const sd    = op.stepData || {};
+// ═══════════════════════════════════════════════════════════════════
+// SHARED INFO SECTIONS (accordion) — used by info modal & action modal left panel
+// ═══════════════════════════════════════════════════════════════════
+
+function buildInfoSections(op, opId) {
+  const pv = op.pedidoVenda;
+  const sd = op.stepData || {};
   const dItem = (label, val) => val
     ? `<div class="detail-item"><div class="detail-label">${label}</div><div class="detail-value" style="font-size:12px;font-weight:400">${val}</div></div>`
     : '';
 
   const sections = [];
 
-  // ── PEDIDO DE VENDA ───────────────────────────────────────────────
+  // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
       const lt = e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
       return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
-
     const addrParts = [pv.endRua, pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -1805,9 +1814,8 @@ function openInfoModal(opId) {
         ${dItem('Analista', pv.analista)}
         ${dItem('Contrato', pv.numContrato)}
       </div>
-      <div style="font-size:9px;font-family:\'DM Mono\',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:.6px">Equipamentos</div>
+      <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:.6px">Equipamentos</div>
       <div style="margin-bottom:10px">${equipLines}</div>`;
-
     if (pv.valorLiquido || pv.valorTotal) {
       pvHtml += `<div class="detail-grid" style="margin-bottom:8px">
         ${pv.valorTotal && parseFloat(pv.valorTotal)>0 ? dItem('Valor Bruto', fmtBRL(pv.valorTotal)) : ''}
@@ -1817,7 +1825,6 @@ function openInfoModal(opId) {
       </div>`;
     }
     if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
-
     pvHtml += `<div class="detail-grid">
       ${dItem('Cliente', `<strong>${pv.cliente||'—'}</strong>`)}
       ${dItem('CPF/CNPJ', pv.cpf)}
@@ -1826,6 +1833,7 @@ function openInfoModal(opId) {
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
       ${pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
       ${dItem('Prazo', pv.prazo ? pv.prazo+' dias úteis'+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
+      ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
       ${dItem('Voltagem', pv.voltagem)}
     </div>
@@ -1835,15 +1843,14 @@ function openInfoModal(opId) {
     </div>`;
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
-    const basicHtml = `<div class="detail-grid">
+    sections.push(infoAcc('Pedido', 'clipboard-list', `<div class="detail-grid">
       ${dItem('Equipamentos', (op.equipamentos||[op.equipamento||'—']).join(', '))}
       ${dItem('Contrato', op.numContrato||op.contrato)}
       ${dItem('Vendedor', op.vendedorName)}
-    </div>`;
-    sections.push(infoAcc('Pedido', 'clipboard-list', basicHtml, true));
+    </div>`, true));
   }
 
-  // ── FINANCEIRO ────────────────────────────────────────────────────
+  // ── FINANCEIRO ───────────────────────────────────────────────────
   if (sd.aguard_financeiro || op.status === 'aguard_financeiro' || op.status === 'bloqueada') {
     const df = sd.aguard_financeiro || {};
     const dr = sd.aguard_financeiro_reject || {};
@@ -1852,18 +1859,15 @@ function openInfoModal(opId) {
       ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
     </div>`;
     if (df.boleto?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Comprovante(s)</div>${fileLinksHtml(df.boleto)}</div>`;
-    if (df.extras?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Outros Anexos</div>${fileLinksHtml(df.extras)}</div>`;
+    if (df.extras?.length)  finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Outros Anexos</div>${fileLinksHtml(df.extras)}</div>`;
     sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
   }
 
-  // ── DADOS DE ENTREGA ──────────────────────────────────────────────
+  // ── DADOS DE ENTREGA ─────────────────────────────────────────────
   if (sd.aguard_nf) {
     const d = sd.aguard_nf;
-    // NS por equipamento: pode ser array (numSeries) ou string legada (numSerie)
     const nsRows = (() => {
-      if (d.numSeries?.length) {
-        return d.numSeries.map((ns, i) => ns ? dItem(`Nº Série ${i+1}`, ns) : '').join('');
-      }
+      if (d.numSeries?.length) return d.numSeries.map((ns, i) => ns ? dItem(`Nº Série ${i+1}`, ns) : '').join('');
       return d.numSerie ? dItem('Nº de Série', d.numSerie) : '';
     })();
     let entHtml = `<div class="detail-grid">
@@ -1880,10 +1884,18 @@ function openInfoModal(opId) {
         <span><strong>Despachado</strong> em ${dd.dataDespacho ? fmtDate(dd.dataDespacho) : ''}${dd.horaDespacho ? ' às '+dd.horaDespacho : ''}</span>
       </div>`;
     }
+    if (sd.aguard_despacho_reject) {
+      const dr = sd.aguard_despacho_reject;
+      entHtml += `<div style="background:var(--red-bg);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:8px;margin-top:8px">
+        <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);margin-bottom:5px">Re-emissão Solicitada</div>
+        ${dr.motivoReemissao?`<div style="font-size:11px;margin-bottom:4px"><strong>Motivo:</strong> ${dr.motivoReemissao}</div>`:''}
+        ${dr.dadosCorrigidos?`<div style="font-size:11px"><strong>Dados corrigidos:</strong> ${dr.dadosCorrigidos.replace(/\n/g,'<br>')}</div>`:''}
+      </div>`;
+    }
     sections.push(infoAcc('Dados de Entrega', 'truck', entHtml));
   }
 
-  // ── NOTA FISCAL ───────────────────────────────────────────────────
+  // ── NOTA FISCAL ──────────────────────────────────────────────────
   if (sd.aguard_emissao) {
     const d = sd.aguard_emissao;
     let nfeHtml = `<div class="detail-grid">
@@ -1907,11 +1919,150 @@ function openInfoModal(opId) {
     sections.push(infoAcc('Confirmação de Entrega', 'package', confHtml, op.status === 'entregue'));
   }
 
-  // ── HISTÓRICO ─────────────────────────────────────────────────────
+  // ── HISTÓRICO ────────────────────────────────────────────────────
   const histHtml = op.history.length
     ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName}:</span> ${h.note}</div></div>`).join('')
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
   sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
+
+  return sections.join('');
+}
+function openInfoModal(opId) {
+  const op    = ops.find(o => o.id === opId);
+  const badge = stepBadge(op.status);
+  const sem   = semaforo(op);
+  const pv    = op.pedidoVenda;
+  const sd    = op.stepData || {};
+  const dItem = (label, val) => val
+    ? `<div class="detail-item"><div class="detail-label">${label}</div><div class="detail-value" style="font-size:12px;font-weight:400">${val}</div></div>`
+    : '';
+
+  const sectionsHtml = buildInfoSections(op, opId);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // ── STATUS HEADER ─────────────────────────────────────────────────
   const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
@@ -1938,8 +2089,8 @@ function openInfoModal(opId) {
     </div>
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
-      <div style="display:flex;flex-direction:column;gap:6px">${sections.join('')}</div>
-    </div>
+      ${statusHeader}
+      <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');

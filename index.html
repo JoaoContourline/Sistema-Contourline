@@ -545,20 +545,6 @@ main { padding: 24px; }
 }
 .logout-btn:hover { background: rgba(255,255,255,.18); color: #fff; border-color: rgba(255,255,255,.3); }
 
-/* ── VIEW SWITCHER (gestor only) ───────────────────────────────── */
-.view-switcher {
-  display: flex; align-items: center; gap: 3px;
-  background: rgba(0,0,0,.18); border-radius: 8px; padding: 3px;
-}
-.view-btn {
-  padding: 4px 9px; border-radius: 6px; border: none;
-  background: transparent; color: rgba(255,255,255,.55);
-  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
-  cursor: pointer; transition: all .15s; letter-spacing: .3px;
-  white-space: nowrap;
-}
-.view-btn:hover { background: rgba(255,255,255,.12); color: rgba(255,255,255,.85); }
-.view-btn.active { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 </style>
 </head>
 <body>
@@ -923,22 +909,6 @@ const SECTORS = [
   { id:'gestor',     name:'Gestor',     role:'gestor',     av:'GES', desc:'Visão completa' },
 ];
 
-// Visão simulada pelo gestor (null = visão padrão de gestor)
-let gestorViewAs = null;
-
-function getActiveView() {
-  const user = getUser();
-  if (!user) return null;
-  if (user.id === 'gestor' && gestorViewAs) {
-    return SECTORS.find(s => s.id === gestorViewAs) || user;
-  }
-  return user;
-}
-
-function setGestorView(sectorId) {
-  gestorViewAs = sectorId;
-  renderAll();
-}
 
 // Pessoas — usadas apenas no form Nova OP e no histórico
 const VENDEDORES = [
@@ -1728,20 +1698,9 @@ function renderRoles() {
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 
-  // View switcher: só para gestor
-  const switcherHtml = user.id === 'gestor' ? `
-    <div class="view-switcher">
-      <button class="view-btn ${gestorViewAs === null ? 'active' : ''}" onclick="setGestorView(null)">GES</button>
-      <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">COM</button>
-      <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">FIN</button>
-      <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">LOG</button>
-      <button class="view-btn ${gestorViewAs === 'fiscal'     ? 'active' : ''}" onclick="setGestorView('fiscal')">FIS</button>
-    </div>` : '';
-
-  // Widget: [view switcher] [Sair] [Avatar + nome]
+  // Widget: [Sair] [Avatar + nome]
   document.getElementById('roleSelector').innerHTML = `
     <div class="user-widget">
-      ${switcherHtml}
       <button class="logout-btn" onclick="doLogout()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
@@ -1759,17 +1718,17 @@ function renderRoles() {
 }
 
 function renderCounts() {
-  const view = getActiveView();
-  document.getElementById('cnt-fila').textContent       = getQueue(view).length;
-  document.getElementById('cnt-concluidas').textContent  = getCompleted(view).length;
+  const user = getUser();
+  document.getElementById('cnt-fila').textContent       = getQueue(user).length;
+  document.getElementById('cnt-concluidas').textContent  = getCompleted(user).length;
   document.getElementById('cnt-todas').textContent       = ops.length;
 }
 
 function renderMain() {
-  const view = getActiveView();
+  const user = getUser();
   const el   = document.getElementById('main');
-  if      (currentTab === 'fila')       renderQueue(view, el);
-  else if (currentTab === 'concluidas') renderConcluidas(view, el);
+  if      (currentTab === 'fila')       renderQueue(user, el);
+  else if (currentTab === 'concluidas') renderConcluidas(user, el);
   else                                  renderTodas(el);
 }
 
@@ -1911,7 +1870,7 @@ function renderTodas(el) {
 // ═══════════════════════════════════════════════════════════════════
 
 function card(op, inQueue, animIdx, infoOnly = false) {
-  const user     = getActiveView();
+  const user     = getUser();
   const step     = STEPS[op.status];
   const badge    = stepBadge(op.status);
   const sem      = semaforo(op);
@@ -2105,9 +2064,9 @@ function buildContextPanel(op) {
 
 function openCard(opId) {
   const op   = ops.find(o => o.id === opId);
-  const view = getActiveView();
+  const user = getUser();
   const step = STEPS[op.status];
-  const canAct = step?.owner === view.role;
+  const canAct = step?.owner === user.role;
   canAct ? openActionModal(opId,'advance') : openInfoModal(opId);
 }
 

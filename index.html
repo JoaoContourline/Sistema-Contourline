@@ -49,9 +49,26 @@ header {
 .logo-text { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -.3px; line-height: 1; }
 .logo-sub  { font-size: 9px; color: rgba(255,255,255,.4); font-family: 'DM Mono', monospace; letter-spacing: .5px; text-transform: uppercase; }
 
-/* Header right group: [Nova OP] [Sair] [Avatar + name] */
+/* Header center: view switcher do gestor */
+.header-center {
+  flex: 1; display: flex; justify-content: center; align-items: center;
+}
+/* View switcher */
+.view-switcher {
+  display: flex; align-items: center; gap: 3px;
+  background: rgba(0,0,0,.18); border-radius: 8px; padding: 3px;
+}
+.view-btn {
+  padding: 4px 9px; border-radius: 6px; border: none;
+  background: transparent; color: rgba(255,255,255,.55);
+  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  cursor: pointer; transition: all .15s; letter-spacing: .3px;
+  white-space: nowrap;
+}
+.view-btn:hover { background: rgba(255,255,255,.12); color: rgba(255,255,255,.85); }
+.view-btn.active { background: rgba(255,255,255,.22); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+/* Header right group */
 .header-right {
-  margin-left: auto;
   display: flex; align-items: center; gap: 10px;
   padding-right: 4px;
 }
@@ -644,6 +661,7 @@ main { padding: 24px; }
       <div class="logo-sub">Contourline</div>
     </div>
   </div>
+  <div class="header-center" id="headerCenter"></div>
   <div class="header-right">
     <button id="btnNovaOP" class="btn-nova-op" onclick="openNovaOP()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -911,6 +929,23 @@ const SECTORS = [
   { id:'gestor',     name:'Gestor',     role:'gestor',     av:'GES', desc:'Visão completa' },
 ];
 
+
+// Visão simulada pelo gestor (null = visão padrão de gestor)
+let gestorViewAs = null;
+
+function getActiveView() {
+  const user = getUser();
+  if (!user) return null;
+  if (user.id === 'gestor' && gestorViewAs) {
+    return SECTORS.find(s => s.id === gestorViewAs) || user;
+  }
+  return user;
+}
+
+function setGestorView(sectorId) {
+  gestorViewAs = sectorId;
+  renderAll();
+}
 
 // Pessoas — usadas apenas no form Nova OP e no histórico
 const VENDEDORES = [
@@ -1437,7 +1472,13 @@ function calcDescontoTotal() {
     if (!e.valorUnit) return sum;
     return sum + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
   }, 0);
-  const desconto = parseBRL(document.getElementById('nova-desconto')?.value) || 0;
+  let desconto = parseBRL(document.getElementById('nova-desconto')?.value) || 0;
+  if (subtotal > 0 && desconto > subtotal) {
+    desconto = subtotal;
+    const el = document.getElementById('nova-desconto');
+    if (el) el.value = subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    showToast('Desconto limitado ao valor total (100%)', 'err');
+  }
   const total = Math.max(0, subtotal - desconto);
   const elDisp = document.getElementById('nova-valor-total-display');
   if (elDisp) elDisp.textContent = total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
@@ -1700,6 +1741,19 @@ function renderRoles() {
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 
+  // Centro do header: switcher de visão só para gestor
+  const center = document.getElementById('headerCenter');
+  if (center) {
+    center.innerHTML = user.id === 'gestor' ? `
+      <div class="view-switcher">
+        <button class="view-btn ${gestorViewAs === null ? 'active' : ''}" onclick="setGestorView(null)">GES</button>
+        <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">COM</button>
+        <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">FIN</button>
+        <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">LOG</button>
+        <button class="view-btn ${gestorViewAs === 'fiscal'     ? 'active' : ''}" onclick="setGestorView('fiscal')">FIS</button>
+      </div>` : '';
+  }
+
   // Widget: [Sair] [Avatar + nome]
   document.getElementById('roleSelector').innerHTML = `
     <div class="user-widget">
@@ -1720,17 +1774,17 @@ function renderRoles() {
 }
 
 function renderCounts() {
-  const user = getUser();
-  document.getElementById('cnt-fila').textContent       = getQueue(user).length;
-  document.getElementById('cnt-concluidas').textContent  = getCompleted(user).length;
+  const view = getActiveView();
+  document.getElementById('cnt-fila').textContent       = getQueue(view).length;
+  document.getElementById('cnt-concluidas').textContent  = getCompleted(view).length;
   document.getElementById('cnt-todas').textContent       = ops.length;
 }
 
 function renderMain() {
-  const user = getUser();
+  const view = getActiveView();
   const el   = document.getElementById('main');
-  if      (currentTab === 'fila')       renderQueue(user, el);
-  else if (currentTab === 'concluidas') renderConcluidas(user, el);
+  if      (currentTab === 'fila')       renderQueue(view, el);
+  else if (currentTab === 'concluidas') renderConcluidas(view, el);
   else                                  renderTodas(el);
 }
 
@@ -1872,7 +1926,7 @@ function renderTodas(el) {
 // ═══════════════════════════════════════════════════════════════════
 
 function card(op, inQueue, animIdx, infoOnly = false) {
-  const user     = getUser();
+  const user     = getActiveView();
   const step     = STEPS[op.status];
   const badge    = stepBadge(op.status);
   const sem      = semaforo(op);
@@ -1910,7 +1964,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-top">
       <div>
         <div class="card-op">OP ${op.numero}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorName}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorCanal||op.vendedorName||''}</div>
       </div>
       <div class="card-flags">
         ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
@@ -1994,7 +2048,7 @@ function buildContextPanel(op) {
       pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay
                        ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
-      pv.dataPrevista  ? cRow('Prazo / Previsão', (pv.prazo ? pv.prazo + ' dias úteis' + (pv.aContarDe ? ' a contar de ' + pv.aContarDe : '') + ' — ' : '') + pv.dataPrevista) : '',
+      pv.dataPrevista  ? cRow('Prazo / Previsão', (pv.prazo ? pv.prazo + (pv.diasUteis===false?' dias':' dias úteis') + (pv.aContarDe ? ' a contar de ' + pv.aContarDe : '') + ' — ' : '') + pv.dataPrevista) : '',
       cRow('Treinamento', pv.treinamento),
     ]));
   } else {
@@ -2066,9 +2120,9 @@ function buildContextPanel(op) {
 
 function openCard(opId) {
   const op   = ops.find(o => o.id === opId);
-  const user = getUser();
+  const view = getActiveView();
   const step = STEPS[op.status];
-  const canAct = step?.owner === user.role;
+  const canAct = step?.owner === view.role;
   canAct ? openActionModal(opId,'advance') : openInfoModal(opId);
 }
 
@@ -2303,7 +2357,7 @@ function buildInfoSections(op, opId) {
       ${dItem('E-mail', pv.email)}
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
       ${pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
-      ${dItem('Prazo', pv.prazo ? pv.prazo+' dias úteis'+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
+      ${dItem('Prazo', pv.prazo ? pv.prazo+(pv.diasUteis===false?' dias':' dias úteis')+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
       ${dItem('Voltagem', pv.voltagem)}
@@ -2391,8 +2445,9 @@ function buildInfoSections(op, opId) {
   }
 
   // ── HISTÓRICO ────────────────────────────────────────────────────
+  const roleLabel = { vendedor:'Vendedor', financeiro:'Financeiro', logistica:'Logística', fiscal:'Fiscal', gestor:'Gestor', diretoria:'Diretoria' };
   const histHtml = op.history.length
-    ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName}:</span> ${h.note}</div></div>`).join('')
+    ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${roleLabel[h.actor]||h.actor}:</span> <strong>${h.actorName}</strong>${h.note ? ` — ${h.note}` : ''}</div></div>`).join('')
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
   sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
 
@@ -2560,7 +2615,6 @@ function openInfoModal(opId) {
     </div>
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
-      ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
@@ -2663,7 +2717,7 @@ function submitModal() {
 function openNovaOP() {
   tempEquipList = [];
   const todayISO = new Date().toISOString().split('T')[0];
-  const analistaOptions = VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  const analistaOptions = `<option value="">— Selecionar —</option>` + VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
   const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
@@ -2805,9 +2859,17 @@ function openNovaOP() {
           <div class="form-group"><label class="form-label">Contato responsável</label>
             <input class="form-input" id="nova-contatoEntrega"></div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">Prazo de entrega (dias úteis)</label>
+            <div class="form-group">
+              <label class="form-label" style="display:flex;align-items:center;gap:8px">
+                Prazo de entrega
+                <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:10px;color:var(--text2);cursor:pointer">
+                  <input type="checkbox" id="nova-diasUteis" checked oninput="calcDataPrevista()" style="width:13px;height:13px;cursor:pointer">
+                  Dias úteis
+                </label>
+              </label>
               <input class="form-input" id="nova-prazo" type="number" min="1"
-                oninput="calcDataPrevista()"></div>
+                oninput="calcDataPrevista()">
+            </div>
             <div class="form-group"><label class="form-label">A contar de</label>
               <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}"
                 oninput="calcDataPrevista()"></div>
@@ -2880,15 +2942,20 @@ function updatePaymentFields(val) {
 function calcDataPrevista() {
   const prazo = parseInt(document.getElementById('nova-prazo')?.value);
   const aContarDe = document.getElementById('nova-aContarDe')?.value;
+  const diasUteis = document.getElementById('nova-diasUteis')?.checked !== false;
   const el = document.getElementById('nova-data-prevista');
   if (!el) return;
   if (!prazo || prazo <= 0) { el.textContent = '—'; return; }
   const d = aContarDe ? new Date(aContarDe + 'T12:00:00') : new Date();
-  let dias = 0;
-  while (dias < prazo) {
-    d.setDate(d.getDate() + 1);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) dias++;
+  if (diasUteis) {
+    let dias = 0;
+    while (dias < prazo) {
+      d.setDate(d.getDate() + 1);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) dias++;
+    }
+  } else {
+    d.setDate(d.getDate() + prazo);
   }
   el.textContent = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
 }
@@ -2952,9 +3019,13 @@ function lookupProtheusClient(rawVal) {
         setStatus('cnpj-status', 'Protheus: ' + (data.error || data.message || ('HTTP ' + status)), 'err');
         return false;
       }
-      const items = data.items || (Array.isArray(data) ? data : []);
+      const allItems = data.items || (Array.isArray(data) ? data : []);
+      const items = allItems.filter(item => {
+        const itemDoc = ((item.cgc || item.cpfCnpj || item.document || '') + '').replace(/\D/g, '');
+        return itemDoc === digits;
+      });
       if (!items.length) {
-        setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
+        setStatus('cnpj-status', allItems.length ? 'CPF/CNPJ não corresponde a nenhum cliente no Protheus' : 'Não encontrado no Protheus', 'err');
         return false;
       }
       fillClientFromProtheus(items[0]);
@@ -3134,6 +3205,7 @@ async function submitNovaOP() {
   const enderecoEntrega  = v('nova-enderecoEntrega');
   const contatoEntrega   = v('nova-contatoEntrega');
   const prazo            = g('nova-prazo')?.value;
+  const diasUteis        = g('nova-diasUteis')?.checked !== false;
   const aContarDe        = g('nova-aContarDe')?.value;
   const dataPrevista     = g('nova-data-prevista')?.textContent;
   const treinamento      = v('nova-treinamento');
@@ -3187,7 +3259,7 @@ async function submitNovaOP() {
       valorTotal, valorDesconto, valorLiquido,
       entrada, valorEntrada,
       enderecoEntrega: enderecoEntrega || enderecoCliente || '',
-      contatoEntrega, prazo,
+      contatoEntrega, prazo, diasUteis,
       aContarDe: fmtD(aContarDe),
       dataPrevista: (dataPrevista && dataPrevista !== '—') ? dataPrevista : '',
       treinamento,
@@ -3292,7 +3364,7 @@ function printPedidoVenda(opId) {
   if (pv.enderecoEntrega) obsParts.push(`Endereço de entrega: ${pv.enderecoEntrega}`);
   if (pv.contatoEntrega)  obsParts.push(`Contato responsável: ${pv.contatoEntrega}`);
   if (pv.prazo) {
-    let prazoStr = `${pv.prazo} dias úteis`;
+    let prazoStr = `${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
     if (pv.aContarDe) prazoStr += ` (a contar de ${pv.aContarDe})`;
     if (pv.dataPrevista) prazoStr += ` — Previsão: ${pv.dataPrevista}`;
     obsParts.push(`Prazo de entrega: ${prazoStr}`);

@@ -1746,7 +1746,6 @@ function renderRoles() {
   if (center) {
     center.innerHTML = user.id === 'gestor' ? `
       <div class="view-switcher">
-        <button class="view-btn ${gestorViewAs === null ? 'active' : ''}" onclick="setGestorView(null)">GES</button>
         <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">COM</button>
         <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">FIN</button>
         <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">LOG</button>

@@ -3023,13 +3023,10 @@ function lookupProtheusClient(rawVal) {
         setStatus('cnpj-status', 'Protheus: ' + (data.error || data.message || ('HTTP ' + status)), 'err');
         return false;
       }
-      const allItems = data.items || (Array.isArray(data) ? data : []);
-      const items = allItems.filter(item => {
-        const itemDoc = ((item.cgc || item.cpfCnpj || item.document || '') + '').replace(/\D/g, '');
-        return itemDoc === digits;
-      });
+      const items = data.items || (Array.isArray(data) ? data : []);
+      console.log('[Protheus] resposta:', JSON.stringify(data).substring(0, 500));
       if (!items.length) {
-        setStatus('cnpj-status', allItems.length ? 'CPF/CNPJ não corresponde a nenhum cliente no Protheus' : 'Não encontrado no Protheus', 'err');
+        setStatus('cnpj-status', 'Não encontrado no Protheus (0 resultados)', 'err');
         return false;
       }
       fillClientFromProtheus(items[0]);

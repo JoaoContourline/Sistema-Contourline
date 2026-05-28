@@ -2021,7 +2021,7 @@ function buildContextPanel(op) {
   // Pedido do Cliente
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e=>`${e.name}${e.qty>1?' ×'+e.qty:''}`).join('<br>');
-    const addrParts  = [pv.endRua, pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
     const payRows = [];
@@ -2329,7 +2329,7 @@ function buildInfoSections(op, opId) {
       const lt = e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
       return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
-    const addrParts = [pv.endRua, pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
     let pvHtml = `
@@ -2778,8 +2778,12 @@ function openNovaOP() {
                 <input class="form-input" id="nova-numDocumento"></div>
             </div>
           </div>
-          <div class="form-group"><label class="form-label">Endereço</label>
-            <input class="form-input" id="nova-endRua"></div>
+          <div class="form-row" style="grid-template-columns:1fr 100px">
+            <div class="form-group"><label class="form-label">Endereço (Rua/Av.)</label>
+              <input class="form-input" id="nova-endRua"></div>
+            <div class="form-group"><label class="form-label">Número</label>
+              <input class="form-input" id="nova-endNumero" placeholder="123"></div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Bairro</label>
               <input class="form-input" id="nova-endBairro"></div>
@@ -2965,11 +2969,12 @@ function toggleSameAddress(checked) {
   if (!entrega) return;
   if (checked) {
     const rua    = document.getElementById('nova-endRua')?.value || '';
+    const numero = document.getElementById('nova-endNumero')?.value || '';
     const bairro = document.getElementById('nova-endBairro')?.value || '';
     const cidade = document.getElementById('nova-endCidade')?.value || '';
     const estado = document.getElementById('nova-endEstado')?.value || '';
     const cep    = document.getElementById('nova-cep-cliente')?.value || '';
-    const parts  = [rua, bairro, [cidade, estado].filter(Boolean).join('/'), cep].filter(Boolean);
+    const parts  = [[rua, numero].filter(Boolean).join(', '), bairro, [cidade, estado].filter(Boolean).join('/'), cep].filter(Boolean);
     entrega.value    = parts.join(', ');
     entrega.disabled = true;
     entrega.style.opacity = '0.6';
@@ -3186,6 +3191,7 @@ async function submitNovaOP() {
   const profissao        = v('nova-profissao');
   const numDocumento     = v('nova-numDocumento') || 'N/A';
   const endRua           = v('nova-endRua');
+  const endNumero        = v('nova-endNumero');
   const endBairro        = v('nova-endBairro');
   const endCidade        = v('nova-endCidade');
   const endEstado        = g('nova-endEstado')?.value;
@@ -3212,7 +3218,7 @@ async function submitNovaOP() {
   const descricao        = v('nova-descricao');
   const arquivo          = tempFilesData['nova-arquivo'] || null;
 
-  const enderecoCliente = [endRua, endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
+  const enderecoCliente = [[endRua, endNumero].filter(Boolean).join(', '), endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
 
   if (!vendedorCanal) { highlightError('nova-vendedorCanal'); return; }
   if (!cliente)       { highlightError('nova-cliente');       return; }
@@ -3253,7 +3259,7 @@ async function submitNovaOP() {
       numContrato, frete: 'EMPRESA',
       cliente: cliente.toUpperCase(),
       dn: fmtD(dn), cpf, rg, email, profissao, numDocumento,
-      endRua, endBairro, endCidade, endEstado, endCEP, enderecoCliente, tel,
+      endRua, endNumero, endBairro, endCidade, endEstado, endCEP, enderecoCliente, tel,
       voltagem, tipoContrato, detalhesPagamento,
       simulador: simulador || '',
       valorTotal, valorDesconto, valorLiquido,
@@ -3447,7 +3453,7 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
     <td colspan="2"><span class="lbl">E-mail: </span>${pv.email||'—'}</td>
   </tr>
   <tr>
-    <td colspan="4"><span class="lbl">Endereço: </span>${pv.endRua||pv.enderecoCliente||'—'}</td>
+    <td colspan="4"><span class="lbl">Endereço: </span>${[pv.endRua, pv.endNumero].filter(Boolean).join(', ')||pv.enderecoCliente||'—'}</td>
   </tr>
   <tr>
     <td><span class="lbl">Bairro: </span>${pv.endBairro||'—'}</td>

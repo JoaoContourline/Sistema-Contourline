@@ -3016,7 +3016,7 @@ function lookupProtheusClient(rawVal) {
   if (digits.length < 11) return Promise.resolve(false);
   setStatus('cnpj-status', 'Buscando no Protheus…', 'loading');
   // Chama a Vercel function /api/protheus — sem CORS, sem credenciais no frontend
-  return fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(12000) })
+  return fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(25000) })
     .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
     .then(({ ok, status, data }) => {
       if (!ok) {

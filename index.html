@@ -3016,7 +3016,7 @@ function lookupProtheusClient(rawVal) {
   if (digits.length < 11) return Promise.resolve(false);
   setStatus('cnpj-status', 'Buscando no Protheus…', 'loading');
   // Chama a Vercel function /api/protheus — sem CORS, sem credenciais no frontend
-  return fetch('/api/protheus?cpfCnpj=' + digits)
+  return fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(12000) })
     .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
     .then(({ ok, status, data }) => {
       if (!ok) {
@@ -3044,7 +3044,10 @@ function lookupProtheusClient(rawVal) {
       return true;
     })
     .catch(err => {
-      setStatus('cnpj-status', 'Erro: ' + err.message, 'err');
+      const msg = err.name === 'TimeoutError' || err.name === 'AbortError'
+        ? 'Protheus demorou demais (timeout). Preencha manualmente.'
+        : 'Erro: ' + err.message;
+      setStatus('cnpj-status', msg, 'err');
       return false;
     });
 }

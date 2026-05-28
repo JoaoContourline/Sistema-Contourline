@@ -41,8 +41,7 @@ export default async function handler(req, res) {
   }
 
   const auth = Buffer.from(`${user}:${pass}`).toString('base64');
-  // pageSize alto para garantir que o CPF/CNPJ seja encontrado mesmo sem filtro server-side
-  const url  = `${base}/api/crm/v1/customerVendor?cpfCnpj=${digits}&pageSize=500`;
+  const url  = `${base}/api/crm/v1/customerVendor?cpfCnpj=${digits}&pageSize=50`;
 
   try {
     const response = await fetch(url, {

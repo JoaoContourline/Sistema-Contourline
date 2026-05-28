@@ -63,25 +63,50 @@ export default async function handler(req, res) {
   // ── 4. Envia e-mail com o código via Resend ───────────────────────
   const firstName = user.name.split(' ')[0];
   const emailHtml = `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#eef1f6;font-family:Inter,Arial,sans-serif">
-<div style="max-width:480px;margin:40px auto;background:#f0f3f7;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(22,44,69,.12)">
-  <div style="background:linear-gradient(135deg,#162C45 0%,#24336E 100%);padding:32px 28px;text-align:center">
-    <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-.3px">Fluxo de Vendas</div>
-    <div style="color:rgba(255,255,255,.55);font-size:12px;margin-top:4px;font-family:monospace">Contourline Equipamentos Médicos</div>
-  </div>
-  <div style="background:#fff;padding:36px 32px;text-align:center">
-    <p style="color:#0f1f35;font-size:15px;font-weight:600;margin:0 0 8px">Olá, ${firstName}!</p>
-    <p style="color:#3d5170;font-size:13px;margin:0 0 28px;line-height:1.6">Use o código abaixo para acessar o sistema.<br>Ele expira em <strong>10 minutos</strong>.</p>
-    <div style="background:#f0f4f8;border:1.5px solid #dde3ed;border-radius:14px;padding:24px 20px;margin:0 0 28px;display:inline-block">
-      <div style="font-family:'DM Mono',Courier,monospace;font-size:40px;font-weight:700;letter-spacing:14px;color:#162C45;line-height:1">${code}</div>
-    </div>
-    <p style="color:#8096b3;font-size:11px;margin:0;line-height:1.6">Não compartilhe este código. Se não foi você, ignore este e-mail.</p>
-  </div>
-  <div style="background:#f8fafc;border-top:1px solid #eef1f6;padding:14px;text-align:center">
-    <span style="color:#aab5c8;font-size:10px;font-family:monospace">Rede interna · Acesso restrito · Contourline</span>
-  </div>
-</div>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Código de acesso</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef1f6;font-family:Arial,Helvetica,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f6;padding:40px 0">
+  <tr><td align="center">
+    <table width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(22,44,69,.15)">
+
+      <!-- HEADER -->
+      <tr><td align="center" bgcolor="#162C45" style="background-color:#162C45;padding:28px 32px">
+        <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;font-family:Arial,Helvetica,sans-serif">Fluxo de Vendas</p>
+        <p style="margin:6px 0 0;font-size:11px;color:#91B0DC;font-family:Courier,monospace;letter-spacing:0.5px">CONTOURLINE EQUIPAMENTOS MÉDICOS</p>
+      </td></tr>
+
+      <!-- DIVISOR AZUL -->
+      <tr><td height="4" bgcolor="#2672B8" style="background-color:#2672B8;line-height:4px;font-size:4px">&nbsp;</td></tr>
+
+      <!-- CORPO -->
+      <tr><td align="center" bgcolor="#ffffff" style="background-color:#ffffff;padding:36px 40px 32px">
+        <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#0f1f35;font-family:Arial,Helvetica,sans-serif">Olá, ${firstName}!</p>
+        <p style="margin:0 0 28px;font-size:13px;color:#3d5170;line-height:1.7;font-family:Arial,Helvetica,sans-serif">
+          Use o código abaixo para acessar o sistema.<br>
+          Ele expira em <strong style="color:#162C45">10 minutos</strong>.
+        </p>
+
+        <!-- CÓDIGO -->
+        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 28px">
+          <tr><td align="center" bgcolor="#162C45" style="background-color:#162C45;border-radius:12px;padding:22px 32px">
+            <span style="font-family:Courier,monospace;font-size:38px;font-weight:700;letter-spacing:16px;color:#ffffff;display:block;line-height:1">${code}</span>
+          </td></tr>
+        </table>
+
+        <p style="margin:0;font-size:11px;color:#8096b3;line-height:1.6;font-family:Arial,Helvetica,sans-serif">Não compartilhe este código.<br>Se não foi você, ignore este e-mail.</p>
+      </td></tr>
+
+      <!-- RODAPÉ -->
+      <tr><td align="center" bgcolor="#f0f4f8" style="background-color:#f0f4f8;padding:14px;border-top:1px solid #dde3ed">
+        <span style="font-size:10px;color:#8096b3;font-family:Courier,monospace">Rede interna · Acesso restrito · Contourline</span>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
 </body></html>`;
 
   try {

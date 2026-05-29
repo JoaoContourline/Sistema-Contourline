@@ -998,7 +998,7 @@ const STEPS = {
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
-      { key: 'arquivoNF',   label: 'Arquivo(s) da NF',         type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml' },
+      { key: 'arquivoNF',   label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
       { key: 'descricao',   label: 'Observações',             type: 'textarea',
         placeholder: 'Confirmação da emissão, valor da nota, observações...' },
     ],
@@ -2870,11 +2870,17 @@ function openInfoModal(opId) {
   // Botão de anexar comprovante avulso — financeiro pode anexar a qualquer hora
   const activeView = getActiveView();
   const canAnexarBoleto = activeView?.role === 'financeiro' && !!sd.aguard_financeiro;
-  const anexarBtn = canAnexarBoleto
+  const canAnexarFotos  = activeView?.role === 'logistica'  && !!sd.transito;
+
+  const anexarBoletoBtn = canAnexarBoleto
     ? `<button class="btn-action" onclick="openAnexarBoleto(${opId})" style="display:inline-flex;align-items:center;gap:6px">
         ${icon('paperclip',13)} Anexar Comprovante
-       </button>`
-    : '';
+       </button>` : '';
+
+  const anexarFotosBtn = canAnexarFotos
+    ? `<button class="btn-action" onclick="openAnexarFotos(${opId})" style="display:inline-flex;align-items:center;gap:6px">
+        ${icon('image',13)} Anexar Fotos
+       </button>` : '';
 
   document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
@@ -2885,7 +2891,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer">${anexarBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }
@@ -2939,6 +2945,51 @@ function saveAnexarBoleto(opId) {
   dbSaveOp(op);
   showToast(`${novos.length} comprovante${novos.length>1?'s':''} anexado${novos.length>1?'s':''}!`, 'ok');
   openInfoModal(opId); // volta para o painel de info com os arquivos atualizados
+}
+
+// ─── ANEXAR FOTOS AVULSAS (logística, qualquer hora após transito) ──
+function openAnexarFotos(opId) {
+  tempFiles     = {};
+  tempFilesData = {};
+  activeOpId    = opId;
+
+  const op  = ops.find(o => o.id === opId);
+  const cur = (op?.stepData?.transito?.fotos || []).length;
+
+  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">Anexar Fotos de Entrega</div>
+           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+        ${cur > 0 ? `Já ${cur} foto${cur>1?'s':''} anexada${cur>1?'s':''}. Novas serão adicionadas às existentes.` : 'Nenhuma foto de entrega anexada ainda.'}
+      </div>
+      ${buildFieldHtml({ key:'fotos_avulsas', label:'Fotos / Comprovante de Entrega', type:'multi-file', accept:'image/*,.pdf' })}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-primary" onclick="saveAnexarFotos(${opId})">${icon('image',13)} Salvar Fotos</button>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function saveAnexarFotos(opId) {
+  const op    = ops.find(o => o.id === opId);
+  const novas = tempFilesData['fotos_avulsas'] || [];
+  if (!novas.length) { showToast('Selecione ao menos uma foto ou arquivo', 'err'); return; }
+
+  if (!op.stepData) op.stepData = {};
+  if (!op.stepData.transito) op.stepData.transito = {};
+  const existentes = op.stepData.transito.fotos || [];
+  op.stepData.transito.fotos = [...existentes, ...novas];
+
+  dbSaveOp(op);
+  showToast(`${novas.length} foto${novas.length>1?'s':''} anexada${novas.length>1?'s':''}!`, 'ok');
+  openInfoModal(opId);
 }
 
 function submitModal() {
@@ -3000,7 +3051,14 @@ function submitModal() {
       continue;
     }
     if (f.type === 'multi-file') {
-      formData[f.key] = tempFilesData[f.key] || [];
+      const mfFiles = tempFilesData[f.key] || [];
+      if (f.required && !mfFiles.length) {
+        const el = document.getElementById('mfl-' + f.key);
+        if (el) { el.style.outline='2px solid var(--red)'; el.style.borderRadius='6px'; setTimeout(()=>{ el.style.outline=''; },2500); }
+        showToast(`Obrigatório: ${f.label.replace(' *','')}`, 'err');
+        return;
+      }
+      formData[f.key] = mfFiles;
       continue;
     }
     if (f.type === 'file') {

@@ -1,8 +1,7 @@
 // api/protheus.js — Vercel serverless function
 // Proxy server-side para a API do Protheus (sem CORS no browser)
-// A API do Protheus ignora o filtro ?cpfCnpj= e devolve todos os clientes.
-// Esta função pagina automaticamente (pageSize=10, até 5 páginas = 50 registros)
-// procurando o CPF/CNPJ dentro de GovernmentalInformation[].id.
+// A API do Protheus ignora filtros, então busca pageSize=50 de uma vez (~3-4s)
+// e filtra CPF/CNPJ em GovernmentalInformation[].id aqui mesmo.
 //
 // Variáveis de ambiente necessárias no Vercel:
 //   PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
@@ -11,11 +10,10 @@ import https from 'https';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
 
-// Faz UMA página da API Protheus usando https nativo (suporta SSL auto-assinado)
 function fetchPage(base, auth, page, pageSize) {
   const url = new URL(`${base}/api/crm/v1/customerVendor`);
   url.searchParams.set('pageSize', String(pageSize));
-  url.searchParams.set('page', String(page));
+  url.searchParams.set('page',     String(page));
 
   return new Promise((resolve, reject) => {
     const options = {
@@ -25,14 +23,14 @@ function fetchPage(base, auth, page, pageSize) {
       method:   'GET',
       headers:  { 'Authorization': `Basic ${auth}`, 'Accept': 'application/json' },
       agent,
-      timeout:  10000,
+      timeout:  8000,
     };
     const r = https.request(options, (resp) => {
       let body = '';
       resp.on('data', chunk => body += chunk);
       resp.on('end', () => {
         try { resolve(JSON.parse(body)); }
-        catch { reject(new Error('JSON inválido: ' + body.substring(0, 100))); }
+        catch { reject(new Error('JSON inválido: ' + body.substring(0, 120))); }
       });
     });
     r.on('error',   reject);
@@ -41,20 +39,18 @@ function fetchPage(base, auth, page, pageSize) {
   });
 }
 
-// Verifica se algum item tem o CPF/CNPJ buscado
+// Verifica CPF/CNPJ em todos os campos e em GovernmentalInformation
 function matchItem(item, digits) {
-  // Tenta nos campos de topo (cgc, cpfCnpj, document, etc.)
   for (const val of Object.values(item)) {
     if ((typeof val === 'string' || typeof val === 'number') &&
         String(val).replace(/\D/g, '') === digits) return true;
   }
-  // Tenta em GovernmentalInformation (onde Protheus guarda CPF/CNPJ)
   const govInfo = item.GovernmentalInformation || item.governmentalInformation || [];
   return govInfo.some(g => String(g.id || '').replace(/\D/g, '') === digits);
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -76,8 +72,8 @@ export default async function handler(req, res) {
   }
 
   const auth    = Buffer.from(`${user}:${pass}`).toString('base64');
-  const PAGE_SZ = 10;   // pequeno = rápido por requisição
-  const MAX_PG  = 5;    // até 50 registros no total
+  const PAGE_SZ = 50;  // ~3-4s por requisição — seguro para o limite de 10s do Vercel
+  const MAX_PG  = 2;   // até 100 registros no total (2 páginas × 50)
 
   try {
     for (let page = 1; page <= MAX_PG; page++) {
@@ -91,12 +87,12 @@ export default async function handler(req, res) {
 
       // Sem mais páginas
       if (!data.hasNext || items.length < PAGE_SZ) {
-        return res.status(200).json({ items: [] });
+        return res.status(200).json({ items: [], total: data.total || 0 });
       }
     }
 
-    // Esgotou as páginas sem achar
-    return res.status(200).json({ items: [] });
+    // Esgotou as 2 páginas sem achar
+    return res.status(200).json({ items: [], total: null });
 
   } catch (err) {
     console.error('Protheus error:', err.message);

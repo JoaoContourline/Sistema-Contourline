@@ -1,7 +1,8 @@
 // api/protheus.js — Vercel serverless function
 // Proxy server-side para a API do Protheus (sem CORS no browser)
-// A API do Protheus ignora filtros, então busca pageSize=50 de uma vez (~3-4s)
-// e filtra CPF/CNPJ em GovernmentalInformation[].id aqui mesmo.
+// A API do Protheus ignora filtros server-side, então paginamos aqui e filtramos
+// SOMENTE pelo campo GovernmentalInformation[].id (onde o Protheus guarda CPF/CNPJ).
+// Comparação é dígito-a-dígito (strip /\D/) para aceitar tanto formatado quanto cru.
 //
 // Variáveis de ambiente necessárias no Vercel:
 //   PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
@@ -23,7 +24,7 @@ function fetchPage(base, auth, page, pageSize) {
       method:   'GET',
       headers:  { 'Authorization': `Basic ${auth}`, 'Accept': 'application/json' },
       agent,
-      timeout:  8000,
+      timeout:  5000,
     };
     const r = https.request(options, (resp) => {
       let body = '';
@@ -39,12 +40,9 @@ function fetchPage(base, auth, page, pageSize) {
   });
 }
 
-// Verifica CPF/CNPJ em todos os campos e em GovernmentalInformation
+// Verifica APENAS o campo GovernmentalInformation[].id (CPF/CNPJ no Protheus)
+// Compara somente os dígitos — ignora pontuação/traços
 function matchItem(item, digits) {
-  for (const val of Object.values(item)) {
-    if ((typeof val === 'string' || typeof val === 'number') &&
-        String(val).replace(/\D/g, '') === digits) return true;
-  }
   const govInfo = item.GovernmentalInformation || item.governmentalInformation || [];
   return govInfo.some(g => String(g.id || '').replace(/\D/g, '') === digits);
 }
@@ -72,8 +70,9 @@ export default async function handler(req, res) {
   }
 
   const auth    = Buffer.from(`${user}:${pass}`).toString('base64');
-  const PAGE_SZ = 50;  // ~3-4s por requisição — seguro para o limite de 10s do Vercel
-  const MAX_PG  = 2;   // até 100 registros no total (2 páginas × 50)
+  // pageSize=30 → ~3.5s por req; 2 páginas seq. = ~7s total → seguro para limite 10s Vercel
+  const PAGE_SZ = 30;
+  const MAX_PG  = 2;  // até 60 registros
 
   try {
     for (let page = 1; page <= MAX_PG; page++) {
@@ -85,14 +84,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ items: [found] });
       }
 
-      // Sem mais páginas
+      // Sem mais páginas — para antes de esgotar MAX_PG
       if (!data.hasNext || items.length < PAGE_SZ) {
-        return res.status(200).json({ items: [], total: data.total || 0 });
+        return res.status(200).json({ items: [] });
       }
     }
 
-    // Esgotou as 2 páginas sem achar
-    return res.status(200).json({ items: [], total: null });
+    // Esgotou as páginas sem achar
+    return res.status(200).json({ items: [] });
 
   } catch (err) {
     console.error('Protheus error:', err.message);

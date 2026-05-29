@@ -125,7 +125,13 @@ async function main() {
     const items = data.items || [];
     total += items.length;
 
-    const rows = items.map(compact).filter(Boolean);
+    // Deduplica por cpf_digits (Protheus pode ter duplicatas)
+    const seen = new Set();
+    const rows = items.map(compact).filter(Boolean).filter(r => {
+      if (seen.has(r.cpf_digits)) return false;
+      seen.add(r.cpf_digits);
+      return true;
+    });
     if (rows.length) {
       await upsertBatch(rows);
       synced += rows.length;

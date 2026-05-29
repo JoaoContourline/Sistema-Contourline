@@ -1811,7 +1811,8 @@ function buildFieldHtml(f) {
 
   if (f.type === 'ns-equipamentos') {
     const op = ops.find(o => o.id === activeOpId);
-    const rawList = op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
+    // pedidoVenda.equipamentos tem objetos {name,qty} completos; op.equipamentos são strings legadas
+    const rawList = op?.pedidoVenda?.equipamentos || op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
     // Normaliza: pode ser array de strings ou array de objetos {name, qty}
     const names = rawList.flatMap(e => {
       const qty = (typeof e === 'object' ? e.qty : 1) || 1;
@@ -1823,11 +1824,19 @@ function buildFieldHtml(f) {
         <label class="form-label">Número de Série</label>
         <input class="form-input" id="f-numSerie_0" placeholder="Ex: SN123456">
       </div>`;
-    return names.map((nm, i) => `
+    // Numera duplicatas: HIPRO #1, HIPRO #2
+    const nameCount = {};
+    const nameIdx   = {};
+    names.forEach(n => { nameCount[n] = (nameCount[n]||0)+1; });
+    return names.map((nm, i) => {
+      nameIdx[nm] = (nameIdx[nm]||0)+1;
+      const label = nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm;
+      return `
       <div class="form-group">
-        <label class="form-label">Nº de Série — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${nm}</span></label>
+        <label class="form-label">Nº de Série — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${label}</span></label>
         <input class="form-input" id="f-numSerie_${i}" placeholder="Ex: SN123456">
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   if (f.type === 'cep-lookup') {

@@ -2449,7 +2449,7 @@ function openActionModal(opId, mode) {
         <label style="cursor:pointer">
           <input type="file" id="f-arquivoNF" accept=".pdf" style="display:none" onchange="handleFile(this)">
           <div class="file-upload-area" id="file-display-arquivoNF">
-            <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} ${emData.arquivoNF ? 'Anterior: '+emData.arquivoNF+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
+            <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} ${emData.arquivoNF ? 'Anterior: '+(emData.arquivoNF?.name||emData.arquivoNF)+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
           </div>
         </label>
       </div>
@@ -2674,8 +2674,11 @@ function buildInfoSections(op, opId) {
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
       ${dItem('Observações', d.descricao)}
     </div>`;
-    if (d.arquivoNF?.length) nfeHtml += `<div style="margin-top:8px">${fileLinksHtml(d.arquivoNF)}</div>`;
-    else if (d.arquivoNF && typeof d.arquivoNF !== 'object') nfeHtml += `<div style="margin-top:8px">${fileLinkHtml(d.arquivoNF)}</div>`;
+    // Normaliza arquivoNF: pode ser array (multi-file), objeto único ou string legada
+    const nfFiles = d.arquivoNF
+      ? (Array.isArray(d.arquivoNF) ? d.arquivoNF : [d.arquivoNF])
+      : [];
+    if (nfFiles.length) nfeHtml += `<div style="margin-top:8px">${fileLinksHtml(nfFiles)}</div>`;
     sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
   }
 
@@ -2962,7 +2965,12 @@ function submitModal() {
       peso:    document.getElementById('f-reNF_peso')?.value    || '',
       descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
     };
-    const fileNF = tempFilesData['arquivoNF'] || op.stepData.aguard_emissao?.arquivoNF || null;
+    // Normaliza para array (igual ao multi-file do passo normal)
+    const rawFileNF = tempFilesData['arquivoNF'] || null;
+    const prevNF    = op.stepData.aguard_emissao?.arquivoNF;
+    const prevArr   = prevNF ? (Array.isArray(prevNF) ? prevNF : [prevNF]) : [];
+    // Se anexou novo arquivo, substitui; caso contrário mantém o anterior
+    const fileNF    = rawFileNF ? [rawFileNF] : prevArr;
     advanceOP(activeOpId, { numeroNF: numNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }

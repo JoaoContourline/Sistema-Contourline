@@ -1,6 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/protheus-sync", "destination": "/api/protheus-sync" },
+    { "source": "/api/protheus-discover", "destination": "/api/protheus-discover" },
+    { "source": "/api/protheus-sync",    "destination": "/api/protheus-sync"    },
     { "source": "/api/protheus-all",  "destination": "/api/protheus-all"  },
     { "source": "/api/protheus",      "destination": "/api/protheus"      },
     { "source": "/api/login",         "destination": "/api/login"         },

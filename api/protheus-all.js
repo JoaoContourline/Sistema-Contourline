@@ -83,18 +83,25 @@ export default async function handler(req, res) {
   if (!base || !user || !pass)
     return res.status(500).json({ error: 'Variáveis de ambiente do Protheus não configuradas' });
 
-  const auth    = Buffer.from(`${user}:${pass}`).toString('base64');
-  const PAGE_SZ = 30;
-  const N_PAGES = 25; // 25 × 30 = 750 clientes — todos em paralelo
+  const auth      = Buffer.from(`${user}:${pass}`).toString('base64');
+  const PAGE_SZ   = 30;
+  const BATCH_SZ  = 25; // páginas por lote
+  const N_BATCHES = 2;  // 2 lotes × 25 × 30 = 1.500 clientes, ~7s total
 
   try {
-    const pages = await Promise.all(
-      Array.from({ length: N_PAGES }, (_, i) =>
-        fetchPage(base, auth, i + 1, PAGE_SZ)
-      )
-    );
+    const allPages = [];
+    for (let b = 0; b < N_BATCHES; b++) {
+      const batch = await Promise.all(
+        Array.from({ length: BATCH_SZ }, (_, i) =>
+          fetchPage(base, auth, b * BATCH_SZ + i + 1, PAGE_SZ)
+        )
+      );
+      allPages.push(...batch);
+      // Se nenhuma página do lote tinha hasNext, não há mais dados
+      if (batch.every(d => !d.hasNext && (d.items || []).length < PAGE_SZ)) break;
+    }
 
-    const items = pages
+    const items = allPages
       .flatMap(d => d.items || [])
       .map(compact)
       .filter(Boolean);

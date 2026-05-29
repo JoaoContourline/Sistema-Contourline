@@ -1357,8 +1357,9 @@ function advanceOP(opId, formData) {
 
   if (formData && Object.keys(formData).length) op.stepData[op.status] = { ...formData };
 
-  const user = getUser();
-  op.history.push({ step: op.status, actor: user.role, actorName: user.name, ts: nowTs(), note: formData?.descricao || step.actionLabel });
+  const user     = getUser();        // usuário real logado (para actorName)
+  const view     = getActiveView();  // visão ativa (para actor/role correto)
+  op.history.push({ step: op.status, actor: view.role, actorName: user.name, ts: nowTs(), note: formData?.descricao || step.actionLabel });
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1371,7 +1372,8 @@ function rejectOP(opId, formData) {
   if (!step.getReject) return;
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
-  op.history.push({ step: op.status, actor: user.role, actorName: user.name, ts: nowTs(), note: 'Bloqueado: ' + (formData.descricao || formData.motivoReemissao || '') });
+  const view = getActiveView();
+  op.history.push({ step: op.status, actor: view.role, actorName: user.name, ts: nowTs(), note: 'Bloqueado: ' + (formData.descricao || formData.motivoReemissao || '') });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();

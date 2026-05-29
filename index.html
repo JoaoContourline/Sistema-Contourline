@@ -1151,9 +1151,10 @@ function startRealtime() {
 let currentTab    = 'fila';
 let activeOpId    = null;
 let modalMode     = null;
-let tempEquipList = []; // [{name, qty}]
-let tempFiles     = {}; // { key: [File, ...] } — only used for File object reference
-let tempFilesData = {}; // { key: [{name, size, dataUrl}] } — persisted in formData
+let tempEquipList    = []; // [{name, qty}]
+let tempVoltagemList = ['']; // array de voltagens; começa com 1 vazio
+let tempFiles        = {}; // { key: [File, ...] } — only used for File object reference
+let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } — persisted em formData
 
 // ─── AUTH ──────────────────────────────────────────────────────────
 const SESSION_KEY = 'fluxo_session_v1';
@@ -1630,6 +1631,36 @@ function refreshEquipList() {
     ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
     : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
   updateEquipListTotal();
+}
+
+// ─── VOLTAGEM DINÂMICA ──────────────────────────────────────────────
+const VOLTAGEM_OPTS = ['110 Volts','220 Volts','Bivolt'];
+
+function renderVoltagemFields() {
+  const wrap = document.getElementById('voltagem-fields-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = tempVoltagemList.map((v, i) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+      <select class="form-select" style="max-width:180px" onchange="updateVoltagem(${i},this.value)">
+        <option value="">Selecionar...</option>
+        ${VOLTAGEM_OPTS.map(o => `<option value="${o}"${v===o?' selected':''}>${o}</option>`).join('')}
+      </select>
+      ${tempVoltagemList.length > 1 ? `<button type="button" onclick="removeVoltagem(${i})"
+        style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;line-height:1;padding:2px 4px">×</button>` : ''}
+    </div>`).join('');
+}
+
+function updateVoltagem(i, val) { tempVoltagemList[i] = val; }
+
+function addVoltagem() {
+  tempVoltagemList.push('');
+  renderVoltagemFields();
+}
+
+function removeVoltagem(i) {
+  tempVoltagemList.splice(i, 1);
+  if (!tempVoltagemList.length) tempVoltagemList = [''];
+  renderVoltagemFields();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2190,7 +2221,8 @@ function buildContextPanel(op) {
     parts.push(sec('Pedido do Cliente', [
       cRow('Vendedor(a)', pv.vendedorCanal),
       cRow('Equipamentos', equipLines),
-      pv.voltagem ? cRow('Voltagem', pv.voltagem) : '',
+      pv.voltagem && (Array.isArray(pv.voltagem) ? pv.voltagem.filter(Boolean).length : pv.voltagem)
+        ? cRow('Voltagem', Array.isArray(pv.voltagem) ? pv.voltagem.filter(Boolean).join(' / ') : pv.voltagem) : '',
       cRow('CPF / CNPJ', pv.cpf),
       cRow('Tel.', pv.tel),
       cRow('E-mail', pv.email),
@@ -2511,7 +2543,7 @@ function buildInfoSections(op, opId) {
       ${dItem('Prazo', pv.prazo ? pv.prazo+(pv.diasUteis===false?' dias':' dias úteis')+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
-      ${dItem('Voltagem', pv.voltagem)}
+      ${dItem('Voltagem', Array.isArray(pv.voltagem) ? pv.voltagem.filter(Boolean).join(' / ') : pv.voltagem)}
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Baixar Pedido de Venda</button>
@@ -2782,7 +2814,7 @@ function openInfoModal(opId) {
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('modal').classList.remove('wide', 'split');
-  activeOpId = null; modalMode = null; tempEquipList = []; tempFiles = {}; tempFilesData = {};
+  activeOpId = null; modalMode = null; tempEquipList = []; tempVoltagemList = ['']; tempFiles = {}; tempFilesData = {};
 }
 
 function submitModal() {
@@ -2873,7 +2905,8 @@ function submitModal() {
 // ═══════════════════════════════════════════════════════════════════
 
 function openNovaOP() {
-  tempEquipList = [];
+  tempEquipList    = [];
+  tempVoltagemList = [''];
   const todayISO = new Date().toISOString().split('T')[0];
   const analistaOptions = `<option value="">— Selecionar —</option>` + VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
@@ -2983,13 +3016,21 @@ function openNovaOP() {
         </div></div>
 
       <div style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:2px">
-        <div class="form-group"><label class="form-label">Voltagem</label>
-          <select class="form-select" id="nova-voltagem" style="max-width:200px">
-            <option value="">Selecionar...</option>
-            <option value="110 Volts">110 Volts</option>
-            <option value="220 Volts">220 Volts</option>
-            <option value="Bivolt">Bivolt</option>
-          </select>
+        <div class="form-group">
+          <label class="form-label" style="margin-bottom:6px">Voltagem <span style="font-weight:400;color:var(--text3)">(opcional)</span></label>
+          <div id="voltagem-fields-wrap">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+              <select class="form-select" style="max-width:180px" onchange="updateVoltagem(0,this.value)">
+                <option value="">Selecionar...</option>
+                <option value="110 Volts">110 Volts</option>
+                <option value="220 Volts">220 Volts</option>
+                <option value="Bivolt">Bivolt</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" onclick="addVoltagem()" style="margin-top:2px;background:none;border:1px dashed var(--border);border-radius:var(--radius);padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:5px">
+            + Adicionar voltagem
+          </button>
         </div>
       </div>
 
@@ -3452,7 +3493,7 @@ async function submitNovaOP() {
   const endEstado        = g('nova-endEstado')?.value;
   const endCEP           = v('nova-cep-cliente');
   const tel              = v('nova-tel');
-  const voltagem         = g('nova-voltagem')?.value;
+  const voltagem         = tempVoltagemList.filter(Boolean); // array de voltagens preenchidas
   const tipoContrato     = g('nova-tipoContrato')?.value;
   const detalhesPagamento= v('nova-detalhesPagamento');
   const simuladorRaw     = parseBRL(g('nova-simulador')?.value);
@@ -3480,6 +3521,15 @@ async function submitNovaOP() {
   if (!tempEquipList.length) {
     const el = g('equip-list-items');
     if (el) { el.style.outline='2px solid var(--red)'; el.style.borderRadius='6px'; }
+    return;
+  }
+  // Valor do equipamento obrigatório
+  const equipSemValor = tempEquipList.find(e => !e.valorUnit || parseFloat(e.valorUnit) <= 0);
+  if (equipSemValor) {
+    showToast(`Informe o valor do equipamento: ${equipSemValor.name}`, 'err');
+    const idx = tempEquipList.indexOf(equipSemValor);
+    const inp = document.querySelector(`#equip-list-items .equip-list-item:nth-child(${idx+1}) input`);
+    if (inp) { inp.style.outline='2px solid var(--red)'; setTimeout(()=>inp.style.outline='',2500); }
     return;
   }
 
@@ -3749,7 +3799,7 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
   </tbody>
 </table>
 
-${pv.voltagem ? `<div style="font-size:11px;margin-bottom:8px">Voltagem: ${pv.voltagem}</div>` : ''}
+${(()=>{ const vs = Array.isArray(pv.voltagem) ? pv.voltagem.filter(Boolean) : (pv.voltagem ? [pv.voltagem] : []); return vs.length ? `<div style="font-size:11px;margin-bottom:8px">Voltagem: ${vs.join(' / ')}</div>` : ''; })()}
 
 <div style="margin:8px 0 4px">
   ${pv.tipoContrato ? `<div class="pay-type">${pv.tipoContrato}</div>` : ''}

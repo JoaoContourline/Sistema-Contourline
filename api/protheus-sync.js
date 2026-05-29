@@ -133,6 +133,20 @@ export default async function handler(req, res) {
     // ── 2. Compacta e filtra só quem tem CPF/CNPJ ───────────────────
     const rows = allRaw.map(compact).filter(Boolean);
 
+    // Debug: mostra primeiro item bruto se não achou nada
+    const debug = {
+      rawTotal: allRaw.length,
+      withCpf:  rows.length,
+      sample:   allRaw[0] ? {
+        keys:    Object.keys(allRaw[0]),
+        govInfo: allRaw[0].GovernmentalInformation || allRaw[0].governmentalInformation || 'ausente',
+      } : null,
+    };
+
+    if (!rows.length) {
+      return res.status(200).json({ ok: false, total: 0, debug });
+    }
+
     // ── 3. Upsert no Supabase em lotes de 500 ───────────────────────
     const UPSERT_SZ = 500;
     for (let i = 0; i < rows.length; i += UPSERT_SZ) {
@@ -140,7 +154,7 @@ export default async function handler(req, res) {
     }
 
     console.log(`protheus-sync: ${rows.length} clientes sincronizados`);
-    return res.status(200).json({ ok: true, total: rows.length });
+    return res.status(200).json({ ok: true, total: rows.length, debug });
 
   } catch (err) {
     console.error('protheus-sync error:', err.message);

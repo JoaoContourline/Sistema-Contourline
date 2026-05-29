@@ -2853,6 +2853,15 @@ function openInfoModal(opId) {
       <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
     </div>`;
 
+  // Botão de anexar comprovante avulso — financeiro pode anexar a qualquer hora
+  const activeView = getActiveView();
+  const canAnexarBoleto = activeView?.role === 'financeiro' && !!sd.aguard_financeiro;
+  const anexarBtn = canAnexarBoleto
+    ? `<button class="btn-action" onclick="openAnexarBoleto(${opId})" style="display:inline-flex;align-items:center;gap:6px">
+        ${icon('paperclip',13)} Anexar Comprovante
+       </button>`
+    : '';
+
   document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
@@ -2862,7 +2871,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${anexarBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }
@@ -2871,6 +2880,51 @@ function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('modal').classList.remove('wide', 'split');
   activeOpId = null; modalMode = null; tempEquipList = []; tempVoltagemList = ['']; tempFiles = {}; tempFilesData = {};
+}
+
+// ─── ANEXAR BOLETO AVULSO (financeiro, qualquer hora) ───────────────
+function openAnexarBoleto(opId) {
+  tempFiles     = {};
+  tempFilesData = {};
+  activeOpId    = opId;
+
+  const op  = ops.find(o => o.id === opId);
+  const cur = (op?.stepData?.aguard_financeiro?.boleto || []).length;
+
+  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">Anexar Comprovante</div>
+           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+        ${cur > 0 ? `Já ${cur} comprovante${cur>1?'s':''} anexado${cur>1?'s':''}. Novos arquivos serão adicionados.` : 'Nenhum comprovante anexado ainda.'}
+      </div>
+      ${buildFieldHtml({ key:'boleto_avulso', label:'Comprovante(s)', type:'multi-file', accept:'.pdf,.png,.jpg,.jpeg' })}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-primary" onclick="saveAnexarBoleto(${opId})">${icon('paperclip',13)} Salvar Comprovante</button>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function saveAnexarBoleto(opId) {
+  const op      = ops.find(o => o.id === opId);
+  const novos   = tempFilesData['boleto_avulso'] || [];
+  if (!novos.length) { showToast('Selecione ao menos um arquivo', 'err'); return; }
+
+  if (!op.stepData) op.stepData = {};
+  if (!op.stepData.aguard_financeiro) op.stepData.aguard_financeiro = {};
+  const existentes = op.stepData.aguard_financeiro.boleto || [];
+  op.stepData.aguard_financeiro.boleto = [...existentes, ...novos];
+
+  dbSaveOp(op);
+  showToast(`${novos.length} comprovante${novos.length>1?'s':''} anexado${novos.length>1?'s':''}!`, 'ok');
+  openInfoModal(opId); // volta para o painel de info com os arquivos atualizados
 }
 
 function submitModal() {

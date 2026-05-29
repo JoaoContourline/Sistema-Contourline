@@ -1403,8 +1403,30 @@ function directorOverride(opId, nota) {
 function daysSince(d)  { return Math.floor((new Date() - new Date(d)) / 86400000); }
 function fmtDate(d)    { return new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
 
+// Converte "dd/mm/yyyy" → Date (meio-dia p/ evitar problema de fuso)
+function parseBRDate(s) {
+  if (!s) return null;
+  const p = s.split('/');
+  if (p.length !== 3) return null;
+  const dt = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]), 12);
+  return isNaN(dt) ? null : dt;
+}
+
 function semaforo(op) {
   if (op.status === 'entregue') return { cls:'b-gray', label:'Entregue', icon:'' };
+
+  // Usa dataPrevista quando disponível (prazo real calculado na abertura)
+  const prev = parseBRDate(op.pedidoVenda?.dataPrevista);
+  if (prev) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dias  = Math.ceil((prev - today) / 86400000);
+    if (dias > 3)  return { cls:'b-green',  label:`${dias}d restantes`,       icon:'●' };
+    if (dias >= 1) return { cls:'b-yellow', label:`${dias}d restantes`,       icon:'▲' };
+    if (dias === 0) return { cls:'b-orange', label:'Entrega hoje!',           icon:'▲' };
+    return { cls:'b-red', label:`${Math.abs(dias)}d atrasada`, icon:'!' };
+  }
+
+  // Fallback: janela fixa desde a abertura (sem data prevista definida)
   const d = daysSince(op.dataAbertura);
   if (d <= 16) return { cls:'b-green',  label:`${20-d}d restantes`, icon:'●' };
   if (d <= 20) return { cls:'b-yellow', label:`${20-d}d p/ ótima`,  icon:'▲' };

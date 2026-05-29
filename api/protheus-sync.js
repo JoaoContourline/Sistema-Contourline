@@ -15,7 +15,7 @@ function fetchPage(base, auth, page, pageSize) {
   url.searchParams.set('pageSize', String(pageSize));
   url.searchParams.set('page',     String(page));
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const r = https.request({
       hostname: url.hostname,
       port:     url.port || 443,
@@ -28,12 +28,12 @@ function fetchPage(base, auth, page, pageSize) {
       let body = '';
       resp.on('data', c => body += c);
       resp.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch { resolve({ items: [] }); }
+        try { resolve({ data: JSON.parse(body), status: resp.statusCode }); }
+        catch { reject(new Error(`JSON inválido p${page} (HTTP ${resp.statusCode}): ${body.substring(0,120)}`)); }
       });
     });
-    r.on('error',   () => resolve({ items: [] }));
-    r.on('timeout', () => { r.destroy(); resolve({ items: [] }); });
+    r.on('error',   (e) => reject(new Error(`p${page} erro: ${e.message}`)));
+    r.on('timeout', () => { r.destroy(); reject(new Error(`p${page} timeout`)); });
     r.end();
   });
 }
@@ -109,18 +109,35 @@ export default async function handler(req, res) {
   const BATCH_SZ = 25;
 
   try {
-    // ── 1. Busca todos os clientes do Protheus ───────────────────────
-    const allRaw = [];
-    let nextPage = 1;
-    let hasMore  = true;
+    // ── 1. Testa página 1 isolada para verificar conexão ────────────
+    let firstResult;
+    try {
+      firstResult = await fetchPage(base, auth, 1, PAGE_SZ);
+    } catch (e) {
+      return res.status(502).json({ error: 'Falha na página 1: ' + e.message, base });
+    }
+
+    if (firstResult.status !== 200) {
+      return res.status(502).json({
+        error: `Protheus retornou HTTP ${firstResult.status}`,
+        body:  JSON.stringify(firstResult.data).substring(0, 300),
+      });
+    }
+
+    // ── 2. Busca todos os clientes do Protheus ───────────────────────
+    const allRaw = [...(firstResult.data.items || [])];
+    let nextPage = 2;
+    let hasMore  = firstResult.data.hasNext && (firstResult.data.items || []).length >= PAGE_SZ;
 
     while (hasMore) {
-      const batch = await Promise.all(
+      const batch = await Promise.allSettled(
         Array.from({ length: BATCH_SZ }, (_, i) =>
           fetchPage(base, auth, nextPage + i, PAGE_SZ)
         )
       );
-      for (const data of batch) {
+      for (const result of batch) {
+        if (result.status === 'rejected') { hasMore = false; break; }
+        const data = result.value.data;
         allRaw.push(...(data.items || []));
         if (!data.hasNext || (data.items || []).length < PAGE_SZ) {
           hasMore = false;

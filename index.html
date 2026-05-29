@@ -1055,8 +1055,8 @@ const SECTORS = [
 ];
 
 
-// Visão simulada pelo gestor (null = visão padrão de gestor)
-let gestorViewAs = null;
+// Visão simulada pelo gestor — inicia como 'comercial'
+let gestorViewAs = 'comercial';
 
 function getActiveView() {
   const user = getUser();
@@ -1479,7 +1479,10 @@ function filterEquipSearch(val) {
 function selectEquipFromSearch(name) {
   const existing = tempEquipList.find(e => e.name === name);
   if (existing) { existing.qty++; }
-  else { tempEquipList.push({ name, qty: 1, valorUnit: '', desconto: '' }); }
+  else {
+    const found = EQUIPAMENTOS_LISTA.find(e => e.name === name);
+    tempEquipList.push({ name, code: found ? found.code : '', qty: 1, valorUnit: '', desconto: '' });
+  }
   const inp = document.getElementById('equip-search-input');
   if (inp) inp.value = '';
   const dd = document.getElementById('equip-dropdown');
@@ -1598,20 +1601,25 @@ function calcDescontoTotal() {
     return sum + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
   }, 0);
   let desconto = parseBRL(document.getElementById('nova-desconto')?.value) || 0;
+
+  // Cap visual: limita o campo quando há subtotal definido
   if (subtotal > 0 && desconto > subtotal) {
     desconto = subtotal;
     const el = document.getElementById('nova-desconto');
     if (el) el.value = subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     showToast('Desconto limitado ao valor total (100%)', 'err');
   }
-  const total = Math.max(0, subtotal - desconto);
+  // Valor efetivo armazenado: nunca excede o subtotal (mesmo que subtotal=0)
+  const descontoEfetivo = Math.min(desconto, subtotal);
+  const total = Math.max(0, subtotal - descontoEfetivo);
+
   const elDisp = document.getElementById('nova-valor-total-display');
   if (elDisp) elDisp.textContent = total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
   const vt = document.getElementById('nova-valorTotal');
   const vd = document.getElementById('nova-valorDesconto');
   const vl = document.getElementById('nova-valorLiquido');
   if (vt) vt.value = subtotal > 0 ? subtotal.toFixed(2) : '';
-  if (vd) vd.value = desconto > 0 ? desconto.toFixed(2) : '';
+  if (vd) vd.value = descontoEfetivo > 0 ? descontoEfetivo.toFixed(2) : '';
   if (vl) vl.value = total > 0 ? total.toFixed(2) : '';
 }
 
@@ -1789,16 +1797,35 @@ function buildFieldHtml(f) {
       </div>`).join('');
   }
 
-  if (f.type === 'cep-lookup') return `
+  if (f.type === 'cep-lookup') {
+    const op = ops.find(o => o.id === activeOpId);
+    const pv = op?.pedidoVenda;
+    // Monta endereço original da abertura da OP para o checkbox de cópia
+    const addrParts = [
+      [pv?.endRua, pv?.endNumero].filter(Boolean).join(', '),
+      pv?.endBairro,
+      [pv?.endCidade, pv?.endEstado].filter(Boolean).join('/'),
+      pv?.endCEP,
+    ].filter(Boolean);
+    const originalAddr = addrParts.length ? addrParts.join(', ') : (pv?.enderecoCliente || '');
+    const showCopy = !!originalAddr;
+    return `
     <div class="form-group">
       <label class="form-label">${f.label}</label>
       <div style="display:flex;gap:6px;align-items:stretch">
         <input class="form-input" id="f-${f.key}" placeholder="00000-000" style="max-width:150px"
-          oninput="fmtCEP(this)"
-          onkeyup="if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'f-${f.targetKey}','cep-field-status-${f.key}')">
+          oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'f-${f.targetKey}','cep-field-status-${f.key}')">
         <div id="cep-field-status-${f.key}" class="api-status" style="display:flex;align-items:center"></div>
       </div>
+      ${showCopy ? `
+      <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer;font-size:12px;color:var(--text2)">
+        <input type="checkbox" style="width:14px;height:14px;cursor:pointer;flex-shrink:0"
+          onchange="copyOriginalAddress(this.checked,'f-${f.targetKey}','${originalAddr.replace(/'/g,"\\'")}')">
+        Usar endereço do cliente:
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${originalAddr}</span>
+      </label>` : ''}
     </div>`;
+  }
 
   if (f.type === 'multi-file') return `
     <div class="form-group">
@@ -2487,8 +2514,15 @@ function buildInfoSections(op, opId) {
       ${dItem('Voltagem', pv.voltagem)}
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Exportar PDF</button>
-      ${sd.aberta?.arquivoOP ? fileLinkHtml(sd.aberta.arquivoOP, true) : ''}
+      <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Baixar Pedido de Venda</button>
+      ${sd.aberta?.arquivoOP && sd.aberta.arquivoOP.dataUrl ? `
+        <a href="${sd.aberta.arquivoOP.dataUrl}" download="${(sd.aberta.arquivoOP.name||'arquivo_op').replace(/"/g,'')}"
+          style="display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:6px 14px;
+            border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);
+            color:var(--text);text-decoration:none;cursor:pointer"
+          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          ${icon('download',13,'color:var(--text2)')} Baixar Arquivo da OP
+        </a>` : sd.aberta?.arquivoOP ? fileLinkHtml(sd.aberta.arquivoOP, true) : ''}
     </div>`;
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
@@ -2500,7 +2534,7 @@ function buildInfoSections(op, opId) {
   }
 
   // ── FINANCEIRO ───────────────────────────────────────────────────
-  if (sd.aguard_financeiro || op.status === 'aguard_financeiro' || op.status === 'bloqueada') {
+  if (sd.aguard_financeiro || sd.aguard_financeiro_reject) {
     const df = sd.aguard_financeiro || {};
     const dr = sd.aguard_financeiro_reject || {};
     let finHtml = `<div class="detail-grid">
@@ -2893,7 +2927,11 @@ function openNovaOP() {
               <div class="form-group"><label class="form-label">RG</label>
                 <input class="form-input" id="nova-rg"></div>
               <div class="form-group"><label class="form-label">E-mail</label>
-                <input class="form-input" id="nova-email" type="email"></div>
+                <input class="form-input" id="nova-email" type="text" inputmode="email"
+                  autocomplete="email" autocapitalize="none" spellcheck="false"
+                  oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')"
+                  onblur="validateEmailField(this)">
+              </div>
             </div>
             <div class="form-row">
               <div class="form-group"><label class="form-label">Profissão</label>
@@ -2942,14 +2980,18 @@ function openNovaOP() {
           <input type="hidden" id="nova-valorTotal">
           <input type="hidden" id="nova-valorDesconto">
           <input type="hidden" id="nova-valorLiquido">
-          <div class="form-group" style="margin-top:8px"><label class="form-label">Voltagem</label>
-            <select class="form-select" id="nova-voltagem">
-              <option value="">Selecionar...</option>
-              <option value="110 Volts">110 Volts</option>
-              <option value="220 Volts">220 Volts</option>
-              <option value="Bivolt">Bivolt</option>
-            </select></div>
         </div></div>
+
+      <div style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-top:2px">
+        <div class="form-group"><label class="form-label">Voltagem</label>
+          <select class="form-select" id="nova-voltagem" style="max-width:200px">
+            <option value="">Selecionar...</option>
+            <option value="110 Volts">110 Volts</option>
+            <option value="220 Volts">220 Volts</option>
+            <option value="Bivolt">Bivolt</option>
+          </select>
+        </div>
+      </div>
 
       <div class="acc"><div ${acc('Pagamento')}
           <div class="form-group"><label class="form-label">Tipo de Contrato</label>
@@ -3011,7 +3053,7 @@ function openNovaOP() {
               <input type="file" id="nova-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                 style="display:none" onchange="handleFile(this)">
               <div class="file-upload-area" id="file-display-nova-arquivo">
-                <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para anexar o arquivo da OP (PDF, Word, Excel)</div>
+                <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para anexar o arquivo da OP</div>
               </div></label></div>
           <div class="form-group"><label class="form-label">Observações / Pedido de Venda</label>
             <textarea class="form-textarea" id="nova-descricao" rows="3"></textarea></div>
@@ -3067,6 +3109,31 @@ function updatePaymentFields(val) {
   updateValorParcela();
 }
 
+// Calcula a Páscoa pelo algoritmo de Meeus/Jones/Butcher
+function calcEaster(year) {
+  const a = year % 19, b = Math.floor(year/100), c = year % 100;
+  const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4), k = c % 4, l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day   = ((h+l-7*m+114) % 31) + 1;
+  return new Date(year, month-1, day, 12);
+}
+
+// Retorna true se a data for feriado nacional brasileiro
+function isBrHoliday(d) {
+  const m = d.getMonth()+1, day = d.getDate(), year = d.getFullYear();
+  // Feriados fixos: [mês, dia]
+  const fixed = [[1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[12,25]];
+  if (fixed.some(([fm,fd]) => m===fm && day===fd)) return true;
+  // Feriados móveis (relativos à Páscoa)
+  const easter = calcEaster(year);
+  const diff   = Math.round((new Date(year,m-1,day,12)-easter) / 86400000);
+  // Carnaval seg (-48), Carnaval ter (-47), Sexta-feira Santa (-2), Corpus Christi (+60)
+  return diff===-48 || diff===-47 || diff===-2 || diff===60;
+}
+
 function calcDataPrevista() {
   const prazo = parseInt(document.getElementById('nova-prazo')?.value);
   const aContarDe = document.getElementById('nova-aContarDe')?.value;
@@ -3080,12 +3147,37 @@ function calcDataPrevista() {
     while (dias < prazo) {
       d.setDate(d.getDate() + 1);
       const dow = d.getDay();
-      if (dow !== 0 && dow !== 6) dias++;
+      // Pula fins de semana e feriados nacionais
+      if (dow !== 0 && dow !== 6 && !isBrHoliday(d)) dias++;
     }
   } else {
     d.setDate(d.getDate() + prazo);
   }
   el.textContent = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function validateEmailField(input) {
+  const val = input.value.trim();
+  if (!val) return; // campo opcional — vazio é permitido
+  const ok = /^[^\s@]+@[^\s@]+\.[a-z]{2,}(\.[a-z]{2})?$/.test(val);
+  if (!ok) {
+    input.value = '';
+    input.style.outline = '2px solid var(--red)';
+    input.style.borderColor = 'var(--red)';
+    showToast('E-mail inválido — precisa ter @ e .com ou .com.br', 'err');
+    setTimeout(() => { input.style.outline = ''; input.style.borderColor = ''; }, 2500);
+  }
+}
+
+function copyOriginalAddress(checked, targetId, addr) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  if (checked) {
+    el.value = addr;
+    el.dispatchEvent(new Event('input'));
+  } else {
+    el.value = '';
+  }
 }
 
 function toggleSameAddress(checked) {
@@ -3438,7 +3530,7 @@ async function submitNovaOP() {
       aberta: { clienteNome: cliente, equipamentos: [...tempEquipList], arquivoOP: arquivo, descricao },
     },
     history: [{
-      step: 'aberta', actor: 'vendedor', actorName: vUser?.name || analistaId, ts: nowTs(),
+      step: 'aberta', actor: 'vendedor', actorName: vendedorCanal || vUser?.name || analistaId, ts: nowTs(),
       note: (descricao || '') + (pulou ? ' — Validação financeira pulada.' : ''),
     }],
     obs: '',
@@ -3506,18 +3598,26 @@ function printPedidoVenda(opId) {
 
   const equipRows = (pv.equipamentos || (op.equipamentos||[]).map(n => ({ name:n, qty:1, valorUnit:'', desconto:'' })))
     .map(e => {
+      // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
+      const code = e.code || (EQUIPAMENTOS_LISTA.find(eq => eq.name === e.name) || {}).code || '';
       const vu = e.valorUnit ? fmtBRL(e.valorUnit) : '—';
       const lineT = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
       const vt = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
-      return `<tr><td style="text-align:center">${e.qty||1}</td><td>${e.name}</td><td style="text-align:right">${vu}</td><td style="text-align:right">${vt}</td></tr>`;
+      return `<tr>
+        <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>
+        <td style="text-align:center;width:40px">${e.qty||1}</td>
+        <td>${e.name}</td>
+        <td style="text-align:right">${vu}</td>
+        <td style="text-align:right">${vt}</td>
+      </tr>`;
     }).join('');
 
   const hasDesconto = pv.valorDesconto && parseFloat(pv.valorDesconto) > 0;
   const descontoRow = hasDesconto
-    ? `<tr><td colspan="3" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Desconto</td><td style="text-align:right;font-weight:700">R$ ${parseFloat(pv.valorDesconto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`
+    ? `<tr><td colspan="4" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Desconto</td><td style="text-align:right;font-weight:700">R$ ${parseFloat(pv.valorDesconto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`
     : '';
   const totalRow = pv.valorLiquido && parseFloat(pv.valorLiquido) > 0
-    ? `<tr class="tr-total"><td colspan="3" style="text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Valor Total</td><td style="text-align:right">${fmtBRL(pv.valorLiquido)}</td></tr>`
+    ? `<tr class="tr-total"><td colspan="4" style="text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Valor Total</td><td style="text-align:right">${fmtBRL(pv.valorLiquido)}</td></tr>`
     : '';
 
   const payLines = pv.detalhesPagamento
@@ -3636,6 +3736,7 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
 
 <table class="equip">
   <thead><tr>
+    <th style="text-align:center;width:80px">Código</th>
     <th style="text-align:center;width:50px">Quant.</th>
     <th>Descrição</th>
     <th style="text-align:right;width:120px">Valor Unitário</th>

@@ -2,11 +2,28 @@ name: Sync Protheus → Supabase
 
 on:
   schedule:
-    - cron: '0 7 * * *'   # Todo dia às 07h (UTC) = 04h horário Brasil
-  workflow_dispatch:        # Botão manual no GitHub Actions
+    - cron: '0 7 * * 1-6'   # Segunda a sábado às 07h UTC (04h Brasil) → incremental
+    - cron: '0 6 * * 0'     # Todo domingo às 06h UTC (03h Brasil) → completo
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Tipo de sync'
+        required: true
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full
 
 jobs:
-  sync:
+
+  # ─────────────────────────────────────────────
+  # Sync incremental — roda de seg a sáb
+  # ─────────────────────────────────────────────
+  sync-incremental:
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 7 * * 1-6') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'incremental')
     runs-on: ubuntu-latest
     environment: PROTHEUS_BASE
     steps:
@@ -15,7 +32,31 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Sync clientes Protheus → Supabase
+      - name: Sync incremental (novas páginas apenas)
+        run: node scripts/sync-protheus-new.js
+        env:
+          PROTHEUS_BASE:        ${{ secrets.PROTHEUS_BASE }}
+          PROTHEUS_USER:        ${{ secrets.PROTHEUS_USER }}
+          PROTHEUS_PASS:        ${{ secrets.PROTHEUS_PASS }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+  # ─────────────────────────────────────────────
+  # Sync completo — todo domingo
+  # ─────────────────────────────────────────────
+  sync-full:
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 6 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'full')
+    runs-on: ubuntu-latest
+    environment: PROTHEUS_BASE
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Sync completo (todos os clientes)
         run: node scripts/sync-protheus.js
         env:
           PROTHEUS_BASE:        ${{ secrets.PROTHEUS_BASE }}

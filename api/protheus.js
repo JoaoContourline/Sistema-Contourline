@@ -1,6 +1,6 @@
 // api/protheus.js — Vercel serverless function
-// Estratégia: página 1 → descobre total → busca todas as páginas restantes em PARALELO
-// Tempo total: ~3.5s (pág 1) + ~3.5s (todas as restantes simultâneas) = ~7s fixo
+// Dispara TODAS as páginas simultaneamente (Promise.all), sem aguardar page 1.
+// Páginas além do total retornam vazio — ignoradas. Tempo fixo ≈ duração de 1 página.
 //
 // Variáveis de ambiente: PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
 
@@ -27,16 +27,16 @@ function fetchPage(base, auth, page, pageSize) {
       resp.on('data', chunk => body += chunk);
       resp.on('end', () => {
         try { resolve(JSON.parse(body)); }
-        catch { reject(new Error('JSON inválido p' + page)); }
+        catch { resolve({ items: [] }); }
       });
     });
-    r.on('error',   reject);
-    r.on('timeout', () => { r.destroy(); reject(new Error('timeout p' + page)); });
+    r.on('error',   () => resolve({ items: [] }));
+    r.on('timeout', () => { r.destroy(); resolve({ items: [] }); });
     r.end();
   });
 }
 
-// Verifica SOMENTE GovernmentalInformation[].id (campo CPF/CNPJ do Protheus)
+// Verifica SOMENTE GovernmentalInformation[].id — campo de CPF/CNPJ no Protheus
 function matchItem(item, digits) {
   const gov = item.GovernmentalInformation || item.governmentalInformation || [];
   return gov.some(g => String(g.id || '').replace(/\D/g, '') === digits);
@@ -63,38 +63,19 @@ export default async function handler(req, res) {
 
   const auth    = Buffer.from(`${user}:${pass}`).toString('base64');
   const PAGE_SZ = 30;
+  const N_PAGES = 15; // 15 páginas × 30 = 450 clientes — disparadas todas ao mesmo tempo
 
   try {
-    // ── 1. Página 1 — descobre total e já busca ──────────────────────
-    const first = await fetchPage(base, auth, 1, PAGE_SZ);
-    const firstItems = first.items || [];
-
-    const foundFirst = firstItems.find(item => matchItem(item, digits));
-    if (foundFirst) return res.status(200).json({ items: [foundFirst] });
-
-    if (!first.hasNext) return res.status(200).json({ items: [] });
-
-    // ── 2. Calcula páginas restantes ─────────────────────────────────
-    let pageNums;
-    if (first.total && first.total > PAGE_SZ) {
-      const totalPages = Math.ceil(first.total / PAGE_SZ);
-      pageNums = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-    } else {
-      // Sem total: tenta até 20 páginas extras em paralelo (600 registros)
-      pageNums = Array.from({ length: 20 }, (_, i) => i + 2);
-    }
-
-    // ── 3. Busca TODAS as páginas restantes simultaneamente ───────────
-    const pages = await Promise.all(
-      pageNums.map(p => fetchPage(base, auth, p, PAGE_SZ).catch(() => ({ items: [] })))
+    const results = await Promise.all(
+      Array.from({ length: N_PAGES }, (_, i) =>
+        fetchPage(base, auth, i + 1, PAGE_SZ)
+      )
     );
 
-    for (const data of pages) {
-      const found = (data.items || []).find(item => matchItem(item, digits));
-      if (found) return res.status(200).json({ items: [found] });
-    }
+    const allItems = results.flatMap(d => d.items || []);
+    const found    = allItems.find(item => matchItem(item, digits));
 
-    return res.status(200).json({ items: [] });
+    return res.status(200).json({ items: found ? [found] : [] });
 
   } catch (err) {
     console.error('Protheus error:', err.message);

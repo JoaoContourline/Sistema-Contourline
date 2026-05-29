@@ -3109,8 +3109,30 @@ function toggleSameAddress(checked) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROTHEUS API — via Vercel function /api/protheus (sem CORS)
+// PROTHEUS — cache localStorage (TTL 4h) + /api/protheus-all
 // ═══════════════════════════════════════════════════════════════════
+
+const PCACHE_KEY = 'protheus_clientes_v1';
+const PCACHE_TTL = 4 * 60 * 60 * 1000; // 4 horas
+
+function pCacheGet() {
+  try {
+    const raw = localStorage.getItem(PCACHE_KEY);
+    if (!raw) return null;
+    const { ts, items } = JSON.parse(raw);
+    if (Date.now() - ts > PCACHE_TTL) { localStorage.removeItem(PCACHE_KEY); return null; }
+    return items;
+  } catch { return null; }
+}
+
+function pCacheSet(items) {
+  try { localStorage.setItem(PCACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch {}
+}
+
+function pCacheFind(digits) {
+  const cache = pCacheGet();
+  return cache ? (cache.find(c => c.cpfDigits === digits) || null) : null;
+}
 
 function fillClientFromProtheus(d) {
   const fill = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = String(val).trim(); };
@@ -3136,36 +3158,51 @@ function fillClientFromProtheus(d) {
   togglePFFields(d.entityType !== 'J');
 }
 
-function lookupProtheusClient(rawVal) {
+async function lookupProtheusClient(rawVal) {
   const digits = rawVal.replace(/\D/g, '');
-  if (digits.length < 11) return Promise.resolve(false);
+  if (digits.length < 11) return false;
   setStatus('cnpj-status', 'Buscando no Protheus…', 'loading');
-  // Chama a Vercel function /api/protheus — sem CORS, sem credenciais no frontend
-  return fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(25000) })
-    .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
-    .then(({ ok, status, data }) => {
-      if (!ok) {
-        setStatus('cnpj-status', 'Protheus: ' + (data.error || data.message || ('HTTP ' + status)), 'err');
-        return false;
-      }
-      // O servidor já filtra — items contém só o cliente encontrado (ou vazio)
-      const items = data.items || (Array.isArray(data) ? data : []);
-      if (!items.length) {
-        setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
-        return false;
-      }
-      fillClientFromProtheus(items[0]);
-      setStatus('cnpj-status', 'OK: ' + (items[0].name || items[0].shortName || '').trim().substring(0, 35) + ' (Protheus)', 'ok');
-      showToast('Cliente encontrado no Protheus');
-      return true;
-    })
-    .catch(err => {
-      const msg = err.name === 'TimeoutError' || err.name === 'AbortError'
-        ? 'Protheus demorou demais (timeout). Preencha manualmente.'
-        : 'Erro: ' + err.message;
-      setStatus('cnpj-status', msg, 'err');
+
+  // ── 1. Tenta no cache local (instantâneo) ────────────────────────
+  const cached = pCacheFind(digits);
+  if (cached) {
+    fillClientFromProtheus(cached);
+    const label = (cached.name || cached.shortName || '').substring(0, 35);
+    setStatus('cnpj-status', 'OK: ' + label + ' (Protheus)', 'ok');
+    showToast('Cliente encontrado no Protheus');
+    return true;
+  }
+
+  // ── 2. Cache vazio/expirado — busca todos e salva ────────────────
+  try {
+    setStatus('cnpj-status', 'Carregando clientes do Protheus…', 'loading');
+    const resp = await fetch('/api/protheus-all', { signal: AbortSignal.timeout(30000) });
+    const data = await resp.json();
+    if (!resp.ok) {
+      setStatus('cnpj-status', 'Protheus: ' + (data.error || 'Erro ' + resp.status), 'err');
       return false;
-    });
+    }
+    const items = data.items || [];
+    pCacheSet(items);
+
+    const found = items.find(c => c.cpfDigits === digits);
+    if (!found) {
+      setStatus('cnpj-status', 'Não encontrado no Protheus (' + items.length + ' clientes)', 'err');
+      return false;
+    }
+    fillClientFromProtheus(found);
+    const label = (found.name || found.shortName || '').substring(0, 35);
+    setStatus('cnpj-status', 'OK: ' + label + ' (Protheus)', 'ok');
+    showToast('Cliente encontrado no Protheus');
+    return true;
+
+  } catch (err) {
+    const msg = err.name === 'TimeoutError' || err.name === 'AbortError'
+      ? 'Protheus demorou demais. Preencha manualmente.'
+      : 'Erro Protheus: ' + err.message;
+    setStatus('cnpj-status', msg, 'err');
+    return false;
+  }
 }
 
 function searchClientBtn() {

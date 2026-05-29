@@ -3148,19 +3148,10 @@ function lookupProtheusClient(rawVal) {
         setStatus('cnpj-status', 'Protheus: ' + (data.error || data.message || ('HTTP ' + status)), 'err');
         return false;
       }
-      const allItems = data.items || (Array.isArray(data) ? data : []);
-      // Log do primeiro item para identificar o campo de CPF/CNPJ no Protheus
-      if (allItems.length) console.log('[Protheus] campos do item[0]:', JSON.stringify(allItems[0]));
-      // Filtra procurando digits em QUALQUER campo string/número do item
-      const items = allItems.filter(item =>
-        Object.values(item).some(val =>
-          (typeof val === 'string' || typeof val === 'number') &&
-          String(val).replace(/\D/g, '') === digits
-        )
-      );
-      console.log('[Protheus] total:', allItems.length, '| matching:', items.length, '| digits:', digits);
+      // O servidor já filtra — items contém só o cliente encontrado (ou vazio)
+      const items = data.items || (Array.isArray(data) ? data : []);
       if (!items.length) {
-        setStatus('cnpj-status', `Não encontrado no Protheus (${allItems.length} clientes verificados)`, 'err');
+        setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
         return false;
       }
       fillClientFromProtheus(items[0]);

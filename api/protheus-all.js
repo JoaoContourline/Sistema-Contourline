@@ -1,6 +1,8 @@
 // api/protheus-all.js — Retorna TODOS os clientes Protheus em formato compacto
-// O cliente armazena em localStorage (TTL 4h) — buscas subsequentes são instantâneas
-// 25 páginas × 30 registros em paralelo = até 750 clientes em ~3.5s
+// Loop sem limite até hasNext=false — lotes de 25 páginas paralelas por rodada
+// maxDuration: 60s (configurado em vercel.json)
+//
+// Variáveis de ambiente: PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
 
 import https from 'https';
 
@@ -34,7 +36,6 @@ function fetchPage(base, auth, page, pageSize) {
   });
 }
 
-// Retorna só o que o cliente precisa — sem os campos de padding gigantes
 function compact(item) {
   const gov = item.GovernmentalInformation || item.governmentalInformation || [];
   const cpfEntry = gov.find(g => g.name === 'CPF|CNPJ');
@@ -85,30 +86,37 @@ export default async function handler(req, res) {
 
   const auth      = Buffer.from(`${user}:${pass}`).toString('base64');
   const PAGE_SZ   = 30;
-  const BATCH_SZ  = 25; // páginas por lote
-  const N_BATCHES = 2;  // 2 lotes × 25 × 30 = 1.500 clientes, ~7s total
+  const BATCH_SZ  = 25; // páginas por lote paralelo (~3.5s por lote)
 
   try {
-    const allPages = [];
-    for (let b = 0; b < N_BATCHES; b++) {
+    const allItems = [];
+    let nextPage   = 1;
+    let hasMore    = true;
+
+    // Loop até esgotar todos os registros
+    while (hasMore) {
       const batch = await Promise.all(
         Array.from({ length: BATCH_SZ }, (_, i) =>
-          fetchPage(base, auth, b * BATCH_SZ + i + 1, PAGE_SZ)
+          fetchPage(base, auth, nextPage + i, PAGE_SZ)
         )
       );
-      allPages.push(...batch);
-      // Se nenhuma página do lote tinha hasNext, não há mais dados
-      if (batch.every(d => !d.hasNext && (d.items || []).length < PAGE_SZ)) break;
+
+      for (const data of batch) {
+        const items = data.items || [];
+        allItems.push(...items);
+        if (!data.hasNext || items.length < PAGE_SZ) {
+          hasMore = false;
+          break;
+        }
+      }
+
+      nextPage += BATCH_SZ;
     }
 
-    const items = allPages
-      .flatMap(d => d.items || [])
-      .map(compact)
-      .filter(Boolean);
+    const compact_items = allItems.map(compact).filter(Boolean);
 
-    // Cache-Control: 4h no CDN do Vercel
     res.setHeader('Cache-Control', 'public, max-age=14400, stale-while-revalidate=3600');
-    return res.status(200).json({ items, cachedAt: Date.now() });
+    return res.status(200).json({ items: compact_items, total: compact_items.length });
 
   } catch (err) {
     console.error('protheus-all error:', err.message);

@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/protheus-all.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/api/protheus-all", "destination": "/api/protheus-all" },
     { "source": "/api/protheus",     "destination": "/api/protheus"     },

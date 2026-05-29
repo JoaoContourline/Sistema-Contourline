@@ -1,12 +1,14 @@
 {
   "functions": {
-    "api/protheus-all.js": { "maxDuration": 60 }
+    "api/protheus-sync.js": { "maxDuration": 60 },
+    "api/protheus-all.js":  { "maxDuration": 60 }
   },
   "rewrites": [
-    { "source": "/api/protheus-all", "destination": "/api/protheus-all" },
-    { "source": "/api/protheus",     "destination": "/api/protheus"     },
-    { "source": "/api/login",        "destination": "/api/login"        },
-    { "source": "/api/verify",       "destination": "/api/verify"       },
-    { "source": "/(.*)",             "destination": "/index.html"       }
+    { "source": "/api/protheus-sync", "destination": "/api/protheus-sync" },
+    { "source": "/api/protheus-all",  "destination": "/api/protheus-all"  },
+    { "source": "/api/protheus",      "destination": "/api/protheus"      },
+    { "source": "/api/login",         "destination": "/api/login"         },
+    { "source": "/api/verify",        "destination": "/api/verify"        },
+    { "source": "/(.*)",              "destination": "/index.html"        }
   ]
 }

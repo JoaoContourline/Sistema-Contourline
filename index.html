@@ -3109,30 +3109,8 @@ function toggleSameAddress(checked) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROTHEUS — cache localStorage (TTL 4h) + /api/protheus-all
+// PROTHEUS — busca direto no Supabase (tabela protheus_clientes)
 // ═══════════════════════════════════════════════════════════════════
-
-const PCACHE_KEY = 'protheus_clientes_v1';
-const PCACHE_TTL = 4 * 60 * 60 * 1000; // 4 horas
-
-function pCacheGet() {
-  try {
-    const raw = localStorage.getItem(PCACHE_KEY);
-    if (!raw) return null;
-    const { ts, items } = JSON.parse(raw);
-    if (Date.now() - ts > PCACHE_TTL) { localStorage.removeItem(PCACHE_KEY); return null; }
-    return items;
-  } catch { return null; }
-}
-
-function pCacheSet(items) {
-  try { localStorage.setItem(PCACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch {}
-}
-
-function pCacheFind(digits) {
-  const cache = pCacheGet();
-  return cache ? (cache.find(c => c.cpfDigits === digits) || null) : null;
-}
 
 function fillClientFromProtheus(d) {
   const fill = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = String(val).trim(); };
@@ -3163,44 +3141,24 @@ async function lookupProtheusClient(rawVal) {
   if (digits.length < 11) return false;
   setStatus('cnpj-status', 'Buscando no Protheus…', 'loading');
 
-  // ── 1. Tenta no cache local (instantâneo) ────────────────────────
-  const cached = pCacheFind(digits);
-  if (cached) {
-    fillClientFromProtheus(cached);
-    const label = (cached.name || cached.shortName || '').substring(0, 35);
-    setStatus('cnpj-status', 'OK: ' + label + ' (Protheus)', 'ok');
-    showToast('Cliente encontrado no Protheus');
-    return true;
-  }
-
-  // ── 2. Cache vazio/expirado — busca todos e salva ────────────────
   try {
-    setStatus('cnpj-status', 'Carregando clientes do Protheus…', 'loading');
-    const resp = await fetch('/api/protheus-all', { signal: AbortSignal.timeout(30000) });
-    const data = await resp.json();
-    if (!resp.ok) {
-      setStatus('cnpj-status', 'Protheus: ' + (data.error || 'Erro ' + resp.status), 'err');
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/protheus_clientes?cpf_digits=eq.${digits}&select=dados`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const rows = await resp.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
       return false;
     }
-    const items = data.items || [];
-    pCacheSet(items);
-
-    const found = items.find(c => c.cpfDigits === digits);
-    if (!found) {
-      setStatus('cnpj-status', 'Não encontrado no Protheus (' + items.length + ' clientes)', 'err');
-      return false;
-    }
-    fillClientFromProtheus(found);
-    const label = (found.name || found.shortName || '').substring(0, 35);
-    setStatus('cnpj-status', 'OK: ' + label + ' (Protheus)', 'ok');
+    const d = rows[0].dados;
+    fillClientFromProtheus(d);
+    setStatus('cnpj-status', 'OK: ' + (d.name || d.shortName || '').substring(0, 35) + ' (Protheus)', 'ok');
     showToast('Cliente encontrado no Protheus');
     return true;
-
   } catch (err) {
-    const msg = err.name === 'TimeoutError' || err.name === 'AbortError'
-      ? 'Protheus demorou demais. Preencha manualmente.'
-      : 'Erro Protheus: ' + err.message;
-    setStatus('cnpj-status', msg, 'err');
+    setStatus('cnpj-status', 'Erro ao buscar: ' + err.message, 'err');
     return false;
   }
 }

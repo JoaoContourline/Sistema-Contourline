@@ -2052,10 +2052,55 @@ function renderQueue(user, el) {
     return;
   }
 
+  // ── FINANCEIRO (seções: Validação + Bloqueadas) ──────────────────
+  if (user.role === 'financeiro') {
+    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro');
+    const bloqueadaOps = ops.filter(o => o.status === 'bloqueada');
+    const total = validacaoOps.length + bloqueadaOps.length;
+
+    let html = `<div class="step-header"><div class="step-title">Financeiro — Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Validação de pagamentos e pedidos bloqueados</div></div>`;
+
+    if (!total) {
+      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação financeira.</div></div>`;
+    } else {
+      if (validacaoOps.length) html += `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--yellow-bg)">
+              ${icon('clock',16,'color:var(--yellow)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Aguardando Validação</div>
+              <div class="section-header-desc">OPs com entrada pendente aguardando aprovação de pagamento</div>
+            </div>
+            <span class="section-header-count" style="background:var(--yellow-bg);color:var(--yellow)">${validacaoOps.length}</span>
+          </div>
+          <div class="card-grid">${validacaoOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+
+      if (bloqueadaOps.length) html += `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--red-bg)">
+              ${icon('ban',16,'color:var(--red)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Bloqueados</div>
+              <div class="section-header-desc">Pedidos bloqueados pelo financeiro — aguardando resolução ou desbloqueio</div>
+            </div>
+            <span class="section-header-count" style="background:var(--red-bg);color:var(--red)">${bloqueadaOps.length}</span>
+          </div>
+          <div class="card-grid">${bloqueadaOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+
   // ── DEMAIS SETORES ───────────────────────────────────────────────
   const config = {
-    financeiro: ['Validação Financeira',   'OPs com entrada pendente aguardando aprovação de pagamento'],
-    fiscal:     ['Notas Fiscais a Emitir', 'Preencha os dados — emita a NF e registre o número aqui'],
+    fiscal: ['Notas Fiscais a Emitir', 'Preencha os dados — emita a NF e registre o número aqui'],
   };
   const [title, desc] = config[user.role] || ['Pendentes', ''];
   const queue = getQueue(user);

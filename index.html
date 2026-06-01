@@ -2358,7 +2358,6 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     </div>
     <div class="pipe-bar">${dots}</div>
     <div style="font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato}</div>
-    ${op.entrada && op.entrada !== 'sem' ? `<div style="margin-top:4px">${entradaHtml(op.entrada)}${op.pedidoVenda?.valorEntrada && parseFloat(op.pedidoVenda.valorEntrada) > 0 ? `<span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);margin-left:5px">${fmtBRL(op.pedidoVenda.valorEntrada)}</span>` : ''}</div>` : ''}
     ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,90)}</div>` : ''}
     ${footer}
   </div>`;
@@ -2727,6 +2726,7 @@ function buildInfoSections(op, opId) {
         ${pv.valorDesconto && parseFloat(pv.valorDesconto)>0 ? dItem('Desconto', '− '+fmtBRL(pv.valorDesconto)) : ''}
         ${pv.valorLiquido && parseFloat(pv.valorLiquido)>0 ? dItem('Valor Total', `<strong style="color:var(--green)">${fmtBRL(pv.valorLiquido)}</strong>`) : ''}
         ${pv.tipoContrato ? dItem('Tipo', pv.tipoContrato) : ''}
+        ${pv.entrada && pv.entrada !== 'sem' && pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? dItem('Entrada', fmtBRL(pv.valorEntrada)) : ''}
       </div>`;
     }
     if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
@@ -4111,10 +4111,8 @@ function printPedidoVenda(opId) {
   const simLine = pv.simulador && parseFloat(pv.simulador) > 0
     ? `<div class="pay-line" style="margin-top:4px">Simulador: ${fmtBRL(pv.simulador)}</div>`
     : '';
-  const entradaLine = pv.entrada === 'pendente'
-    ? `<div class="pay-line" style="margin-top:6px;font-weight:700;color:#b45309">Entrada: ${pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? fmtBRL(pv.valorEntrada) : 'a definir'} — PENDENTE</div>`
-    : pv.entrada === 'paga'
-    ? `<div class="pay-line" style="margin-top:6px;font-weight:700;color:#16a34a">Entrada: ${pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? fmtBRL(pv.valorEntrada) : ''} — PAGA</div>`
+  const entradaLine = pv.entrada && pv.entrada !== 'sem' && pv.valorEntrada && parseFloat(pv.valorEntrada) > 0
+    ? `<div class="pay-line" style="margin-top:4px">Entrada: ${fmtBRL(pv.valorEntrada)}</div>`
     : '';
 
   const obsDescricao = op.stepData?.aberta?.descricao;

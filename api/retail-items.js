@@ -48,7 +48,7 @@ export default async function handler(req, res) {
                 code:   i.Code.trim(),
                 name:   i.Description.trim(),
                 price:  i.SalesPrice || 0,
-                serial: i.Trail?.trim() !== 'N', // Trail='L' ou 'S' = controla nº de série/lote
+                tracking: i.Trail?.trim() === 'L' ? 'lote' : i.Trail?.trim() === 'S' ? 'serie' : null,
               }))
               .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 

@@ -1596,7 +1596,7 @@ function selectEquipFromSearch(name) {
   else {
     const list  = _equipCache || _EQUIP_FALLBACK;
     const found = list.find(e => e.name === name);
-    tempEquipList.push({ name, code: found?.code || '', serial: found?.serial === true, qty: 1, valorUnit: '', desconto: '' });
+    tempEquipList.push({ name, code: found?.code || '', tracking: found?.tracking || null, qty: 1, valorUnit: '', desconto: '' });
   }
   const inp = document.getElementById('equip-search-input');
   if (inp) inp.value = '';
@@ -1922,31 +1922,38 @@ function buildFieldHtml(f) {
     const op = ops.find(o => o.id === activeOpId);
     const rawList = op?.pedidoVenda?.equipamentos || op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
 
-    // Filtra apenas itens que controlam nº de série (serial !== false)
-    // Legado (sem campo serial) → exibe por retrocompatibilidade
-    const serialItems = rawList.flatMap(e => {
+    // Filtra apenas itens que controlam lote ou série
+    // tracking='lote'|'serie' → exibe; null → não exibe
+    // Legado (sem campo tracking nem serial) → exibe por retrocompatibilidade
+    const trackItems = rawList.flatMap(e => {
       const obj = typeof e === 'object' ? e : { name: e };
-      if (obj.serial === false) return []; // novo: excluído explicitamente
+      // retrocompat: serial===false (campo antigo) também exclui
+      if (obj.serial === false) return [];
+      // novo campo tracking
+      if ('tracking' in obj && obj.tracking === null) return [];
+      const tracking = obj.tracking || 'serie'; // legado → assume série
       const qty = obj.qty || 1;
-      return Array.from({ length: qty }, () => obj.name);
+      return Array.from({ length: qty }, () => ({ name: obj.name, tracking }));
     });
 
-    if (!serialItems.length) return `
+    if (!trackItems.length) return `
       <div style="font-size:12px;color:var(--text3);padding:6px 0">
-        Nenhum equipamento nesta OP requer número de série.
+        Nenhum equipamento nesta OP requer número de série ou lote.
       </div>`;
 
     // Numera duplicatas: HIPRO #1, HIPRO #2
     const nameCount = {};
     const nameIdx   = {};
-    serialItems.forEach(n => { nameCount[n] = (nameCount[n]||0)+1; });
-    return serialItems.map((nm, i) => {
+    trackItems.forEach(({ name: n }) => { nameCount[n] = (nameCount[n]||0)+1; });
+    return trackItems.map(({ name: nm, tracking }, i) => {
       nameIdx[nm] = (nameIdx[nm]||0)+1;
-      const label = nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm;
+      const equipLabel = nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm;
+      const fieldLabel = tracking === 'lote' ? 'Lote' : 'Nº de Série';
+      const ph         = tracking === 'lote' ? 'Ex: LOT-20240601' : 'Ex: SN123456';
       return `
       <div class="form-group">
-        <label class="form-label">Nº de Série — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${label}</span></label>
-        <input class="form-input" id="f-numSerie_${i}" placeholder="Ex: SN123456">
+        <label class="form-label">${fieldLabel} — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${equipLabel}</span></label>
+        <input class="form-input" id="f-numSerie_${i}" data-tracking="${tracking}" placeholder="${ph}">
       </div>`;
     }).join('');
   }
@@ -2074,7 +2081,7 @@ function renderRoles() {
             <circle cx="12" cy="7" r="4"/>
           </svg>
         </div>
-        <div class="user-widget-name">${user.name}</div>
+        <div class="user-widget-name">${user.userName || user.name}</div>
       </div>
     </div>`;
 }
@@ -2768,7 +2775,11 @@ function buildInfoSections(op, opId) {
   if (sd.aguard_nf) {
     const d = sd.aguard_nf;
     const nsRows = (() => {
-      if (d.numSeries?.length) return d.numSeries.map((ns, i) => ns ? dItem(`Nº Série ${i+1}`, ns) : '').join('');
+      if (d.numSeries?.length) return d.numSeries.map((ns, i) => {
+        if (!ns) return '';
+        const tipo = d.trackingTypes?.[i] === 'lote' ? `Lote ${i+1}` : `Nº Série ${i+1}`;
+        return dItem(tipo, ns);
+      }).join('');
       return d.numSerie ? dItem('Nº de Série', d.numSerie) : '';
     })();
     let entHtml = `<div class="detail-grid">
@@ -3267,14 +3278,16 @@ function submitModal() {
     }
     if (f.type === 'cep-lookup') continue; // CEP é auxiliar, não salva
     if (f.type === 'ns-equipamentos') {
-      // coleta todos os campos f-numSerie_N dinamicamente
-      const series = [];
+      const series = [], types = [];
       let i = 0;
       while (document.getElementById(`f-numSerie_${i}`)) {
-        series.push(document.getElementById(`f-numSerie_${i}`).value.trim());
+        const el = document.getElementById(`f-numSerie_${i}`);
+        series.push(el.value.trim());
+        types.push(el.dataset.tracking || 'serie');
         i++;
       }
-      formData.numSeries = series;
+      formData.numSeries       = series;
+      formData.trackingTypes   = types;
       continue;
     }
     const el  = document.getElementById('f-' + f.key);

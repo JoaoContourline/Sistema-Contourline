@@ -943,6 +943,16 @@ const _EQUIP_FALLBACK = [
 ];
 function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
 
+// Mapa estático Trail='L' (lote) — 21 itens confirmados via Protheus B1_RASTRO
+// Todos os outros PA têm Trail='N' → tracking:null (sem série/lote)
+const _EQUIP_TRACKING = {
+  '003367':'lote','004223':'lote','005215':'lote','005216':'lote',
+  '005796':'lote','005797':'lote','006452':'lote','006453':'lote',
+  '006454':'lote','006455':'lote','006478':'lote','006796':'lote',
+  '007039':'lote','007040':'lote','007041':'lote','007042':'lote',
+  '010941':'lote','010942':'lote','010943':'lote','011103':'lote','011104':'lote',
+};
+
 // ── Cache de equipamentos (Protheus /api/retail/v1/retailItem?productType=PA) ──
 let _equipCache   = null;  // null = ainda não carregado
 let _equipLoading = false;
@@ -1931,11 +1941,17 @@ function buildFieldHtml(f) {
 
       let tracking;
       if ('tracking' in obj) {
-        tracking = obj.tracking; // valor já salvo (null / 'lote' / 'serie')
+        tracking = obj.tracking; // valor salvo na OP (null / 'lote' / 'serie')
       } else {
-        // Sem campo salvo: consulta o cache da API pelo nome ou código
+        // Sem campo salvo: tenta cache da API, depois mapa estático
         const cached = _equipCache?.find(c => c.name === obj.name || (obj.code && c.code === obj.code));
-        tracking = cached ? cached.tracking : 'serie'; // sem cache → legado → série
+        if (cached) {
+          tracking = cached.tracking;
+        } else {
+          // Cache ainda não carregado → usa mapa estático (Trail='L' = 'lote', resto = null)
+          const fallback = _EQUIP_FALLBACK.find(f => f.name === obj.name || (obj.code && f.code === obj.code));
+          tracking = fallback ? (_EQUIP_TRACKING[fallback.code] || null) : null;
+        }
       }
 
       if (tracking === null) return []; // Trail='N' → sem série/lote

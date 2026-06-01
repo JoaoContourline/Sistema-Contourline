@@ -1924,17 +1924,23 @@ function buildFieldHtml(f) {
     const rawList = op?.pedidoVenda?.equipamentos || op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
 
     // Filtra apenas itens que controlam lote ou série
-    // tracking='lote'|'serie' → exibe; null → não exibe
-    // Legado (sem campo tracking nem serial) → exibe por retrocompatibilidade
+    // Prioridade: 1) campo tracking salvo no item, 2) lookup no _equipCache, 3) legado → série
     const trackItems = rawList.flatMap(e => {
       const obj = typeof e === 'object' ? e : { name: e };
-      // retrocompat: serial===false (campo antigo) também exclui
-      if (obj.serial === false) return [];
-      // novo campo tracking
-      if ('tracking' in obj && obj.tracking === null) return [];
-      const tracking = obj.tracking || 'serie'; // legado → assume série
+      if (obj.serial === false) return []; // retrocompat campo antigo
+
+      let tracking;
+      if ('tracking' in obj) {
+        tracking = obj.tracking; // valor já salvo (null / 'lote' / 'serie')
+      } else {
+        // Sem campo salvo: consulta o cache da API pelo nome ou código
+        const cached = _equipCache?.find(c => c.name === obj.name || (obj.code && c.code === obj.code));
+        tracking = cached ? cached.tracking : 'serie'; // sem cache → legado → série
+      }
+
+      if (tracking === null) return []; // Trail='N' → sem série/lote
       const qty = obj.qty || 1;
-      return Array.from({ length: qty }, () => ({ name: obj.name, tracking }));
+      return Array.from({ length: qty }, () => ({ name: obj.name, tracking: tracking || 'serie' }));
     });
 
     if (!trackItems.length) return `

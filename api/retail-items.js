@@ -45,9 +45,10 @@ export default async function handler(req, res) {
             const items = (d.items || [])
               .filter(i => i.Active?.trim() === 'S' && i.Code?.trim() && i.Description?.trim())
               .map(i => ({
-                code:  i.Code.trim(),
-                name:  i.Description.trim(),
-                price: i.SalesPrice || 0,
+                code:   i.Code.trim(),
+                name:   i.Description.trim(),
+                price:  i.SalesPrice || 0,
+                serial: i.Trail?.trim() !== 'N', // Trail='L' ou 'S' = controla nº de série/lote
               }))
               .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 

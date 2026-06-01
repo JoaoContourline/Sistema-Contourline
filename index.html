@@ -1596,7 +1596,7 @@ function selectEquipFromSearch(name) {
   else {
     const list  = _equipCache || _EQUIP_FALLBACK;
     const found = list.find(e => e.name === name);
-    tempEquipList.push({ name, code: found?.code || '', qty: 1, valorUnit: '', desconto: '' });
+    tempEquipList.push({ name, code: found?.code || '', serial: found?.serial === true, qty: 1, valorUnit: '', desconto: '' });
   }
   const inp = document.getElementById('equip-search-input');
   if (inp) inp.value = '';
@@ -1920,24 +1920,27 @@ function buildFieldHtml(f) {
 
   if (f.type === 'ns-equipamentos') {
     const op = ops.find(o => o.id === activeOpId);
-    // pedidoVenda.equipamentos tem objetos {name,qty} completos; op.equipamentos são strings legadas
     const rawList = op?.pedidoVenda?.equipamentos || op?.equipamentos || (op?.equipamento ? [op.equipamento] : []);
-    // Normaliza: pode ser array de strings ou array de objetos {name, qty}
-    const names = rawList.flatMap(e => {
-      const qty = (typeof e === 'object' ? e.qty : 1) || 1;
-      const nm  = typeof e === 'object' ? e.name : e;
-      return Array.from({ length: qty }, () => nm);
+
+    // Filtra apenas itens que controlam nº de série (serial !== false)
+    // Legado (sem campo serial) → exibe por retrocompatibilidade
+    const serialItems = rawList.flatMap(e => {
+      const obj = typeof e === 'object' ? e : { name: e };
+      if (obj.serial === false) return []; // novo: excluído explicitamente
+      const qty = obj.qty || 1;
+      return Array.from({ length: qty }, () => obj.name);
     });
-    if (!names.length) return `
-      <div class="form-group">
-        <label class="form-label">Número de Série</label>
-        <input class="form-input" id="f-numSerie_0" placeholder="Ex: SN123456">
+
+    if (!serialItems.length) return `
+      <div style="font-size:12px;color:var(--text3);padding:6px 0">
+        Nenhum equipamento nesta OP requer número de série.
       </div>`;
+
     // Numera duplicatas: HIPRO #1, HIPRO #2
     const nameCount = {};
     const nameIdx   = {};
-    names.forEach(n => { nameCount[n] = (nameCount[n]||0)+1; });
-    return names.map((nm, i) => {
+    serialItems.forEach(n => { nameCount[n] = (nameCount[n]||0)+1; });
+    return serialItems.map((nm, i) => {
       nameIdx[nm] = (nameIdx[nm]||0)+1;
       const label = nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm;
       return `

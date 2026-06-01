@@ -1464,7 +1464,7 @@ function advanceOP(opId, formData) {
 
   const user     = getUser();
   const view     = getActiveView();
-  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
+  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1478,7 +1478,7 @@ function rejectOP(opId, formData) {
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
-  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
+  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1489,7 +1489,7 @@ function directorOverride(opId, nota) {
   if (!op || (op.status !== 'aguard_financeiro' && op.status !== 'bloqueada')) return;
   op.liberadoDiretoria = true;
   const user = getUser();
-  op.history.push({ step: op.status, actor: 'diretoria', actorName: user.userName || user.name, ts: nowTs(), action: 'Liberado pela Diretoria', note: nota || '' });
+  op.history.push({ step: op.status, actor: 'diretoria', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: 'Liberado pela Diretoria', note: nota || '' });
   op.status = 'aguard_nf';
   renderAll();
 }
@@ -2519,9 +2519,10 @@ function buildContextPanel(op) {
 
 function openCard(opId) {
   const op   = ops.find(o => o.id === opId);
+  if (!op) { showToast('OP não encontrada — recarregue', 'err'); return; }
   const view = getActiveView();
   const step = STEPS[op.status];
-  const canAct = step?.owner === view.role;
+  const canAct = step?.owner === view?.role;
   canAct ? openActionModal(opId,'advance') : openInfoModal(opId);
 }
 
@@ -3083,6 +3084,7 @@ function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('modal').classList.remove('wide', 'split');
   activeOpId = null; modalMode = null; tempEquipList = []; tempVoltagemList = ['']; tempFiles = {}; tempFilesData = {};
+  _pendingAdvance = null; // garante que delay modal não vaza entre opens
 }
 
 // ─── ANEXAR BOLETO AVULSO (financeiro, qualquer hora) ───────────────
@@ -3207,9 +3209,9 @@ function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
 function confirmDelay() {
   const reason = document.getElementById('delay-reason-input')?.value?.trim();
   if (!reason) { showToast('Informe o motivo do atraso', 'err'); return; }
-  if (!_pendingAdvance) return;
-  const { opId, formData } = _pendingAdvance;
-  _pendingAdvance = null;
+  if (!_pendingAdvance) { showToast('Sessão expirada — tente novamente', 'err'); closeModal(); return; }
+  // Proteção duplo clique: zera _pendingAdvance antes de processar
+  const { opId, formData } = pending;
   formData.motivoAtraso = reason;
   formData.descricao = (formData.descricao ? formData.descricao + '\n' : '') + '[Atraso] ' + reason;
   // Registra no histórico como ação extra
@@ -3229,8 +3231,10 @@ function cancelDelay() {
 
 function submitModal() {
   if (!activeOpId || !modalMode) return;
-  const op   = ops.find(o => o.id === activeOpId);
+  const op = ops.find(o => o.id === activeOpId);
+  if (!op) { showToast('OP não encontrada — recarregue a página', 'err'); closeModal(); return; }
   const step = STEPS[op.status];
+  if (!step) { showToast('Estado inválido da OP', 'err'); closeModal(); return; }
 
   // Caso especial: Confirmar e Despachar (aguard_despacho → transito)
   if (op.status === 'aguard_despacho' && modalMode === 'advance') {
@@ -3860,8 +3864,7 @@ async function lookupCEPforField(rawVal, targetId, statusId) {
     if (el) {
       const cepFmt = digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
       const parts = [d.street, d.neighborhood, [d.city, d.state].filter(Boolean).join('/'), cepFmt].filter(Boolean);
-      if (!el.value) el.value = parts.join(', ');
-      else el.value = parts.join(', ');
+      el.value = parts.join(', '); // sempre preenche (CEP digitado = intenção de mudar endereço)
     }
     setStatus(statusId, `✓ ${[d.city, d.state].filter(Boolean).join('/')}`, 'ok');
   } catch {
@@ -4282,6 +4285,7 @@ ${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsH
 
 // setUser removido — autenticação agora via login screen
 function setTab(tab, btn) {
+  if (tab !== 'todas') todasFilter = ''; // limpa busca ao sair da aba
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');

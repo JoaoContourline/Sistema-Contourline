@@ -965,7 +965,7 @@ async function loadEquipItems() {
   }
 }
 
-// Busca flexível: suporta múltiplas palavras, prioriza início do nome e código exato
+// Busca flexível: suporta múltiplas palavras, prioriza código exato/parcial e início do nome
 function equipSearch(query) {
   const list  = _equipCache || _EQUIP_FALLBACK;
   const q     = query.trim().toLowerCase();
@@ -976,13 +976,15 @@ function equipSearch(query) {
     const nl = e.name.toLowerCase();
     const cl = (e.code || '').toLowerCase();
 
-    if (cl === q)            return { e, s: 100 };   // código exato
-    if (cl.startsWith(q))    return { e, s: 80  };   // código começa com query
-    if (nl.startsWith(q))    return { e, s: 70  };   // nome começa com query
+    if (cl === q)          return { e, s: 100 }; // código exato
+    if (nl === q)          return { e, s: 99  }; // nome exato
+    if (cl.startsWith(q))  return { e, s: 85  }; // código começa com query
+    if (cl.includes(q))    return { e, s: 80  }; // código contém query ("1069" acha "001069")
+    if (nl.startsWith(q))  return { e, s: 70  }; // nome começa com query
     const allIn = words.every(w => nl.includes(w) || cl.includes(w));
     if (!allIn) return null;
-    const pos = nl.indexOf(words[0]);
-    return { e, s: Math.max(5, 55 - pos) };          // todas as palavras presentes
+    const pos = Math.max(0, nl.indexOf(words[0]));
+    return { e, s: Math.max(5, 50 - pos) };      // todas as palavras presentes
   }).filter(Boolean);
 
   scored.sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name, 'pt-BR'));
@@ -1594,13 +1596,14 @@ function filterEquipSearch(val) {
 }
 
 function selectEquipFromSearch(name) {
+  const list  = _equipCache || _EQUIP_FALLBACK;
+  const found = list.find(e => e.name === name);
+  if (!found) { showToast('Selecione um equipamento da lista', 'err'); return; }
   const existing = tempEquipList.find(e => e.name === name);
   if (existing) { existing.qty++; }
   else {
-    const list  = _equipCache || _EQUIP_FALLBACK;
-    const found = list.find(e => e.name === name);
-    const item  = { name, code: found?.code || '', qty: 1, valorUnit: '', desconto: '' };
-    if (found?.tracking !== undefined) item.tracking = found.tracking; // só inclui se a API definiu
+    const item = { name, code: found.code || '', qty: 1, valorUnit: '', desconto: '' };
+    if (found.tracking !== undefined) item.tracking = found.tracking;
     tempEquipList.push(item);
   }
   const inp = document.getElementById('equip-search-input');
@@ -1614,11 +1617,7 @@ function selectEquipFromSearch(name) {
 function equipSearchKeydown(e) {
   const dd = document.getElementById('equip-dropdown');
   if (!dd || !dd.classList.contains('open')) {
-    // Allow Enter on empty to add custom text
-    if (e.key === 'Enter') {
-      const val = document.getElementById('equip-search-input')?.value?.trim();
-      if (val) { e.preventDefault(); selectEquipFromSearch(val); }
-    }
+    if (e.key === 'Enter') e.preventDefault(); // bloqueio: exige seleção da lista
     return;
   }
   const items = dd.querySelectorAll('.equip-dropdown-item');
@@ -1635,13 +1634,10 @@ function equipSearchKeydown(e) {
     items[equipSearchFocusIdx]?.scrollIntoView({ block: 'nearest' });
   } else if (e.key === 'Enter') {
     e.preventDefault();
-    if (equipSearchFocusIdx >= 0 && items[equipSearchFocusIdx]) {
-      const name = items[equipSearchFocusIdx].dataset.name;
-      if (name) selectEquipFromSearch(name);
-    } else {
-      const val = document.getElementById('equip-search-input')?.value?.trim();
-      if (val) selectEquipFromSearch(val);
-    }
+    // Seleciona o item destacado ou o primeiro da lista
+    const idx  = equipSearchFocusIdx >= 0 ? equipSearchFocusIdx : 0;
+    const name = items[idx]?.dataset.name;
+    if (name) selectEquipFromSearch(name);
   } else if (e.key === 'Escape') {
     dd.classList.remove('open');
     equipSearchFocusIdx = -1;

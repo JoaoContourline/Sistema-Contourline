@@ -1599,7 +1599,9 @@ function selectEquipFromSearch(name) {
   else {
     const list  = _equipCache || _EQUIP_FALLBACK;
     const found = list.find(e => e.name === name);
-    tempEquipList.push({ name, code: found?.code || '', tracking: found?.tracking || null, qty: 1, valorUnit: '', desconto: '' });
+    const item  = { name, code: found?.code || '', qty: 1, valorUnit: '', desconto: '' };
+    if (found?.tracking !== undefined) item.tracking = found.tracking; // só inclui se a API definiu
+    tempEquipList.push(item);
   }
   const inp = document.getElementById('equip-search-input');
   if (inp) inp.value = '';
@@ -3382,7 +3384,6 @@ function openNovaOP() {
               <div class="form-group"><label class="form-label">E-mail</label>
                 <input class="form-input" id="nova-email" type="text" inputmode="email"
                   autocomplete="email" autocapitalize="none" spellcheck="false"
-                  oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')"
                   onblur="validateEmailField(this)">
               </div>
             </div>
@@ -3633,7 +3634,8 @@ function calcDataPrevista() {
 }
 
 function validateEmailField(input) {
-  const val = input.value.trim();
+  input.value = input.value.trim().toLowerCase().replace(/\s/g, '');
+  const val = input.value;
   if (!val) return;
   const ok = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}(\.[a-zA-Z]{2,})?$/.test(val);
   if (!ok) {

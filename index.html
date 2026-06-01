@@ -719,8 +719,8 @@ function icon(name, size = 16, style = '') {
 // STATE MACHINE
 // ═══════════════════════════════════════════════════════════════════
 
-// Equipamentos com código Protheus — 216 itens tipo PA (mata010.xlsx)
-const EQUIPAMENTOS_LISTA = [
+// Lista estática de fallback — usada enquanto /api/retail-items não carrega
+const _EQUIP_FALLBACK = [
   { code:'000016',  name:'BHS 156 FULL' },
   { code:'000016R', name:'BHS 156 FULL (R)' },
   { code:'001069',  name:'RAYTRACE - PLASMA BT (SLM-9010E)' },
@@ -939,6 +939,52 @@ const EQUIPAMENTOS_LISTA = [
   { code:'PROT-047',name:'NUERA TIGHT 1 CH' },
 ];
 function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
+
+// ── Cache de equipamentos (Protheus /api/retail/v1/retailItem?productType=PA) ──
+let _equipCache   = null;  // null = ainda não carregado
+let _equipLoading = false;
+
+async function loadEquipItems() {
+  if (_equipCache || _equipLoading) return;
+  _equipLoading = true;
+  try {
+    const res = await fetch('/api/retail-items');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (Array.isArray(d.items) && d.items.length) {
+      _equipCache = d.items; // [{code, name, price}]
+      console.log('[equip] cache:', _equipCache.length, 'itens carregados do Protheus');
+    }
+  } catch (e) {
+    console.warn('[equip] API falhou, usando lista estática:', e.message);
+  } finally {
+    _equipLoading = false;
+  }
+}
+
+// Busca flexível: suporta múltiplas palavras, prioriza início do nome e código exato
+function equipSearch(query) {
+  const list  = _equipCache || _EQUIP_FALLBACK;
+  const q     = query.trim().toLowerCase();
+  if (!q) return [];
+  const words = q.split(/\s+/).filter(Boolean);
+
+  const scored = list.map(e => {
+    const nl = e.name.toLowerCase();
+    const cl = (e.code || '').toLowerCase();
+
+    if (cl === q)            return { e, s: 100 };   // código exato
+    if (cl.startsWith(q))    return { e, s: 80  };   // código começa com query
+    if (nl.startsWith(q))    return { e, s: 70  };   // nome começa com query
+    const allIn = words.every(w => nl.includes(w) || cl.includes(w));
+    if (!allIn) return null;
+    const pos = nl.indexOf(words[0]);
+    return { e, s: Math.max(5, 55 - pos) };          // todas as palavras presentes
+  }).filter(Boolean);
+
+  scored.sort((a, b) => b.s - a.s || a.e.name.localeCompare(b.e.name, 'pt-BR'));
+  return scored.slice(0, 30).map(x => x.e);
+}
 
 const STEPS = {
 
@@ -1346,6 +1392,7 @@ function showApp() {
   document.getElementById('appContainer').style.display = '';
   renderRoles();
   loadOps().then(() => startRealtime());
+  loadEquipItems(); // carrega catálogo de equipamentos em background
 }
 
 function checkSession() {
@@ -1528,13 +1575,10 @@ function renderEquipItem(e, i) {
 let equipSearchFocusIdx = -1;
 
 function filterEquipSearch(val) {
-  const q = val.toLowerCase().trim();
   const dd = document.getElementById('equip-dropdown');
   if (!dd) return;
-  if (!q) { dd.classList.remove('open'); equipSearchFocusIdx = -1; return; }
-  const filtered = EQUIPAMENTOS_LISTA.filter(e =>
-    e.name.toLowerCase().includes(q) || e.code.includes(q)
-  ).slice(0, 24);
+  if (!val.trim()) { dd.classList.remove('open'); equipSearchFocusIdx = -1; return; }
+  const filtered = equipSearch(val);
   if (!filtered.length) { dd.classList.remove('open'); return; }
   equipSearchFocusIdx = -1;
   dd.innerHTML = filtered.map((e, i) =>
@@ -1550,8 +1594,9 @@ function selectEquipFromSearch(name) {
   const existing = tempEquipList.find(e => e.name === name);
   if (existing) { existing.qty++; }
   else {
-    const found = EQUIPAMENTOS_LISTA.find(e => e.name === name);
-    tempEquipList.push({ name, code: found ? found.code : '', qty: 1, valorUnit: '', desconto: '' });
+    const list  = _equipCache || _EQUIP_FALLBACK;
+    const found = list.find(e => e.name === name);
+    tempEquipList.push({ name, code: found?.code || '', qty: 1, valorUnit: '', desconto: '' });
   }
   const inp = document.getElementById('equip-search-input');
   if (inp) inp.value = '';
@@ -4019,7 +4064,7 @@ function printPedidoVenda(opId) {
   const equipRows = (pv.equipamentos || (op.equipamentos||[]).map(n => ({ name:n, qty:1, valorUnit:'', desconto:'' })))
     .map(e => {
       // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
-      const code = e.code || (EQUIPAMENTOS_LISTA.find(eq => eq.name === e.name) || {}).code || '';
+      const code = e.code || ((_equipCache || _EQUIP_FALLBACK).find(eq => eq.name === e.name) || {}).code || '';
       const vu = e.valorUnit ? fmtBRL(e.valorUnit) : '—';
       const lineT = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
       const vt = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';

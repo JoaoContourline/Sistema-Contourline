@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/retail-items",       "destination": "/api/retail-items"       },
     { "source": "/api/protheus-discover", "destination": "/api/protheus-discover" },
     { "source": "/api/protheus-sync",    "destination": "/api/protheus-sync"    },
     { "source": "/api/protheus-all",  "destination": "/api/protheus-all"  },

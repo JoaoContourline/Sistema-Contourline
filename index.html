@@ -2358,7 +2358,8 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     </div>
     <div class="pipe-bar">${dots}</div>
     <div style="font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato}</div>
-    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${lastEvt.note.substring(0,90)}${lastEvt.note.length>90?'…':''}</div>` : ''}
+    ${op.entrada && op.entrada !== 'sem' ? `<div style="margin-top:4px">${entradaHtml(op.entrada)}${op.pedidoVenda?.valorEntrada && parseFloat(op.pedidoVenda.valorEntrada) > 0 ? `<span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);margin-left:5px">${fmtBRL(op.pedidoVenda.valorEntrada)}</span>` : ''}</div>` : ''}
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,90)}</div>` : ''}
     ${footer}
   </div>`;
 }
@@ -4013,7 +4014,7 @@ async function submitNovaOP() {
       aberta: { clienteNome: cliente, equipamentos: [...tempEquipList], arquivoOP: arquivo, descricao },
     },
     history: [{
-      step: 'aberta', actor: 'vendedor', actorName: vendedorCanal || vUser?.name || analistaId, ts: nowTs(),
+      step: 'aberta', actor: 'vendedor', actorName: (getUser()?.userName || getUser()?.name || vendedorCanal || ''), ts: nowTs(),
       action: 'OP Criada' + (pulou ? ' — Fin. pulado' : ''),
       note: descricao || '',
     }],
@@ -4109,6 +4110,11 @@ function printPedidoVenda(opId) {
     : '';
   const simLine = pv.simulador && parseFloat(pv.simulador) > 0
     ? `<div class="pay-line" style="margin-top:4px">Simulador: ${fmtBRL(pv.simulador)}</div>`
+    : '';
+  const entradaLine = pv.entrada === 'pendente'
+    ? `<div class="pay-line" style="margin-top:6px;font-weight:700;color:#b45309">Entrada: ${pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? fmtBRL(pv.valorEntrada) : 'a definir'} — PENDENTE</div>`
+    : pv.entrada === 'paga'
+    ? `<div class="pay-line" style="margin-top:6px;font-weight:700;color:#16a34a">Entrada: ${pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? fmtBRL(pv.valorEntrada) : ''} — PAGA</div>`
     : '';
 
   const obsDescricao = op.stepData?.aberta?.descricao;
@@ -4239,6 +4245,7 @@ ${(()=>{ const vs = Array.isArray(pv.voltagem) ? pv.voltagem.filter(Boolean) : (
   ${pv.tipoContrato ? `<div class="pay-type">${pv.tipoContrato}</div>` : ''}
   ${payLines}
   ${simLine}
+  ${entradaLine}
 </div>
 
 ${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsHtml}</div>` : ''}

@@ -432,16 +432,18 @@ main { padding: 24px; }
 .equip-dropdown-code { font-size: 10px; color: var(--accent); background: var(--blue-bg); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 
 /* KANBAN */
-/* kanban-wrap ocupa o restante da altura disponível para a scrollbar
-   horizontal ficar sempre no fundo da tela, não no final dos cards */
 .kanban-wrap {
   overflow-x: auto;
-  overflow-y: hidden;
-  height: calc(100vh - 58px - 45px - 80px); /* viewport - header - tabs - step-header */
+  overflow-y: visible;
   min-height: 300px;
+  padding-bottom: 24px;
 }
-.kanban-board { display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px; height: 100%; width: 100%; }
-.kanban-col { flex: 1 0 220px; max-width: 380px; min-width: 200px; display: flex; flex-direction: column; }
+.kanban-board {
+  display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px;
+  /* min-width garante scroll horizontal em telas estreitas (6 cols × 240px + gaps) */
+  min-width: calc(6 * 240px + 5 * 10px);
+}
+.kanban-col { flex: 1 0 240px; max-width: 380px; min-width: 200px; display: flex; flex-direction: column; }
 .kanban-col-head {
   padding: 8px 11px 7px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
@@ -452,6 +454,7 @@ main { padding: 24px; }
   background: var(--surface2); border: 1px solid var(--border); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius);
   padding: 6px; display: flex; flex-direction: column; gap: 6px; min-height: 60px;
+  overflow-y: auto; max-height: 72vh;
 }
 .kanban-col-body .card { animation: none; }
 .kanban-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 14px 6px; }

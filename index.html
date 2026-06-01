@@ -1408,7 +1408,9 @@ function parseBRDate(s) {
   if (!s) return null;
   const p = s.split('/');
   if (p.length !== 3) return null;
-  const dt = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]), 12);
+  let year = parseInt(p[2]);
+  if (year < 100) year += 2000; // corrige ano 2-dígitos (ex: "26" → 2026)
+  const dt = new Date(year, parseInt(p[1])-1, parseInt(p[0]), 12);
   return isNaN(dt) ? null : dt;
 }
 
@@ -3403,7 +3405,7 @@ function calcDataPrevista() {
   } else {
     d.setDate(d.getDate() + prazo);
   }
-  el.textContent = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+  el.textContent = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
 function validateEmailField(input) {

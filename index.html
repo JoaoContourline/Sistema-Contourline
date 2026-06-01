@@ -1172,7 +1172,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function rowToOp(row) {
-  if (!row || !row.data) return null;
+  if (!row || !row.data || !row.data.status || !row.data.cliente) return null;
   return { ...row.data, id: Number(row.id) };
 }
 
@@ -1208,7 +1208,13 @@ function dbSaveOp(op) {
     .then(({ error }) => {
       if (error) { console.error('dbSaveOp error:', error); return; }
       const idx = ops.findIndex(o => o.id === op.id);
-      if (idx >= 0) ops[idx] = op;
+      if (idx >= 0) {
+        // Só sobrescreve se o dado salvo for igual ou mais recente
+        // (Realtime pode ter trazido versão mais nova antes do .then() chegar)
+        const curTs  = ops[idx].history?.at(-1)?.ts  || '';
+        const savedTs = op.history?.at(-1)?.ts || '';
+        if (savedTs >= curTs) ops[idx] = op;
+      }
       renderAll();
     });
 }
@@ -3556,6 +3562,7 @@ function openNovaOP() {
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
+  setTimeout(calcDataPrevista, 0); // calcula previsão com data default após render
 }
 
 function updateEntradaHint(v) {
@@ -3852,22 +3859,27 @@ async function lookupCEP(rawVal, targetId, statusId) {
 }
 
 // CEP lookup genérico: preenche um campo textarea pelo ID
+// AbortController por statusId previne race condition ao digitar rápido
+const _cepControllers = {};
 async function lookupCEPforField(rawVal, targetId, statusId) {
   const digits = rawVal.replace(/\D/g, '');
   if (digits.length !== 8) return;
+  if (_cepControllers[statusId]) _cepControllers[statusId].abort();
+  _cepControllers[statusId] = new AbortController();
   setStatus(statusId, 'Buscando…', 'loading');
   try {
-    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits);
-    if (!res.ok) throw new Error();
+    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits, { signal: _cepControllers[statusId].signal });
+    if (!res.ok) throw new Error('not-found');
     const d = await res.json();
     const el = document.getElementById(targetId);
     if (el) {
       const cepFmt = digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
       const parts = [d.street, d.neighborhood, [d.city, d.state].filter(Boolean).join('/'), cepFmt].filter(Boolean);
-      el.value = parts.join(', '); // sempre preenche (CEP digitado = intenção de mudar endereço)
+      el.value = parts.join(', ');
     }
     setStatus(statusId, `✓ ${[d.city, d.state].filter(Boolean).join('/')}`, 'ok');
-  } catch {
+  } catch (e) {
+    if (e.name === 'AbortError') return; // cancelado por nova digitação — ignora
     setStatus(statusId, '✗ CEP não encontrado', 'err');
   }
 }
@@ -3975,6 +3987,7 @@ async function submitNovaOP() {
 
   if (!vendedorCanal) { highlightError('nova-vendedorCanal'); return; }
   if (!cliente)       { highlightError('nova-cliente');       return; }
+  if (email && !email.includes('@')) { highlightError('nova-email'); showToast('E-mail inválido', 'err'); return; }
   if (!tempEquipList.length) {
     const el = g('equip-list-items');
     if (el) { el.style.outline='2px solid var(--red)'; el.style.borderRadius='6px'; }

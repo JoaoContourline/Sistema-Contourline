@@ -2756,10 +2756,32 @@ function buildInfoSections(op, opId) {
   // ── CONFIRMAÇÃO DE ENTREGA ────────────────────────────────────────
   if (sd.transito || op.status === 'entregue') {
     const d = sd.transito || {};
+
+    // Badge de prazo: compara data de entrega real com a prevista
+    let prazoBadge = '';
+    if (d.dataEntrega && op.pedidoVenda?.dataPrevista) {
+      const entregaDate = new Date(d.dataEntrega + 'T12:00:00');
+      const prevDate    = parseBRDate(op.pedidoVenda.dataPrevista);
+      if (prevDate) {
+        const diasDiff = Math.ceil((entregaDate - prevDate) / 86400000);
+        prazoBadge = diasDiff <= 0
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('check',10,'color:var(--green)')} No prazo</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada ${diasDiff}d</span>`;
+      }
+    }
+
     let confHtml = `<div class="detail-grid">
-      ${d.dataEntrega ? dItem('Data de Entrega', fmtDate(d.dataEntrega)) : ''}
+      ${d.dataEntrega ? `<div class="detail-item"><div class="detail-label">Data de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${fmtDate(d.dataEntrega)}${prazoBadge}</div></div>` : ''}
       ${dItem('Observações', d.descricao)}
     </div>`;
+
+    if (d.motivoAtraso) {
+      confHtml += `<div style="margin-top:8px;padding:8px 11px;border:1px solid rgba(220,38,38,.22);border-radius:var(--radius);background:rgba(220,38,38,.04)">
+        <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);letter-spacing:.5px;margin-bottom:4px">Motivo do Atraso</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">${d.motivoAtraso}</div>
+      </div>`;
+    }
+
     if (d.fotos?.length) confHtml += `<div style="margin-top:8px">${fileLinksHtml(d.fotos)}</div>`;
     sections.push(infoAcc('Confirmação de Entrega', 'package', confHtml, op.status === 'entregue'));
   }
@@ -3066,17 +3088,17 @@ function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div>
-        <div class="modal-title" style="color:var(--orange)">Entrega com Atraso</div>
-        <div class="modal-subtitle">Prazo previsto: ${dataPrevistaFmt} · ${diasAtraso} dia(s) de atraso</div>
+        <div class="modal-title" style="color:var(--orange);display:flex;align-items:center;gap:7px">
+          ${icon('alert-triangle',15,'color:var(--orange)')} Entrega com Atraso
+        </div>
+        <div class="modal-subtitle">Prazo: ${dataPrevistaFmt} · <strong style="color:var(--red)">${diasAtraso} dia(s) de atraso</strong></div>
       </div>
     </div>
-    <div class="modal-body">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:10px 12px;background:var(--orange-bg);border:1px solid rgba(234,88,12,.25);border-radius:var(--radius)">
-        A data de entrega é posterior ao prazo previsto. Informe o motivo do atraso — ficará registrado no histórico.
-      </div>
-      <div class="form-group">
+    <div class="modal-body" style="padding:14px 20px;gap:8px">
+      <div class="form-group" style="margin:0">
         <label class="form-label">Motivo do Atraso *</label>
-        <textarea class="form-textarea" id="delay-reason-input" rows="3"
+        <textarea class="form-textarea" id="delay-reason-input" rows="2"
+          style="margin-top:4px"
           placeholder="Ex: Problema na transportadora, cliente solicitou reagendamento…"></textarea>
       </div>
     </div>

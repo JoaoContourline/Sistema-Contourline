@@ -2281,7 +2281,7 @@ function renderTodas(el) {
       <div><div class="step-title">Todas as OPs</div>
         <div class="step-desc">${abertas} em aberto · ${ops.length-abertas} entregues</div></div>
       <input class="form-input" type="text" placeholder="Buscar OP ou cliente…"
-        value="${q.replace(/"/g,'&quot;')}"
+        value="${todasFilter.replace(/"/g,'&quot;')}"
         oninput="filterTodas(this.value)"
         style="max-width:240px;font-size:12px;flex-shrink:0">
     </div>

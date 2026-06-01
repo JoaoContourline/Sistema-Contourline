@@ -440,8 +440,8 @@ main { padding: 24px; }
   height: calc(100vh - 58px - 45px - 80px); /* viewport - header - tabs - step-header */
   min-height: 300px;
 }
-.kanban-board { display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px; height: 100%; }
-.kanban-col { width: 224px; flex-shrink: 0; display: flex; flex-direction: column; }
+.kanban-board { display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px; height: 100%; width: 100%; }
+.kanban-col { flex: 1 0 220px; max-width: 380px; min-width: 200px; display: flex; flex-direction: column; }
 .kanban-col-head {
   padding: 8px 11px 7px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
@@ -1082,6 +1082,22 @@ const VENDEDORES = [
 
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
+// Nomes exibidos no histórico para cada etapa (avanço e rejeição)
+const HIST_ACTION = {
+  aberta:           'OP Criada',
+  aguard_financeiro:'Aprovar Pagamento',
+  bloqueada:        'Desbloquear OP',
+  aguard_nf:        'Emissão de NF',
+  aguard_emissao:   'Confirmar Emissão da Nota Fiscal',
+  aguard_despacho:  'Despachado',
+  transito:         'Confirmar Entrega ao Cliente',
+  entregue:         'Entregue',
+};
+const HIST_REJECT = {
+  aguard_financeiro:'Bloquear OP',
+  aguard_despacho:  'Solicitar Re-emissão de NF',
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // DATA — Supabase
 // ═══════════════════════════════════════════════════════════════════
@@ -1386,7 +1402,7 @@ function advanceOP(opId, formData) {
 
   const user     = getUser();
   const view     = getActiveView();
-  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: step.actionLabel || '', note: formData?.descricao || '' });
+  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1400,7 +1416,7 @@ function rejectOP(opId, formData) {
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
-  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
+  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -2752,9 +2768,10 @@ function buildInfoSections(op, opId) {
   const histHtml = op.history.length
     ? op.history.map(h => {
         const acao = h.action || (() => {
-          const s = STEPS[h.step];
-          if (h.note && h.note.startsWith('Bloqueado')) return s?.rejectLabel || 'Bloqueado';
-          return s?.actionLabel || 'Ação';
+          const isReject = h.note && (h.note.startsWith('Bloqueado') || h.note.startsWith('Solicitar Re'));
+          return isReject
+            ? (HIST_REJECT[h.step] || 'Bloqueado')
+            : (HIST_ACTION[h.step] || 'Ação');
         })();
         return `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName||h.actor}</span> — ${acao}</div></div>`;
       }).join('')
@@ -3900,7 +3917,7 @@ async function submitNovaOP() {
     },
     history: [{
       step: 'aberta', actor: 'vendedor', actorName: vendedorCanal || vUser?.name || analistaId, ts: nowTs(),
-      action: 'OP Aberta' + (pulou ? ' — Fin. pulado' : ''),
+      action: 'OP Criada' + (pulou ? ' — Fin. pulado' : ''),
       note: descricao || '',
     }],
     obs: '',

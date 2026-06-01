@@ -1076,8 +1076,8 @@ function setGestorView(sectorId) {
 const VENDEDORES = [
   { id:'barbara', name:'Barbara Kelly' },
   { id:'ana',     name:'Ana Paula'     },
-  { id:'rebeca',  name:'Rebeca Soares' },
-  { id:'lucas',   name:'Lucas Souza'   },
+  { id:'lorena',  name:'Lorena Silva'  },
+  { id:'amanda',  name:'Amanda Vieira' },
 ];
 
 const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -1095,7 +1095,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function rowToOp(row) {
-  // Mescla os campos indexados + objeto JSON completo
+  if (!row || !row.data) return null;
   return { ...row.data, id: Number(row.id) };
 }
 
@@ -1122,33 +1122,49 @@ function dbSaveOp(op) {
   // Aviso se o payload for muito grande (base64 de arquivos grande → freeze no stringify)
   const json = JSON.stringify(op);
   const kb   = (json.length / 1024).toFixed(0);
-  if (json.length > 5 * 1024 * 1024) { // > 5 MB
+  if (json.length > 5 * 1024 * 1024) {
     console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB — considere reduzir arquivos anexados`);
-    showToast(`Atenção: OP muito grande (${kb} KB). Anexos podem estar muito pesados.`, 'err');
   }
   sb.from('ops')
     .update({ numero: op.numero, cliente: op.cliente, status: op.status, data: op })
     .eq('id', op.id)
-    .then(({ error }) => { if (error) console.error('dbSaveOp error:', error); });
+    .then(({ error }) => {
+      if (error) { console.error('dbSaveOp error:', error); return; }
+      const idx = ops.findIndex(o => o.id === op.id);
+      if (idx >= 0) ops[idx] = op;
+      renderAll();
+    });
 }
 
 // Realtime — sincroniza mudanças de outros usuários
 function startRealtime() {
-  sb.channel('ops-monitor')
+  sb.channel('ops-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ops' }, payload => {
       if (payload.eventType === 'INSERT') {
         const newOp = rowToOp(payload.new);
-        if (!ops.find(o => o.id === newOp.id)) ops.unshift(newOp);
+        if (newOp && !ops.find(o => o.id === newOp.id)) ops.unshift(newOp);
       } else if (payload.eventType === 'UPDATE') {
         const updated = rowToOp(payload.new);
-        const idx = ops.findIndex(o => o.id === updated.id);
-        if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
+        if (updated) {
+          const idx = ops.findIndex(o => o.id === updated.id);
+          if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
+        } else {
+          // payload sem data (REPLICA IDENTITY não está FULL) — re-busca do servidor
+          sb.from('ops').select('id,data').eq('id', payload.new.id).single()
+            .then(({ data: row }) => { if (row) { const u = rowToOp(row); if (u) { const i = ops.findIndex(o=>o.id===u.id); if(i>=0) ops[i]=u; else ops.unshift(u); renderAll(); } } });
+          return;
+        }
       } else if (payload.eventType === 'DELETE') {
         ops = ops.filter(o => o.id !== Number(payload.old.id));
       }
       renderAll();
     })
-    .subscribe();
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR') {
+        console.warn('[Realtime] erro no canal — reconectando em 5s');
+        setTimeout(startRealtime, 5000);
+      }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1162,6 +1178,8 @@ let tempEquipList    = []; // [{name, qty}]
 let tempVoltagemList = ['']; // array de voltagens; começa com 1 vazio
 let tempFiles        = {}; // { key: [File, ...] } — only used for File object reference
 let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } — persisted em formData
+let todasFilter      = ''; // filtro de busca na aba Todas as OPs
+let _pendingAdvance  = null; // dados pendentes p/ popup de atraso
 
 // ─── AUTH ──────────────────────────────────────────────────────────
 const SESSION_KEY = 'fluxo_session_v1';
@@ -1170,12 +1188,14 @@ function getUser() {
   try {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
     if (!s) return null;
-    return SECTORS.find(sec => sec.id === s.sectorId) || null;
+    const sector = SECTORS.find(sec => sec.id === s.sectorId);
+    if (!sector) return null;
+    return { ...sector, userName: s.userName || sector.name };
   } catch { return null; }
 }
 
-function saveSession(sectorId) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ sectorId }));
+function saveSession(sectorId, userName) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ sectorId, userName: userName || '' }));
 }
 
 function clearSession() {
@@ -1251,7 +1271,7 @@ async function doVerify() {
       btn.innerHTML = _checkIcon + ' Verificar código';
       return;
     }
-    saveSession(data.sectorId);
+    saveSession(data.sectorId, data.name);
     showApp();
   } catch {
     errEl.textContent = 'Erro de conexão. Tente novamente.';
@@ -1364,9 +1384,9 @@ function advanceOP(opId, formData) {
 
   if (formData && Object.keys(formData).length) op.stepData[op.status] = { ...formData };
 
-  const user     = getUser();        // usuário real logado (para actorName)
-  const view     = getActiveView();  // visão ativa (para actor/role correto)
-  op.history.push({ step: op.status, actor: view.role, actorName: user.name, ts: nowTs(), note: formData?.descricao || step.actionLabel });
+  const user     = getUser();
+  const view     = getActiveView();
+  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: step.actionLabel || '', note: formData?.descricao || '' });
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1380,7 +1400,7 @@ function rejectOP(opId, formData) {
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
-  op.history.push({ step: op.status, actor: view.role, actorName: user.name, ts: nowTs(), note: 'Bloqueado: ' + (formData.descricao || formData.motivoReemissao || '') });
+  op.history.push({ step: op.status, actor: view.role, actorName: user.userName || user.name, ts: nowTs(), action: step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1391,7 +1411,7 @@ function directorOverride(opId, nota) {
   if (!op || (op.status !== 'aguard_financeiro' && op.status !== 'bloqueada')) return;
   op.liberadoDiretoria = true;
   const user = getUser();
-  op.history.push({ step: op.status, actor: 'diretoria', actorName: user.name, ts: nowTs(), note: nota || 'Liberado por autorização da diretoria. Entrada ainda pendente.' });
+  op.history.push({ step: op.status, actor: 'diretoria', actorName: user.userName || user.name, ts: nowTs(), action: 'Liberado pela Diretoria', note: nota || '' });
   op.status = 'aguard_nf';
   renderAll();
 }
@@ -1870,14 +1890,8 @@ function buildFieldHtml(f) {
   if (f.type === 'cep-lookup') {
     const op = ops.find(o => o.id === activeOpId);
     const pv = op?.pedidoVenda;
-    // Monta endereço original da abertura da OP para o checkbox de cópia
-    const addrParts = [
-      [pv?.endRua, pv?.endNumero].filter(Boolean).join(', '),
-      pv?.endBairro,
-      [pv?.endCidade, pv?.endEstado].filter(Boolean).join('/'),
-      pv?.endCEP,
-    ].filter(Boolean);
-    const originalAddr = addrParts.length ? addrParts.join(', ') : (pv?.enderecoCliente || '');
+    // Usa o endereço de entrega informado na abertura da OP (Observações)
+    const originalAddr = (pv?.enderecoEntrega || '').trim();
     const showCopy = !!originalAddr;
     return `
     <div class="form-group">
@@ -1891,7 +1905,7 @@ function buildFieldHtml(f) {
       <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer;font-size:12px;color:var(--text2)">
         <input type="checkbox" style="width:14px;height:14px;cursor:pointer;flex-shrink:0"
           onchange="copyOriginalAddress(this.checked,'f-${f.targetKey}','${originalAddr.replace(/'/g,"\\'")}')">
-        Usar endereço do cliente:
+        Usar endereço de entrega informado anteriormente:
         <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${originalAddr}</span>
       </label>` : ''}
     </div>`;
@@ -2167,8 +2181,10 @@ function renderConcluidas(user, el) {
 function renderTodas(el) {
   const order = ['aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
   const groups = {};
+  const q = todasFilter.trim().toLowerCase();
   ops.forEach(op => {
-    if (op.status === 'aberta' || op.status === 'bloqueada') return; // ocultas do kanban
+    if (op.status === 'aberta' || op.status === 'bloqueada') return;
+    if (q && !(op.numero||'').toLowerCase().includes(q) && !(op.cliente||'').toLowerCase().includes(q)) return;
     (groups[op.status]=groups[op.status]||[]).push(op);
   });
   const abertas = ops.filter(o=>o.status!=='entregue').length;
@@ -2187,9 +2203,13 @@ function renderTodas(el) {
     </div>`;
   }).join('');
   el.innerHTML = `
-    <div class="step-header">
-      <div class="step-title">Todas as OPs</div>
-      <div class="step-desc">${abertas} em aberto · ${ops.length-abertas} entregues</div>
+    <div class="step-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <div><div class="step-title">Todas as OPs</div>
+        <div class="step-desc">${abertas} em aberto · ${ops.length-abertas} entregues</div></div>
+      <input class="form-input" type="text" placeholder="Buscar OP ou cliente…"
+        value="${q.replace(/"/g,'&quot;')}"
+        oninput="todasFilter=this.value;renderAll()"
+        style="max-width:240px;font-size:12px;flex-shrink:0">
     </div>
     <div class="kanban-wrap"><div class="kanban-board">${cols}</div></div>`;
 }
@@ -2729,9 +2749,15 @@ function buildInfoSections(op, opId) {
   }
 
   // ── HISTÓRICO ────────────────────────────────────────────────────
-  const roleLabel = { vendedor:'Vendedor', financeiro:'Financeiro', logistica:'Logística', fiscal:'Fiscal', gestor:'Gestor', diretoria:'Diretoria' };
   const histHtml = op.history.length
-    ? op.history.map(h => `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${roleLabel[h.actor]||h.actor}:</span> <strong>${h.actorName}</strong>${h.note ? ` — ${h.note}` : ''}</div></div>`).join('')
+    ? op.history.map(h => {
+        const acao = h.action || (() => {
+          const s = STEPS[h.step];
+          if (h.note && h.note.startsWith('Bloqueado')) return s?.rejectLabel || 'Bloqueado';
+          return s?.actionLabel || 'Ação';
+        })();
+        return `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName||h.actor}</span> — ${acao}</div></div>`;
+      }).join('')
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
   sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
 
@@ -2898,7 +2924,7 @@ function openInfoModal(opId) {
 
   const anexarBoletoBtn = canAnexarBoleto
     ? `<button class="btn-action" onclick="openAnexarBoleto(${opId})" style="display:inline-flex;align-items:center;gap:6px">
-        ${icon('paperclip',13)} Anexar Comprovante
+        ${icon('paperclip',13)} Anexar Boleto
        </button>` : '';
 
   const anexarFotosBtn = canAnexarFotos
@@ -2938,19 +2964,19 @@ function openAnexarBoleto(opId) {
   document.getElementById('modal').classList.remove('wide', 'split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Anexar Comprovante</div>
+      <div><div class="modal-title">Anexar Boleto</div>
            <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
-        ${cur > 0 ? `Já ${cur} comprovante${cur>1?'s':''} anexado${cur>1?'s':''}. Novos arquivos serão adicionados.` : 'Nenhum comprovante anexado ainda.'}
+        ${cur > 0 ? `Já ${cur} boleto${cur>1?'s':''} anexado${cur>1?'s':''}. Novos arquivos serão adicionados.` : 'Nenhum boleto anexado ainda.'}
       </div>
-      ${buildFieldHtml({ key:'boleto_avulso', label:'Comprovante(s)', type:'multi-file', accept:'.pdf,.png,.jpg,.jpeg' })}
+      ${buildFieldHtml({ key:'boleto_avulso', label:'Boleto(s)', type:'multi-file', accept:'.pdf,.png,.jpg,.jpeg' })}
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
-      <button class="btn-primary" onclick="saveAnexarBoleto(${opId})">${icon('paperclip',13)} Salvar Comprovante</button>
+      <button class="btn-primary" onclick="saveAnexarBoleto(${opId})">${icon('paperclip',13)} Salvar Boleto</button>
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
@@ -3014,6 +3040,58 @@ function saveAnexarFotos(opId) {
   dbSaveOp(op);
   showToast(`${novas.length} foto${novas.length>1?'s':''} anexada${novas.length>1?'s':''}!`, 'ok');
   openInfoModal(opId);
+}
+
+// ─── POPUP DE MOTIVO DE ATRASO ──────────────────────────────────────
+function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
+  _pendingAdvance = { opId, formData };
+  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" style="color:var(--orange)">Entrega com Atraso</div>
+        <div class="modal-subtitle">Prazo previsto: ${dataPrevistaFmt} · ${diasAtraso} dia(s) de atraso</div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:10px 12px;background:var(--orange-bg);border:1px solid rgba(234,88,12,.25);border-radius:var(--radius)">
+        A data de entrega é posterior ao prazo previsto. Informe o motivo do atraso — ficará registrado no histórico.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Motivo do Atraso *</label>
+        <textarea class="form-textarea" id="delay-reason-input" rows="3"
+          placeholder="Ex: Problema na transportadora, cliente solicitou reagendamento…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="cancelDelay()">Cancelar</button>
+      <button class="btn-primary" style="background:var(--orange)" onclick="confirmDelay()">Confirmar Entrega</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('delay-reason-input')?.focus(), 80);
+}
+
+function confirmDelay() {
+  const reason = document.getElementById('delay-reason-input')?.value?.trim();
+  if (!reason) { showToast('Informe o motivo do atraso', 'err'); return; }
+  if (!_pendingAdvance) return;
+  const { opId, formData } = _pendingAdvance;
+  _pendingAdvance = null;
+  formData.motivoAtraso = reason;
+  formData.descricao = (formData.descricao ? formData.descricao + '\n' : '') + '[Atraso] ' + reason;
+  // Registra no histórico como ação extra
+  const op = ops.find(o => o.id === opId);
+  if (op) {
+    const user = getUser();
+    op.history.push({ step: op.status, actor: getActiveView()?.role || 'logistica', actorName: user?.userName || user?.name || '', ts: nowTs(), action: 'Atraso: ' + reason, note: reason });
+  }
+  advanceOP(opId, formData);
+  closeModal();
+}
+
+function cancelDelay() {
+  _pendingAdvance = null;
+  closeModal();
 }
 
 function submitModal() {
@@ -3107,8 +3185,24 @@ function submitModal() {
     formData[f.key] = val || '';
   }
 
-  modalMode === 'reject' ? rejectOP(activeOpId, formData) : advanceOP(activeOpId, formData);
-  closeModal();
+  if (modalMode === 'reject') {
+    rejectOP(activeOpId, formData);
+    closeModal();
+  } else {
+    // Verifica atraso na entrega (transito → entregue)
+    const _opChk = ops.find(o => o.id === activeOpId);
+    if (_opChk?.status === 'transito' && formData.dataEntrega && _opChk.pedidoVenda?.dataPrevista) {
+      const entregaDate = new Date(formData.dataEntrega + 'T12:00:00');
+      const prevDate    = parseBRDate(_opChk.pedidoVenda.dataPrevista);
+      if (prevDate && entregaDate > prevDate) {
+        const dias = Math.ceil((entregaDate - prevDate) / 86400000);
+        showDelayModal(activeOpId, formData, dias, _opChk.pedidoVenda.dataPrevista);
+        return; // aguarda confirmação no popup
+      }
+    }
+    advanceOP(activeOpId, formData);
+    closeModal();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3269,7 +3363,8 @@ function openNovaOP() {
             </select></div>
           <div class="form-group" id="nova-entrada-row" style="display:none"><label class="form-label">Valor da Entrada (R$)</label>
             <input class="form-input" id="nova-valorEntrada" type="text" inputmode="decimal"
-              oninput="brlFormat(this)" style="font-family:'DM Mono',monospace"></div>
+              oninput="brlFormat(this);limitarEntrada(this)" style="font-family:'DM Mono',monospace">
+            <div style="font-size:10px;color:var(--text3);margin-top:3px">Máx: valor total com desconto</div></div>
         </div></div>
 
       <div class="acc"><div ${acc('Observações')}
@@ -3277,6 +3372,11 @@ function openNovaOP() {
             <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:6px">
               <input type="checkbox" id="nova-same-address" onchange="toggleSameAddress(this.checked)">
               Mesmo endereço do cliente</label>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+              <input class="form-input" id="nova-cep-entrega" placeholder="CEP de entrega" style="max-width:160px"
+                oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'nova-enderecoEntrega','nova-cep-entrega-status')">
+              <div id="nova-cep-entrega-status" class="api-status" style="font-size:11px"></div>
+            </div>
             <textarea class="form-textarea" id="nova-enderecoEntrega" rows="2"></textarea></div>
           <div class="form-group"><label class="form-label">Contato responsável</label>
             <input class="form-input" id="nova-contatoEntrega"></div>
@@ -3323,6 +3423,15 @@ function openNovaOP() {
 function updateEntradaHint(v) {
   const row = document.getElementById('nova-entrada-row');
   if (row) row.style.display = v === 'pendente' ? '' : 'none';
+}
+function limitarEntrada(input) {
+  const max = parseFloat(document.getElementById('nova-valorLiquido')?.value) || 0;
+  if (max <= 0) return;
+  const val = parseBRL(input.value);
+  if (val > max) {
+    input.value = brlFmtNum(max);
+    showToast('Entrada não pode superar o valor total: R$ ' + brlFmtNum(max), 'err');
+  }
 }
 function updateValorLiquido() {
   const total = parseFloat(document.getElementById('nova-valorTotal')?.value) || 0;
@@ -3410,13 +3519,12 @@ function calcDataPrevista() {
 
 function validateEmailField(input) {
   const val = input.value.trim();
-  if (!val) return; // campo opcional — vazio é permitido
-  const ok = /^[^\s@]+@[^\s@]+\.[a-z]{2,}(\.[a-z]{2})?$/.test(val);
+  if (!val) return;
+  const ok = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}(\.[a-zA-Z]{2,})?$/.test(val);
   if (!ok) {
-    input.value = '';
     input.style.outline = '2px solid var(--red)';
     input.style.borderColor = 'var(--red)';
-    showToast('E-mail inválido — precisa ter @ e .com ou .com.br', 'err');
+    showToast('E-mail pode estar inválido — verifique o formato', 'err');
     setTimeout(() => { input.style.outline = ''; input.style.borderColor = ''; }, 2500);
   }
 }
@@ -3792,7 +3900,8 @@ async function submitNovaOP() {
     },
     history: [{
       step: 'aberta', actor: 'vendedor', actorName: vendedorCanal || vUser?.name || analistaId, ts: nowTs(),
-      note: (descricao || '') + (pulou ? ' — Validação financeira pulada.' : ''),
+      action: 'OP Aberta' + (pulou ? ' — Fin. pulado' : ''),
+      note: descricao || '',
     }],
     obs: '',
   };

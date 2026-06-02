@@ -1,11 +1,44 @@
-// api/retail-items.js — Equipamentos PA do Protheus para o seletor de Nova OP
-// Cache-Control 4h no Vercel CDN — os itens raramente mudam
+// api/retail-items.js — Todos os itens ativos do Protheus para o seletor de Nova OP
+// Busca todas as páginas em paralelo (lotes de 5) — sem filtro de productType
+// Cache-Control 4h no Vercel CDN
 //
 // Env vars: PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
 
 import https from 'node:https';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
+const PAGE_SIZE = 500;
+
+function fetchPage(base, auth, page) {
+  const url = new URL(`${base}/api/retail/v1/retailItem`);
+  url.searchParams.set('pageSize', String(PAGE_SIZE));
+  url.searchParams.set('page',     String(page));
+
+  return new Promise((resolve) => {
+    const r = https.request(
+      {
+        hostname: url.hostname,
+        port:     url.port || 443,
+        path:     url.pathname + url.search,
+        method:   'GET',
+        headers:  { Authorization: `Basic ${auth}`, Accept: 'application/json' },
+        agent,
+        timeout:  15000,
+      },
+      (resp) => {
+        let body = '';
+        resp.on('data', chunk => { body += chunk; });
+        resp.on('end', () => {
+          try   { resolve(JSON.parse(body)); }
+          catch { resolve({ items: [], hasNext: false }); }
+        });
+      }
+    );
+    r.on('error',   () => resolve({ items: [], hasNext: false }));
+    r.on('timeout', () => { r.destroy(); resolve({ items: [], hasNext: false }); });
+    r.end();
+  });
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
@@ -20,53 +53,51 @@ export default async function handler(req, res) {
   if (!base || !user || !pass)
     return res.status(500).json({ error: 'Env vars não configuradas (PROTHEUS_BASE/USER/PASS)' });
 
-  const auth   = Buffer.from(`${user}:${pass}`).toString('base64');
-  const target = new URL(`${base}/api/retail/v1/retailItem`);
-  target.searchParams.set('pageSize',    '500');
-  target.searchParams.set('productType', 'PA');
+  const auth      = Buffer.from(`${user}:${pass}`).toString('base64');
+  const BATCH_SZ  = 5; // páginas por rodada paralela
 
-  return new Promise((resolve) => {
-    const r = https.request(
-      {
-        hostname: target.hostname,
-        port:     target.port || 443,
-        path:     target.pathname + target.search,
-        method:   'GET',
-        headers:  { Authorization: `Basic ${auth}`, Accept: 'application/json' },
-        agent,
-        timeout:  15000,
-      },
-      (resp) => {
-        let body = '';
-        resp.on('data', chunk => { body += chunk; });
-        resp.on('end', () => {
-          try {
-            const d     = JSON.parse(body);
-            const items = (d.items || [])
-              .filter(i => i.Active?.trim() === 'S' && i.Code?.trim() && i.Description?.trim())
-              .map(i => ({
-                code:   i.Code.trim(),
-                name:   i.Description.trim(),
-                price:  i.SalesPrice || 0,
-                // AddressingControl='S' (B1_LOCALIZ) → endereça por série
-                // Trail='L' (B1_RASTRO)            → controla por lote
-                // ambos 'N'                         → sem rastreio
-                tracking: i.AddressingControl?.trim() === 'S' ? 'serie'
-                        : i.Trail?.trim()           === 'L' ? 'lote'
-                        : null,
-              }))
-              .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  try {
+    const allRaw = [];
+    let nextPage = 1;
+    let hasMore  = true;
 
-            res.setHeader('Cache-Control', 'public, max-age=14400, stale-while-revalidate=3600');
-            resolve(res.status(200).json({ items, total: items.length }));
-          } catch (err) {
-            resolve(res.status(502).json({ error: 'Parse error: ' + err.message }));
-          }
-        });
+    while (hasMore) {
+      const batch = await Promise.all(
+        Array.from({ length: BATCH_SZ }, (_, i) => fetchPage(base, auth, nextPage + i))
+      );
+
+      for (const data of batch) {
+        const items = data.items || [];
+        allRaw.push(...items);
+        if (!data.hasNext || items.length < PAGE_SIZE) {
+          hasMore = false;
+          break;
+        }
       }
-    );
-    r.on('error',   (err) => resolve(res.status(502).json({ error: err.message })));
-    r.on('timeout', ()    => { r.destroy(); resolve(res.status(504).json({ error: 'Timeout' })); });
-    r.end();
-  });
+      nextPage += BATCH_SZ;
+    }
+
+    const items = allRaw
+      .filter(i => i.Active?.trim() === 'S' && i.Code?.trim() && i.Description?.trim())
+      .map(i => ({
+        code:  i.Code.trim(),
+        name:  i.Description.trim(),
+        price: i.SalesPrice || 0,
+        type:  i.ProductType?.trim() || '',
+        // AddressingControl='S' (B1_LOCALIZ) → endereça por série
+        // Trail='L' (B1_RASTRO)              → controla por lote
+        // ambos 'N'                           → sem rastreio
+        tracking: i.AddressingControl?.trim() === 'S' ? 'serie'
+                : i.Trail?.trim()           === 'L' ? 'lote'
+                : null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+    res.setHeader('Cache-Control', 'public, max-age=14400, stale-while-revalidate=3600');
+    return res.status(200).json({ items, total: items.length });
+
+  } catch (err) {
+    console.error('retail-items error:', err.message);
+    return res.status(502).json({ error: err.message });
+  }
 }

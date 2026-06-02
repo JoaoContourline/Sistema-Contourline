@@ -952,7 +952,7 @@ async function loadEquipItems() {
   if (_equipCache || _equipLoading) return;
   _equipLoading = true;
   try {
-    const res = await fetch('/api/retail-items?v=2');
+    const res = await fetch('/api/retail-items?v=3');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     if (Array.isArray(d.items) && d.items.length) {

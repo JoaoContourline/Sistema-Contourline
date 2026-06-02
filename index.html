@@ -3296,28 +3296,44 @@ function openBoletoTask(opId) {
   if (!op) return;
   tempFiles = {}; tempFilesData = {};
 
-  const nf     = op.stepData?.aguard_emissao?.numeroNF || '—';
-  const nfDate = op.stepData?.aguard_emissao?.dataEmissao || '';
-  const nfArqs = op.stepData?.aguard_emissao?.arquivoNF || [];
+  const badge      = stepBadge(op.status);
+  const sem        = semaforo(op);
+  const sd         = op.stepData || {};
+  const opEmail    = (op.pedidoVenda?.email || '').replace(/'/g, '&#39;');
+  const sectionsHtml = buildInfoSections(op, opId);
+  const equipList  = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
 
-  document.getElementById('modal').innerHTML = `
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Envio de Boleto — ${op.numero || '#' + op.id}</div>
-        <div class="modal-subtitle">${op.cliente} · NF ${nf}${nfDate ? ' · ' + nfDate : ''}</div>
+  const statusHeader = `
+    <div class="op-info-block" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
+        ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
+        ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
       </div>
-      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
-    </div>
-    <div class="modal-body" style="gap:10px">
-      ${nfArqs.length ? `
-        <div style="padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
-          <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:6px">Nota Fiscal</div>
-          ${fileLinksHtml(nfArqs)}
-        </div>` : ''}
-      <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
-        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px">
-          ${icon('send',12,'color:var(--accent)')} Anexe os boletos para envio ao cliente
-        </div>
+      <div class="op-info-meta">
+        <span>${op.vendedorCanal||op.vendedorName||'—'}</span>
+        <span>${op.numContrato||op.contrato||''}</span>
+        <span>${daysSince(op.dataAbertura)}d</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
+    </div>`;
+
+  const envioHtml = `
+    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">E-mail do cliente *</label>
+        <input class="form-input" id="boleto-email" type="email"
+          placeholder="email@exemplo.com" style="font-size:13px">
+        ${opEmail ? `
+          <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer">
+            <input type="checkbox" id="boleto-email-ref"
+              onchange="document.getElementById('boleto-email').value = this.checked ? '${opEmail}' : ''">
+            <span style="font-size:11px;color:var(--text2)">Usar e-mail da OP:</span>
+            <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--accent)">${opEmail}</span>
+          </label>` : ''}
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Boleto(s) *</label>
         <div class="multi-file-wrap">
           <div class="multi-file-list" id="mfl-boleto-task"></div>
           <label class="multi-file-add-btn" style="cursor:pointer">
@@ -3327,11 +3343,24 @@ function openBoletoTask(opId) {
           </label>
         </div>
       </div>
+    </div>`;
+
+  document.getElementById('modal').classList.add('wide');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
+    <div class="modal-body" style="gap:0;padding:16px 22px">
+      ${statusHeader}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${sectionsHtml}
+        ${infoAcc('Envio de Boleto ao Cliente', 'send', envioHtml, true)}
+      </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveBoletoTask(${opId})">
-        ${icon('check',13,'color:#fff')} Confirmar Envio
+        ${icon('send',13,'color:#fff')} Confirmar Envio
       </button>
     </div>`;
 
@@ -3339,13 +3368,22 @@ function openBoletoTask(opId) {
 }
 
 function saveBoletoTask(opId) {
-  const op      = ops.find(o => o.id === opId);
+  const op       = ops.find(o => o.id === opId);
   if (!op) return;
+  const email    = document.getElementById('boleto-email')?.value?.trim() || '';
   const arquivos = tempFilesData['boleto-task'] || [];
+
+  if (!email || !email.includes('@')) {
+    const el = document.getElementById('boleto-email');
+    if (el) { el.style.borderColor='var(--red)'; el.focus(); setTimeout(()=>el.style.borderColor='',2500); }
+    showToast('Informe um e-mail válido para o envio', 'err');
+    return;
+  }
   if (!arquivos.length) { showToast('Anexe ao menos um boleto antes de confirmar', 'err'); return; }
 
   if (!op.boletoTask) op.boletoTask = { status: 'pendente', arquivos: [] };
   op.boletoTask.status   = 'concluida';
+  op.boletoTask.email    = email;
   op.boletoTask.arquivos = arquivos;
   op.boletoTask.tsEnvio  = nowTs();
 

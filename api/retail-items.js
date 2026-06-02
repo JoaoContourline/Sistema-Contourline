@@ -83,7 +83,6 @@ export default async function handler(req, res) {
         code:  i.Code.trim(),
         name:  i.Description.trim(),
         price: i.SalesPrice || 0,
-        type:  i.ProductType?.trim() || '',
         // AddressingControl='S' (B1_LOCALIZ) → endereça por série
         // Trail='L' (B1_RASTRO)              → controla por lote
         // ambos 'N'                           → sem rastreio

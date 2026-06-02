@@ -80,9 +80,8 @@ export default async function handler(req, res) {
     const items = allRaw
       .filter(i => i.Active?.trim() === 'S' && i.Code?.trim() && i.Description?.trim())
       .map(i => ({
-        code:  i.Code.trim(),
-        name:  i.Description.trim(),
-        price: i.SalesPrice || 0,
+        code: i.Code.trim(),
+        name: i.Description.trim(),
         // AddressingControl='S' (B1_LOCALIZ) → endereça por série
         // Trail='L' (B1_RASTRO)              → controla por lote
         // ambos 'N'                           → sem rastreio

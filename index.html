@@ -952,7 +952,7 @@ async function loadEquipItems() {
   if (_equipCache || _equipLoading) return;
   _equipLoading = true;
   try {
-    const res = await fetch('/api/retail-items?v=4');
+    const res = await fetch('/api/retail-items?v=5');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     if (Array.isArray(d.items) && d.items.length) {
@@ -1671,7 +1671,7 @@ function selectEquipFromSearch(name) {
   const existing = tempEquipList.find(e => e.name === name);
   if (existing) { existing.qty++; }
   else {
-    const item = { name, code: found.code || '', qty: 1, valorUnit: found.price > 0 ? String(found.price) : '', desconto: '' };
+    const item = { name, code: found.code || '', qty: 1, valorUnit: '', desconto: '' };
     if (found.tracking !== undefined) item.tracking = found.tracking;
     tempEquipList.push(item);
   }

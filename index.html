@@ -1465,6 +1465,7 @@ function showApp() {
 
 function checkSession() {
   copyLogoToLogin();
+  loadEquipItems(); // inicia o cache imediatamente — antes mesmo do login
   const user = getUser();
   if (user) showApp();
 }

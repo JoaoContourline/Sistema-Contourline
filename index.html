@@ -666,6 +666,7 @@ main { padding: 24px; }
   </div>
   <div class="header-center" id="headerCenter"></div>
   <div class="header-right">
+    <span id="save-indicator" style="font-size:10px;font-weight:600;letter-spacing:.3px;transition:opacity .3s;opacity:0;white-space:nowrap"></span>
     <button id="btnNovaOP" class="btn-nova-op" onclick="openNovaOP()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nova OP
@@ -1018,9 +1019,9 @@ const STEPS = {
     actionLabel: 'Aprovar Pagamento',
     rejectLabel: 'Bloquear OP',
     formFields: [
-      { key: 'descricao',  label: 'Descrição da Aprovação *', type: 'textarea', required: true },
       { key: 'boleto',     label: 'Comprovante(s)',            type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
       { key: 'extras',     label: 'Outros anexos (opcional)',  type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml' },
+      { key: 'descricao',  label: 'Observações (opcional)',    type: 'textarea', required: false },
     ],
     rejectFields: [
       { key: 'descricao',     label: 'Motivo do Bloqueio *',     type: 'textarea', required: true,  placeholder: 'Ex: Cartão recusado, aguardando novo método de pagamento...' },
@@ -1195,23 +1196,37 @@ async function loadOps() {
 }
 
 // Salva ou atualiza uma OP no Supabase (fire-and-forget para não bloquear UI)
+let _saveIndicatorTimer = null;
+function setSaveIndicator(state) {
+  const el = document.getElementById('save-indicator');
+  if (!el) return;
+  clearTimeout(_saveIndicatorTimer);
+  if (state === 'saving') {
+    el.textContent = 'Salvando…'; el.style.color = 'rgba(255,255,255,.55)'; el.style.opacity = '1';
+  } else if (state === 'ok') {
+    el.textContent = '✓ Salvo'; el.style.color = '#86efac'; el.style.opacity = '1';
+    _saveIndicatorTimer = setTimeout(() => { el.style.opacity = '0'; }, 2000);
+  } else if (state === 'err') {
+    el.textContent = '⚠ Erro ao salvar'; el.style.color = '#fca5a5'; el.style.opacity = '1';
+  }
+}
+
 function dbSaveOp(op) {
-  // Aviso se o payload for muito grande (base64 de arquivos grande → freeze no stringify)
   const json = JSON.stringify(op);
   const kb   = (json.length / 1024).toFixed(0);
   if (json.length > 5 * 1024 * 1024) {
     console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB — considere reduzir arquivos anexados`);
   }
+  setSaveIndicator('saving');
   sb.from('ops')
     .update({ numero: op.numero, cliente: op.cliente, status: op.status, data: op })
     .eq('id', op.id)
     .then(({ error }) => {
-      if (error) { console.error('dbSaveOp error:', error); return; }
+      if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); return; }
+      setSaveIndicator('ok');
       const idx = ops.findIndex(o => o.id === op.id);
       if (idx >= 0) {
-        // Só sobrescreve se o dado salvo for igual ou mais recente
-        // (Realtime pode ter trazido versão mais nova antes do .then() chegar)
-        const curTs  = ops[idx].history?.at(-1)?.ts  || '';
+        const curTs   = ops[idx].history?.at(-1)?.ts || '';
         const savedTs = op.history?.at(-1)?.ts || '';
         if (savedTs >= curTs) ops[idx] = op;
       }
@@ -1225,10 +1240,25 @@ function startRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ops' }, payload => {
       if (payload.eventType === 'INSERT') {
         const newOp = rowToOp(payload.new);
-        if (newOp && !ops.find(o => o.id === newOp.id)) ops.unshift(newOp);
+        if (newOp && !ops.find(o => o.id === newOp.id)) {
+          ops.unshift(newOp);
+          // Notifica o setor responsável pela próxima etapa
+          const view = getActiveView();
+          const step = STEPS[newOp.status];
+          if (step?.owner === view?.role) {
+            showToast(`Nova OP na fila: ${newOp.cliente}`, 'ok');
+          }
+        }
       } else if (payload.eventType === 'UPDATE') {
         const updated = rowToOp(payload.new);
         if (updated) {
+          const prev  = ops.find(o => o.id === updated.id);
+          const view  = getActiveView();
+          const step  = STEPS[updated.status];
+          // Notifica quando uma OP avança para a fila do usuário atual
+          if (prev && prev.status !== updated.status && step?.owner === view?.role) {
+            showToast(`OP ${updated.numero} — ${updated.cliente} entrou na sua fila`, 'ok');
+          }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
         } else {
@@ -1407,6 +1437,26 @@ function copyLogoToLogin() {
   const hLogo = document.querySelector('#appContainer header img');
   if (hLogo && hLogo.src) document.getElementById('loginLogo').src = hLogo.src;
 }
+
+function showSessionExpiredOverlay() {
+  if (document.getElementById('session-expired-overlay')) return;
+  const div = document.createElement('div');
+  div.id = 'session-expired-overlay';
+  div.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(22,44,69,.85);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  div.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 44px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#0f1f35">Sessão encerrada</div>
+    <div style="font-size:13px;color:#3d5170;margin-bottom:22px;line-height:1.6">Sua sessão foi encerrada em outra aba ou o acesso expirou. Faça login novamente para continuar.</div>
+    <button onclick="clearSession();window.location.reload()" style="padding:10px 24px;background:#162C45;color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Fazer login novamente</button>
+  </div>`;
+  document.body.appendChild(div);
+}
+
+// Detecta sessão encerrada em outra aba
+window.addEventListener('storage', e => {
+  if (e.key === 'fluxo_session_v1' && !e.newValue && document.getElementById('appContainer')?.style.display !== 'none') {
+    showSessionExpiredOverlay();
+  }
+});
 
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
@@ -1618,7 +1668,7 @@ function selectEquipFromSearch(name) {
   const existing = tempEquipList.find(e => e.name === name);
   if (existing) { existing.qty++; }
   else {
-    const item = { name, code: found.code || '', qty: 1, valorUnit: '', desconto: '' };
+    const item = { name, code: found.code || '', qty: 1, valorUnit: found.price > 0 ? String(found.price) : '', desconto: '' };
     if (found.tracking !== undefined) item.tracking = found.tracking;
     tempEquipList.push(item);
   }

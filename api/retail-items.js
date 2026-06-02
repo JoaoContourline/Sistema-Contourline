@@ -48,7 +48,12 @@ export default async function handler(req, res) {
                 code:   i.Code.trim(),
                 name:   i.Description.trim(),
                 price:  i.SalesPrice || 0,
-                tracking: i.Trail?.trim() === 'L' ? 'lote' : i.Trail?.trim() === 'S' ? 'serie' : null,
+                // AddressingControl='S' (B1_LOCALIZ) → endereça por série
+                // Trail='L' (B1_RASTRO)            → controla por lote
+                // ambos 'N'                         → sem rastreio
+                tracking: i.AddressingControl?.trim() === 'S' ? 'serie'
+                        : i.Trail?.trim()           === 'L' ? 'lote'
+                        : null,
               }))
               .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 

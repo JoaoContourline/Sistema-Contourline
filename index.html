@@ -723,8 +723,8 @@ function icon(name, size = 16, style = '') {
 // STATE MACHINE
 // ═══════════════════════════════════════════════════════════════════
 
-// Lista estática de fallback — usada enquanto /api/retail-items não carrega
-const _EQUIP_FALLBACK = [
+// _EQUIP_FALLBACK removido — catálogo vem exclusivamente da API /api/retail-items
+const _EQUIP_FALLBACK_STUB = [
   { code:'000016',  name:'BHS 156 FULL' },
   { code:'000016R', name:'BHS 156 FULL (R)' },
   { code:'001069',  name:'RAYTRACE - PLASMA BT (SLM-9010E)' },
@@ -941,18 +941,8 @@ const _EQUIP_FALLBACK = [
   { code:'011407',  name:'GENEO' },
   { code:'MJOLNIR', name:'PLASMA FRIO DE BAI' },
   { code:'PROT-047',name:'NUERA TIGHT 1 CH' },
-];
+]; // stub — não usado; mantido para não quebrar referências antigas em OPs salvas
 function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
-
-// Mapa estático Trail='L' (lote) — 21 itens confirmados via Protheus B1_RASTRO
-// Todos os outros PA têm Trail='N' → tracking:null (sem série/lote)
-const _EQUIP_TRACKING = {
-  '003367':'lote','004223':'lote','005215':'lote','005216':'lote',
-  '005796':'lote','005797':'lote','006452':'lote','006453':'lote',
-  '006454':'lote','006455':'lote','006478':'lote','006796':'lote',
-  '007039':'lote','007040':'lote','007041':'lote','007042':'lote',
-  '010941':'lote','010942':'lote','010943':'lote','011103':'lote','011104':'lote',
-};
 
 // ── Cache de equipamentos (Protheus /api/retail/v1/retailItem?productType=PA) ──
 let _equipCache   = null;  // null = ainda não carregado
@@ -966,11 +956,17 @@ async function loadEquipItems() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     if (Array.isArray(d.items) && d.items.length) {
-      _equipCache = d.items; // [{code, name, price}]
-      console.log('[equip] cache:', _equipCache.length, 'itens carregados do Protheus');
+      _equipCache = d.items; // [{code, name, price, tracking}]
+      console.log('[equip] cache:', _equipCache.length, 'itens do Protheus');
+      // Atualiza placeholder do input de busca se já estiver visível
+      const inp = document.getElementById('equip-search-input');
+      if (inp) inp.placeholder = 'Buscar por nome ou código…';
     }
   } catch (e) {
-    console.warn('[equip] API falhou, usando lista estática:', e.message);
+    console.warn('[equip] API falhou:', e.message);
+    // Sem fallback — informa o usuário
+    const inp = document.getElementById('equip-search-input');
+    if (inp) inp.placeholder = 'Catálogo indisponível — verifique a conexão';
   } finally {
     _equipLoading = false;
   }
@@ -978,7 +974,8 @@ async function loadEquipItems() {
 
 // Busca flexível: suporta múltiplas palavras, prioriza código exato/parcial e início do nome
 function equipSearch(query) {
-  const list  = _equipCache || _EQUIP_FALLBACK;
+  const list  = _equipCache;
+  if (!list) return []; // cache ainda carregando
   const q     = query.trim().toLowerCase();
   if (!q) return [];
   const words = q.split(/\s+/).filter(Boolean);
@@ -1649,6 +1646,10 @@ function filterEquipSearch(val) {
   const dd = document.getElementById('equip-dropdown');
   if (!dd) return;
   if (!val.trim()) { dd.classList.remove('open'); equipSearchFocusIdx = -1; return; }
+  if (!_equipCache) {
+    dd.innerHTML = '<div class="equip-dropdown-item" style="color:var(--text3);cursor:default">Carregando catálogo…</div>';
+    dd.classList.add('open'); return;
+  }
   const filtered = equipSearch(val);
   if (!filtered.length) { dd.classList.remove('open'); return; }
   equipSearchFocusIdx = -1;
@@ -1662,7 +1663,8 @@ function filterEquipSearch(val) {
 }
 
 function selectEquipFromSearch(name) {
-  const list  = _equipCache || _EQUIP_FALLBACK;
+  const list  = _equipCache;
+  if (!list) { showToast('Catálogo ainda carregando, aguarde', 'err'); return; }
   const found = list.find(e => e.name === name);
   if (!found) { showToast('Selecione um equipamento da lista', 'err'); return; }
   const existing = tempEquipList.find(e => e.name === name);
@@ -1729,7 +1731,7 @@ function equipListHtml() {
       <div class="equip-picker">
         <div class="equip-search-wrap">
           <input class="form-input" id="equip-search-input"
-            placeholder="Buscar por nome ou código Protheus..."
+            placeholder="${_equipCache ? 'Buscar por nome ou código…' : 'Carregando catálogo…'}"
             autocomplete="off"
             oninput="filterEquipSearch(this.value)"
             onkeydown="equipSearchKeydown(event)"
@@ -2004,9 +2006,8 @@ function buildFieldHtml(f) {
         if (cached) {
           tracking = cached.tracking;
         } else {
-          // Cache ainda não carregado → usa mapa estático (Trail='L' = 'lote', resto = null)
-          const fallback = _EQUIP_FALLBACK.find(f => f.name === obj.name || (obj.code && f.code === obj.code));
-          tracking = fallback ? (_EQUIP_TRACKING[fallback.code] || null) : null;
+          // Cache não carregado → sem controle definido (não mostra campo)
+          tracking = null;
         }
       }
 
@@ -4170,7 +4171,7 @@ function printPedidoVenda(opId) {
   const equipRows = (pv.equipamentos || (op.equipamentos||[]).map(n => ({ name:n, qty:1, valorUnit:'', desconto:'' })))
     .map(e => {
       // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
-      const code = e.code || ((_equipCache || _EQUIP_FALLBACK).find(eq => eq.name === e.name) || {}).code || '';
+      const code = e.code || (_equipCache?.find(eq => eq.name === e.name)?.code) || '';
       const vu = e.valorUnit ? fmtBRL(e.valorUnit) : '—';
       const lineT = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
       const vt = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';

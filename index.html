@@ -1013,15 +1013,14 @@ const STEPS = {
 
   aguard_financeiro: {
     label: 'Validação Financeira', color: 'yellow', owner: 'financeiro', pipelineIdx: 1,
-    actionLabel: 'Aprovar Pagamento',
+    actionLabel: 'Confirmar Pagamento',
     rejectLabel: 'Bloquear OP',
     formFields: [
-      { key: 'boleto',     label: 'Comprovante(s)',            type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg' },
-      { key: 'extras',     label: 'Outros anexos (opcional)',  type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml' },
-      { key: 'descricao',  label: 'Observações (opcional)',    type: 'textarea', required: false },
+      { key: 'descricao', label: 'Observação *', type: 'textarea', required: true, placeholder: 'Ex: Confirmado via PIX em 02/06 — protocolo 123456' },
+      { key: 'anexo',     label: '',             type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: false },
     ],
     rejectFields: [
-      { key: 'descricao',     label: 'Motivo do Bloqueio *',     type: 'textarea', required: true,  placeholder: 'Ex: Cartão recusado, aguardando novo método de pagamento...' },
+      { key: 'descricao', label: 'Motivo do Bloqueio *', type: 'textarea', required: true, placeholder: 'Ex: Cartão recusado, aguardando novo método de pagamento...' },
     ],
     getNext()   { return 'aguard_nf'; },
     getReject() { return 'bloqueada'; },
@@ -1519,6 +1518,12 @@ function advanceOP(opId, formData) {
   const user     = getUser();
   const view     = getActiveView();
   op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
+
+  // Quando fiscal conclui a NF, cria tarefa paralela de envio de boleto para o financeiro
+  if (op.status === 'aguard_emissao' && !op.boletoTask) {
+    op.boletoTask = { status: 'pendente', arquivos: [], tsAberto: nowTs() };
+  }
+
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
@@ -1917,12 +1922,34 @@ function fileLinkHtml(f, compact = false) {
     // legado: apenas nome sem dataUrl
     return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
   }
-  const kb = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
-  const btnBase = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
-    padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
-    transition:border-color .1s;cursor:pointer;font-family:inherit;border-style:solid`;
+  const kb          = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
   const safeDataUrl = f.dataUrl || '';
   const safeName    = (f.name || 'arquivo').replace(/"/g, '&quot;');
+  const isImage     = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || safeDataUrl.startsWith('data:image/');
+  const btnBase     = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
+    padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
+    transition:border-color .1s;cursor:pointer;font-family:inherit;border-style:solid`;
+
+  if (isImage && safeDataUrl) {
+    const h = compact ? '44' : '60';
+    return `<span style="display:inline-flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+      <img src="${safeDataUrl}" alt="${safeName}"
+        onclick="showLightbox(this.src,'${safeName}')"
+        title="Clique para ampliar"
+        style="height:${h}px;width:auto;max-width:130px;border-radius:5px;border:1px solid var(--border);cursor:zoom-in;object-fit:cover;flex-shrink:0">
+      <span style="display:flex;flex-direction:column;gap:4px;padding-top:2px">
+        <span style="font-size:${compact?'10':'11'}px;color:var(--text2);display:inline-flex;align-items:center;gap:4px">
+          ${icon('image',10,'color:var(--text3)')} ${f.name}
+          ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
+        </span>
+        <a href="${safeDataUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
+          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          ${icon('download',11,'color:var(--text2)')} Baixar
+        </a>
+      </span>
+    </span>`;
+  }
+
   return `<span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">
     <span style="font-size:${compact?'11':'12'}px;color:var(--text);display:inline-flex;align-items:center;gap:4px">
       ${icon('paperclip',12,'color:var(--text3)')} ${f.name}
@@ -2065,7 +2092,7 @@ function buildFieldHtml(f) {
 
   if (f.type === 'multi-file') return `
     <div class="form-group">
-      <label class="form-label">${f.label}</label>
+      ${f.label ? `<label class="form-label">${f.label}</label>` : ''}
       <div class="multi-file-wrap">
         <div class="multi-file-list" id="mfl-${f.key}"></div>
         <label class="multi-file-add-btn" style="cursor:pointer">
@@ -2268,10 +2295,11 @@ function renderQueue(user, el) {
   if (user.role === 'financeiro') {
     const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro');
     const bloqueadaOps = ops.filter(o => o.status === 'bloqueada');
-    const total = validacaoOps.length + bloqueadaOps.length;
+    const boletoOps    = ops.filter(o => o.boletoTask?.status === 'pendente');
+    const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;
 
     let html = `<div class="step-header"><div class="step-title">Financeiro — Pendentes</div>
-      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Validação de pagamentos e pedidos bloqueados</div></div>`;
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Validação de pagamentos, bloqueados e envio de boletos</div></div>`;
 
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação financeira.</div></div>`;
@@ -2284,7 +2312,7 @@ function renderQueue(user, el) {
             </div>
             <div style="flex:1">
               <div class="section-header-title">Aguardando Validação</div>
-              <div class="section-header-desc">OPs com entrada pendente aguardando aprovação de pagamento</div>
+              <div class="section-header-desc">OPs com entrada pendente aguardando confirmação de pagamento</div>
             </div>
             <span class="section-header-count" style="background:var(--yellow-bg);color:var(--yellow)">${validacaoOps.length}</span>
           </div>
@@ -2304,6 +2332,21 @@ function renderQueue(user, el) {
             <span class="section-header-count" style="background:var(--red-bg);color:var(--red)">${bloqueadaOps.length}</span>
           </div>
           <div class="card-grid">${bloqueadaOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+
+      if (boletoOps.length) html += `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-header-icon" style="background:rgba(38,114,184,.1)">
+              ${icon('send',16,'color:var(--accent)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Envio de Boleto ao Cliente</div>
+              <div class="section-header-desc">NF emitida — aguardando envio do boleto ao cliente</div>
+            </div>
+            <span class="section-header-count" style="background:rgba(38,114,184,.1);color:var(--accent)">${boletoOps.length}</span>
+          </div>
+          <div class="card-grid">${boletoOps.map(op => boletoTaskCard(op)).join('')}</div>
         </div>`;
     }
     el.innerHTML = html;
@@ -3109,15 +3152,10 @@ function openInfoModal(opId) {
       <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
     </div>`;
 
-  // Botão de anexar comprovante avulso — financeiro pode anexar a qualquer hora
   const activeView = getActiveView();
-  const canAnexarBoleto = activeView?.role === 'financeiro' && !!sd.aguard_financeiro;
   const canAnexarFotos  = activeView?.role === 'logistica'  && !!sd.transito;
 
-  const anexarBoletoBtn = canAnexarBoleto
-    ? `<button class="btn-action" onclick="openAnexarBoleto(${opId})" style="display:inline-flex;align-items:center;gap:6px">
-        ${icon('paperclip',13)} Anexar Boleto
-       </button>` : '';
+  const anexarBoletoBtn = '';
 
   const anexarFotosBtn = canAnexarFotos
     ? `<button class="btn-action" onclick="openAnexarFotos(${opId})" style="display:inline-flex;align-items:center;gap:6px">
@@ -3233,6 +3271,88 @@ function saveAnexarFotos(opId) {
   dbSaveOp(op);
   showToast(`${novas.length} foto${novas.length>1?'s':''} anexada${novas.length>1?'s':''}!`, 'ok');
   openInfoModal(opId);
+}
+
+// ─── TAREFA PARALELA: ENVIO DE BOLETO AO CLIENTE ────────────────────
+function boletoTaskCard(op) {
+  const nf      = op.stepData?.aguard_emissao?.numeroNF || '—';
+  const nfDate  = op.stepData?.aguard_emissao?.dataEmissao || '';
+  const equips  = (op.equipamentos || [op.equipamento || '']).join(', ');
+  return `<div class="card" onclick="openBoletoTask(${op.id})" style="cursor:pointer">
+    <div class="card-header">
+      <div class="card-num">${op.numero || '#' + op.id}</div>
+      <span class="badge b-yellow">Pendente</span>
+    </div>
+    <div class="card-client">${op.cliente}</div>
+    ${equips ? `<div class="card-equip">${equips}</div>` : ''}
+    <div style="margin-top:8px;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px">
+      ${icon('file-text',11,'color:var(--text3)')} NF ${nf}${nfDate ? ' · ' + nfDate : ''}
+    </div>
+  </div>`;
+}
+
+function openBoletoTask(opId) {
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  tempFiles = {}; tempFilesData = {};
+
+  const nf     = op.stepData?.aguard_emissao?.numeroNF || '—';
+  const nfDate = op.stepData?.aguard_emissao?.dataEmissao || '';
+  const nfArqs = op.stepData?.aguard_emissao?.arquivoNF || [];
+
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Envio de Boleto — ${op.numero || '#' + op.id}</div>
+        <div class="modal-subtitle">${op.cliente} · NF ${nf}${nfDate ? ' · ' + nfDate : ''}</div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body" style="gap:10px">
+      ${nfArqs.length ? `
+        <div style="padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
+          <div style="font-size:10px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:6px">Nota Fiscal</div>
+          ${fileLinksHtml(nfArqs)}
+        </div>` : ''}
+      <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:5px">
+          ${icon('send',12,'color:var(--accent)')} Anexe os boletos para envio ao cliente
+        </div>
+        <div class="multi-file-wrap">
+          <div class="multi-file-list" id="mfl-boleto-task"></div>
+          <label class="multi-file-add-btn" style="cursor:pointer">
+            <input type="file" id="f-boleto-task" accept=".pdf,.png,.jpg,.jpeg"
+              style="display:none" multiple onchange="addMultiFile(this,'boleto-task')">
+            + Adicionar boleto(s)
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveBoletoTask(${opId})">
+        ${icon('check',13,'color:#fff')} Confirmar Envio
+      </button>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function saveBoletoTask(opId) {
+  const op      = ops.find(o => o.id === opId);
+  if (!op) return;
+  const arquivos = tempFilesData['boleto-task'] || [];
+  if (!arquivos.length) { showToast('Anexe ao menos um boleto antes de confirmar', 'err'); return; }
+
+  if (!op.boletoTask) op.boletoTask = { status: 'pendente', arquivos: [] };
+  op.boletoTask.status   = 'concluida';
+  op.boletoTask.arquivos = arquivos;
+  op.boletoTask.tsEnvio  = nowTs();
+
+  dbSaveOp(op);
+  closeModal();
+  renderAll();
+  showToast(`Boleto(s) registrado(s) — ${op.cliente}`, 'ok');
 }
 
 // ─── POPUP DE MOTIVO DE ATRASO ──────────────────────────────────────
@@ -3402,6 +3522,84 @@ function submitModal() {
   }
 }
 
+// ─── LIGHTBOX DE IMAGENS ────────────────────────────────────────────
+function showLightbox(src, name) {
+  let lb = document.getElementById('img-lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'img-lightbox';
+    lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;padding:20px';
+    lb.onclick = () => { lb.style.display = 'none'; };
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.style.display = 'none'; });
+    document.body.appendChild(lb);
+  }
+  lb.innerHTML = `
+    <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
+    <img src="${src}" alt="${name}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+    <div style="color:#fff;font-size:10px;margin-top:10px;opacity:.45">Clique ou Esc para fechar</div>`;
+  lb.style.display = 'flex';
+}
+
+// ─── RASCUNHO AUTOMÁTICO DO FORMULÁRIO NOVA OP ──────────────────────
+const DRAFT_KEY = 'contourline_novaop_draft';
+const DRAFT_TEXT_IDS = [
+  'nova-vendedorCanal','nova-data','nova-analista','nova-numContrato',
+  'nova-cliente','nova-dn','nova-cpf','nova-rg','nova-email','nova-profissao',
+  'nova-numDocumento','nova-endRua','nova-endNumero','nova-endBairro',
+  'nova-endCidade','nova-cep-cliente','nova-tel','nova-tipoContrato',
+  'nova-detalhesPagamento','nova-simulador','nova-entrada','nova-valorEntrada',
+  'nova-enderecoEntrega','nova-contatoEntrega','nova-prazo','nova-aContarDe',
+  'nova-treinamento','nova-descricao',
+];
+
+function saveDraft() {
+  const g = id => document.getElementById(id);
+  const draft = {
+    ts: Date.now(),
+    fields: {},
+    equips: tempEquipList.map(e => ({ ...e })),
+    voltagens: [...tempVoltagemList],
+  };
+  DRAFT_TEXT_IDS.forEach(id => {
+    const el = g(id);
+    if (el) draft.fields[id] = el.value;
+  });
+  draft.fields['nova-same-address'] = g('nova-same-address')?.checked ?? false;
+  draft.fields['nova-diasUteis']    = g('nova-diasUteis')?.checked ?? true;
+  draft.fields['nova-endEstado']    = g('nova-endEstado')?.value || '';
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return false;
+    const draft = JSON.parse(raw);
+    if (!draft?.fields) return false;
+    const g = id => document.getElementById(id);
+    DRAFT_TEXT_IDS.forEach(id => {
+      const el = g(id);
+      if (el && draft.fields[id] !== undefined) el.value = draft.fields[id];
+    });
+    const sameAddr = g('nova-same-address');
+    if (sameAddr) { sameAddr.checked = draft.fields['nova-same-address'] || false; toggleSameAddress(sameAddr.checked); }
+    const diasUteis = g('nova-diasUteis');
+    if (diasUteis) diasUteis.checked = draft.fields['nova-diasUteis'] ?? true;
+    const estado = g('nova-endEstado');
+    if (estado && draft.fields['nova-endEstado']) estado.value = draft.fields['nova-endEstado'];
+    if (draft.equips?.length)    { tempEquipList = draft.equips;       refreshEquipList();      }
+    if (draft.voltagens?.length) { tempVoltagemList = draft.voltagens; renderVoltagemFields();  }
+    calcDataPrevista();
+    calcDescontoTotal();
+    updateEntradaHint(g('nova-entrada')?.value || 'sem');
+    return draft.ts;
+  } catch { return false; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // NOVA OP — Pedido de Venda completo
 // ═══════════════════════════════════════════════════════════════════
@@ -3552,15 +3750,27 @@ function openNovaOP() {
             <input class="form-input" id="nova-simulador" type="text" inputmode="decimal"
               oninput="brlFormat(this)" style="font-family:'DM Mono',monospace"></div>
           <hr class="form-divider">
-          <div class="form-group"><label class="form-label">Status da Entrada <span style="font-weight:400;color:var(--text3)">(fluxo interno)</span></label>
+          <div class="form-group"><label class="form-label">Entrada</label>
             <select class="form-select" id="nova-entrada" onchange="updateEntradaHint(this.value)">
               <option value="sem">Sem entrada</option>
-              <option value="pendente">Entrada pendente</option>
+              <option value="pendente">Com entrada</option>
             </select></div>
-          <div class="form-group" id="nova-entrada-row" style="display:none"><label class="form-label">Valor da Entrada (R$)</label>
-            <input class="form-input" id="nova-valorEntrada" type="text" inputmode="decimal"
-              oninput="brlFormat(this);limitarEntrada(this)" style="font-family:'DM Mono',monospace">
-            <div style="font-size:10px;color:var(--text3);margin-top:3px">Máx: valor total com desconto</div></div>
+          <div id="nova-entrada-row" style="display:none">
+            <div class="form-group"><label class="form-label">Valor da Entrada (R$)</label>
+              <input class="form-input" id="nova-valorEntrada" type="text" inputmode="decimal"
+                oninput="brlFormat(this);limitarEntrada(this)" style="font-family:'DM Mono',monospace">
+              <div style="font-size:10px;color:var(--text3);margin-top:3px">Máx: valor total com desconto</div></div>
+            <div class="form-group">
+              <div class="multi-file-wrap">
+                <div class="multi-file-list" id="mfl-comprovanteEntrada"></div>
+                <label class="multi-file-add-btn" style="cursor:pointer">
+                  <input type="file" id="f-comprovanteEntrada" accept=".pdf,.png,.jpg,.jpeg"
+                    style="display:none" multiple onchange="addMultiFile(this,'comprovanteEntrada')">
+                  + Comprovante da entrada
+                </label>
+              </div>
+            </div>
+          </div>
         </div></div>
 
       <div class="acc"><div ${acc('Observações')}
@@ -3596,12 +3806,12 @@ function openNovaOP() {
             Previsão: <span id="nova-data-prevista" style="color:var(--accent)">—</span></div>
           <div class="form-group"><label class="form-label">Treinamento</label>
             <input class="form-input" id="nova-treinamento"></div>
-          <div class="form-group" style="margin-top:6px"><label class="form-label">Arquivo da OP</label>
+          <div class="form-group" style="margin-top:6px">
             <label style="cursor:pointer">
               <input type="file" id="nova-arquivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                 style="display:none" onchange="handleFile(this)">
               <div class="file-upload-area" id="file-display-nova-arquivo">
-                <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para anexar o arquivo da OP</div>
+                <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Anexo opcional</div>
               </div></label></div>
           <div class="form-group"><label class="form-label">Observações / Pedido de Venda</label>
             <textarea class="form-textarea" id="nova-descricao" rows="3"></textarea></div>
@@ -3614,7 +3824,17 @@ function openNovaOP() {
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
-  setTimeout(calcDataPrevista, 0); // calcula previsão com data default após render
+  setTimeout(() => {
+    calcDataPrevista();
+    const draftTs = loadDraft();
+    if (draftTs) {
+      const mins = Math.round((Date.now() - draftTs) / 60000);
+      const when = mins < 1 ? 'agora há pouco' : mins < 60 ? `há ${mins} min` : `há ${Math.round(mins/60)}h`;
+      showToast(`Rascunho restaurado (salvo ${when}) — preencha os campos restantes`, 'ok');
+    }
+    document.getElementById('modal')?.addEventListener('input',  saveDraft);
+    document.getElementById('modal')?.addEventListener('change', saveDraft);
+  }, 50);
 }
 
 function updateEntradaHint(v) {
@@ -4033,7 +4253,9 @@ async function submitNovaOP() {
   const dataPrevista     = g('nova-data-prevista')?.textContent;
   const treinamento      = v('nova-treinamento');
   const descricao        = v('nova-descricao');
-  const arquivo          = tempFilesData['nova-arquivo'] || null;
+  const arquivo              = tempFilesData['nova-arquivo'] || null;
+  const comprovanteEntrada   = (tempFilesData['comprovanteEntrada'] || []).length
+    ? tempFilesData['comprovanteEntrada'] : null;
 
   const enderecoCliente = [[endRua, endNumero].filter(Boolean).join(', '), endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
 
@@ -4099,7 +4321,7 @@ async function submitNovaOP() {
       equipamentos: tempEquipList.map(e => ({ ...e })),
     },
     stepData: {
-      aberta: { clienteNome: cliente, equipamentos: [...tempEquipList], arquivoOP: arquivo, descricao },
+      aberta: { clienteNome: cliente, equipamentos: [...tempEquipList], arquivoOP: arquivo, comprovanteEntrada, descricao },
     },
     history: [{
       step: 'aberta', actor: 'vendedor', actorName: (getUser()?.userName || getUser()?.name || vendedorCanal || ''), ts: nowTs(),
@@ -4140,6 +4362,7 @@ async function submitNovaOP() {
   ops.unshift(opData);
   nextId = newId + 1;
 
+  clearDraft();
   closeModal();
   currentTab = 'todas';
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===2));

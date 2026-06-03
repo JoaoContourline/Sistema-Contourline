@@ -1230,6 +1230,39 @@ function dbSaveOp(op) {
     });
 }
 
+// ─── NOTIFICAÇÕES + SOM ─────────────────────────────────────────────
+function playNotifSound() {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch {}
+}
+
+function sendNotif(title, body) {
+  playNotifSound();
+  if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+    const n = new Notification(title, { body, icon: '/Logo-Contourline-Azul-2048x597 (2).webp' });
+    setTimeout(() => n.close(), 7000);
+  }
+}
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
 // Realtime — sincroniza mudanças de outros usuários
 function startRealtime() {
   sb.channel('ops-realtime')
@@ -1243,6 +1276,7 @@ function startRealtime() {
           const step = STEPS[newOp.status];
           if (step?.owner === view?.role) {
             showToast(`Nova OP na fila: ${newOp.cliente}`, 'ok');
+            sendNotif('Nova OP na fila', `${newOp.cliente} — ${(newOp.equipamentos||[newOp.equipamento||'']).join(', ')}`);
           }
         }
       } else if (payload.eventType === 'UPDATE') {
@@ -1254,6 +1288,7 @@ function startRealtime() {
           // Notifica quando uma OP avança para a fila do usuário atual
           if (prev && prev.status !== updated.status && step?.owner === view?.role) {
             showToast(`OP ${updated.numero} — ${updated.cliente} entrou na sua fila`, 'ok');
+            sendNotif(`OP ${updated.numero} na sua fila`, `${updated.cliente} — ${step?.label || updated.status}`);
           }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
@@ -1459,7 +1494,8 @@ function showApp() {
   document.getElementById('appContainer').style.display = '';
   renderRoles();
   loadOps().then(() => startRealtime());
-  loadEquipItems(); // carrega catálogo de equipamentos em background
+  loadEquipItems();
+  requestNotifPermission();
 }
 
 function checkSession() {
@@ -1543,16 +1579,7 @@ function rejectOP(opId, formData) {
   renderAll();
 }
 
-function directorOverride(opId, nota) {
-  const op = ops.find(o => o.id === opId);
-  if (!op || (op.status !== 'aguard_financeiro' && op.status !== 'bloqueada')) return;
-  op.liberadoDiretoria = true;
-  const user = getUser();
-  op.history.push({ step: op.status, actor: 'diretoria', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: 'Liberado pela Diretoria', note: nota || '' });
-  op.status = 'aguard_nf';
-  dbSaveOp(op);
-  renderAll();
-}
+// directorOverride removido — role diretoria não existe mais
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -1607,9 +1634,8 @@ function entradaHtml(e) {
 
 function flagsHtml(op) {
   return [
-    op.liberadoDiretoria ? `<span class="flag flag-dir" title="Liberado pela diretoria">DIR</span>` : '',
-    op.opDivergente      ? `<span class="flag flag-div" title="OP divergente">DIV</span>` : '',
-    op.multiOp           ? `<span class="flag flag-multi" title="Múltiplas OPs">MULTI</span>` : '',
+    op.opDivergente ? `<span class="flag flag-div" title="OP divergente">DIV</span>` : '',
+    op.multiOp      ? `<span class="flag flag-multi" title="Múltiplas OPs">MULTI</span>` : '',
   ].filter(Boolean).join('');
 }
 
@@ -3175,7 +3201,6 @@ function openInfoModal(opId) {
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
         <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
         ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
-        ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
         ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">

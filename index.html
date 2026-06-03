@@ -3296,67 +3296,105 @@ function openBoletoTask(opId) {
   if (!op) return;
   tempFiles = {}; tempFilesData = {};
 
-  const badge      = stepBadge(op.status);
-  const sem        = semaforo(op);
-  const sd         = op.stepData || {};
-  const opEmail    = (op.pedidoVenda?.email || '').replace(/'/g, '&#39;');
-  const sectionsHtml = buildInfoSections(op, opId);
-  const equipList  = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
+  const sd      = op.stepData || {};
+  const pv      = op.pedidoVenda || {};
+  const opEmail = (pv.email || '').replace(/'/g, '&#39;');
+  const nf      = sd.aguard_emissao?.numeroNF || '—';
+  const nfDate  = sd.aguard_emissao?.dataEmissao || '';
+  const equips  = (op.equipamentos || [op.equipamento || '']).join(', ');
+  const valor   = pv.valorLiquido
+    ? 'R$ ' + parseFloat(pv.valorLiquido).toLocaleString('pt-BR', {minimumFractionDigits:2})
+    : '';
 
-  const statusHeader = `
-    <div class="op-info-block" style="margin-bottom:10px">
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
-        <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
-        ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
-        ${op.liberadoDiretoria?`<span class="flag flag-dir">DIR</span>`:''}
-      </div>
-      <div class="op-info-meta">
-        <span>${op.vendedorCanal||op.vendedorName||'—'}</span>
-        <span>${op.numContrato||op.contrato||''}</span>
-        <span>${daysSince(op.dataAbertura)}d</span>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
-    </div>`;
+  // Template pré-preenchido com dados da OP
+  const template = [
+    `Prezado(a) ${op.cliente},`,
+    '',
+    `Segue em anexo o boleto referente à sua aquisição de ${equips} pela Contourline Equipamentos Médicos.`,
+    '',
+    `Nota Fiscal: ${nf}${nfDate ? ' — ' + nfDate : ''}`,
+    valor ? `Valor: ${valor}` : '',
+    '',
+    'Em caso de dúvidas, entre em contato conosco.',
+    '',
+    'Atenciosamente,',
+    'Contourline Equipamentos Médicos e Diagnósticos Ltda',
+  ].filter(l => l !== null).join('\n');
 
-  const envioHtml = `
-    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
-      <div class="form-group" style="margin:0">
-        <label class="form-label">E-mail do cliente *</label>
-        <input class="form-input" id="boleto-email" type="email"
-          placeholder="email@exemplo.com" style="font-size:13px">
-        ${opEmail ? `
-          <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer">
-            <input type="checkbox" id="boleto-email-ref"
-              onchange="document.getElementById('boleto-email').value = this.checked ? '${opEmail}' : ''">
-            <span style="font-size:11px;color:var(--text2)">Usar e-mail da OP:</span>
-            <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--accent)">${opEmail}</span>
-          </label>` : ''}
-      </div>
-      <div class="form-group" style="margin:0">
-        <label class="form-label">Boleto(s) *</label>
-        <div class="multi-file-wrap">
-          <div class="multi-file-list" id="mfl-boleto-task"></div>
-          <label class="multi-file-add-btn" style="cursor:pointer">
-            <input type="file" id="f-boleto-task" accept=".pdf,.png,.jpg,.jpeg"
-              style="display:none" multiple onchange="addMultiFile(this,'boleto-task')">
-            + Adicionar boleto(s)
-          </label>
-        </div>
-      </div>
-    </div>`;
-
-  document.getElementById('modal').classList.add('wide');
+  document.getElementById('modal').classList.add('split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <div><div class="modal-title">Envio de Boleto — OP ${op.numero}</div>
+           <div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
-    <div class="modal-body" style="gap:0;padding:16px 22px">
-      ${statusHeader}
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${sectionsHtml}
-        ${infoAcc('Envio de Boleto ao Cliente', 'send', envioHtml, true)}
+    <div class="modal-split-body">
+
+      <div class="split-pane split-pane-right">
+        <div class="split-pane-header">Envio ao cliente</div>
+
+        <div class="form-group">
+          <label class="form-label">E-mail *</label>
+          <input class="form-input" id="boleto-email" type="email"
+            placeholder="email@exemplo.com">
+          ${opEmail ? `
+            <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer">
+              <input type="checkbox" id="boleto-email-ref"
+                onchange="document.getElementById('boleto-email').value=this.checked?'${opEmail}':''">
+              <span style="font-size:11px;color:var(--text2)">Usar e-mail da OP:</span>
+              <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--accent)">${opEmail}</span>
+            </label>` : ''}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Mensagem ao cliente</span>
+            <span style="display:flex;gap:3px">
+              <button type="button" title="Negrito" onclick="document.execCommand('bold')"
+                style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">B</button>
+              <button type="button" title="Itálico" onclick="document.execCommand('italic')"
+                style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;font-style:italic;cursor:pointer;color:var(--text)">I</button>
+            </span>
+          </label>
+          <div id="boleto-template"
+            contenteditable="true"
+            style="min-height:160px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);
+              background:var(--surface);font-size:12px;line-height:1.6;color:var(--text);
+              white-space:pre-wrap;outline:none;font-family:'Inter',sans-serif;resize:none;
+              transition:border-color .15s"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'"
+          >${template.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Boleto(s) *</label>
+          <div class="multi-file-wrap">
+            <div class="multi-file-list" id="mfl-boleto-task"></div>
+            <label class="multi-file-add-btn" style="cursor:pointer">
+              <input type="file" id="f-boleto-task" accept=".pdf,.png,.jpg,.jpeg"
+                style="display:none" multiple onchange="addMultiFile(this,'boleto-task')">
+              + Adicionar boleto(s)
+            </label>
+          </div>
+        </div>
       </div>
+
+      <div class="split-pane split-pane-left">
+        <div class="split-pane-left-header">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+            <span class="badge ${stepBadge(op.status).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status).label}</span>
+            ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
+        </div>
+        <div class="split-pane-left-scroll">
+          ${buildInfoSections(op, opId)}
+        </div>
+      </div>
+
+    </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveBoletoTask(${opId})">
@@ -3365,12 +3403,22 @@ function openBoletoTask(opId) {
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
+  requestAnimationFrame(() => {
+    const modal = document.getElementById('modal');
+    if (!modal.classList.contains('split')) return;
+    const hEl = modal.querySelector('.modal-header');
+    const fEl = modal.querySelector('.modal-footer');
+    const body = modal.querySelector('.modal-split-body');
+    if (body && hEl && fEl) body.style.height = `calc(90vh - ${hEl.offsetHeight}px - ${fEl.offsetHeight}px)`;
+  });
 }
 
 function saveBoletoTask(opId) {
   const op       = ops.find(o => o.id === opId);
   if (!op) return;
   const email    = document.getElementById('boleto-email')?.value?.trim() || '';
+  const msgEl    = document.getElementById('boleto-template');
+  const mensagem = msgEl ? msgEl.innerText.trim() : '';
   const arquivos = tempFilesData['boleto-task'] || [];
 
   if (!email || !email.includes('@')) {
@@ -3384,6 +3432,7 @@ function saveBoletoTask(opId) {
   if (!op.boletoTask) op.boletoTask = { status: 'pendente', arquivos: [] };
   op.boletoTask.status   = 'concluida';
   op.boletoTask.email    = email;
+  op.boletoTask.mensagem = mensagem;
   op.boletoTask.arquivos = arquivos;
   op.boletoTask.tsEnvio  = nowTs();
 

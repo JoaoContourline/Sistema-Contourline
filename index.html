@@ -2479,6 +2479,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     </div>
     <div class="pipe-bar">${dots}</div>
     <div style="font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato}</div>
+    ${isEntregue && !op.stepData?.transito?.fotos?.length ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);font-style:italic;margin-top:2px">${icon('image',10,'color:var(--text3)')} sem foto de entrega</div>` : ''}
     ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,90)}</div>` : ''}
     ${footer}
   </div>`;
@@ -2978,7 +2979,13 @@ function buildInfoSections(op, opId) {
       </div>`;
     }
 
-    if (d.fotos?.length) confHtml += `<div style="margin-top:8px">${fileLinksHtml(d.fotos)}</div>`;
+    if (d.fotos?.length) {
+      confHtml += `<div style="margin-top:8px">${fileLinksHtml(d.fotos)}</div>`;
+    } else if (op.status === 'entregue') {
+      confHtml += `<div style="margin-top:8px;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);font-style:italic">
+        ${icon('image',11,'color:var(--text3)')} Nenhuma foto anexada
+      </div>`;
+    }
     sections.push(infoAcc('Confirmação de Entrega', 'package', confHtml, op.status === 'entregue'));
   }
 

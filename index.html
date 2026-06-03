@@ -3275,18 +3275,39 @@ function saveAnexarFotos(opId) {
 
 // ─── TAREFA PARALELA: ENVIO DE BOLETO AO CLIENTE ────────────────────
 function boletoTaskCard(op) {
-  const nf      = op.stepData?.aguard_emissao?.numeroNF || '—';
-  const nfDate  = op.stepData?.aguard_emissao?.dataEmissao || '';
-  const equips  = (op.equipamentos || [op.equipamento || '']).join(', ');
-  return `<div class="card" onclick="openBoletoTask(${op.id})" style="cursor:pointer">
-    <div class="card-header">
-      <div class="card-num">${op.numero || '#' + op.id}</div>
-      <span class="badge b-yellow">Pendente</span>
+  const nf        = op.stepData?.aguard_emissao?.numeroNF || '—';
+  const nfDate    = op.stepData?.aguard_emissao?.dataEmissao || '';
+  const sem       = semaforo(op);
+  const equipList = op.equipamentos?.length
+    ? op.equipamentos.map(e => `<span class="equip-chip">${e}</span>`).join('')
+    : `<span class="equip-chip">${op.equipamento || '—'}</span>`;
+  const lastEvt   = op.history?.[op.history.length - 1];
+  const opNum     = op.numero && op.numero !== 'PENDENTE' ? op.numero : '#' + op.id;
+
+  return `
+  <div class="card actionable" onclick="openBoletoTask(${op.id})">
+    <div class="card-top">
+      <div>
+        <div class="card-op">OP ${opNum}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorCanal||op.vendedorName||''}</div>
+      </div>
     </div>
     <div class="card-client">${op.cliente}</div>
-    ${equips ? `<div class="card-equip">${equips}</div>` : ''}
-    <div style="margin-top:8px;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px">
-      ${icon('file-text',11,'color:var(--text3)')} NF ${nf}${nfDate ? ' · ' + nfDate : ''}
+    <div class="equip-chips">${equipList}</div>
+    <div class="card-meta">
+      <span class="sema ${sem.cls}">${sem.label}</span>
+    </div>
+    <div style="margin-top:6px;font-size:11px;display:flex;align-items:center;gap:5px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:5px">
+      ${icon('file-text',11,'color:var(--accent)')}
+      <span style="color:var(--text3)">NF</span>
+      <span style="font-family:'DM Mono',monospace">${nf}</span>
+      ${nfDate ? `<span style="color:var(--text3)">·</span><span style="color:var(--text3)">${nfDate}</span>` : ''}
+    </div>
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,80)}</div>` : ''}
+    <div class="card-footer">
+      <button class="btn-action" onclick="event.stopPropagation();openBoletoTask(${op.id})" style="display:inline-flex;align-items:center;gap:5px">
+        ${icon('send',12)} Enviar Boleto
+      </button>
     </div>
   </div>`;
 }

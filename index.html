@@ -1908,9 +1908,19 @@ function brlFmtNum(n) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FILE SYSTEM — base64 storage para visualização/download no app
+// FILE SYSTEM — Supabase Storage (bucket: op-files)
 // ═══════════════════════════════════════════════════════════════════
 
+async function uploadToStorage(file) {
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `uploads/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
+  const { error } = await sb.storage.from('op-files').upload(path, file, { upsert: false });
+  if (error) throw error;
+  const { data } = sb.storage.from('op-files').getPublicUrl(path);
+  return { name: file.name, size: file.size, url: data.publicUrl };
+}
+
+// Mantido para compatibilidade com OPs antigas que ainda têm base64
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1920,19 +1930,20 @@ function fileToDataUrl(file) {
   });
 }
 
-// Abre arquivo como Blob URL (evita restrição do Chrome com data: URLs em target="_blank")
+// Abre arquivo — URL do Storage diretamente, ou Blob para base64 legado
 function openFileBlob(btn) {
   const dataUrl = btn.getAttribute('data-fileurl');
   const name    = btn.getAttribute('data-filename') || 'arquivo';
   if (!dataUrl) return;
-  // fetch() converte dataUrl → Blob de forma assíncrona sem bloquear o main thread
-  // (substitui o loop for/charCodeAt que congelava a UI para arquivos grandes)
+  // URLs do Supabase Storage: abre diretamente na nova aba
+  if (dataUrl.startsWith('http')) { window.open(dataUrl, '_blank', 'noopener'); return; }
+  // Legacy base64: converte para Blob (evita restrição do Chrome)
   fetch(dataUrl)
     .then(r => r.blob())
     .then(blob => {
       const url = URL.createObjectURL(blob);
       const w   = window.open(url, '_blank');
-      if (!w) { // popup bloqueado — faz download como fallback
+      if (!w) {
         const a = document.createElement('a');
         a.href = url; a.download = name;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -1950,9 +1961,10 @@ function fileLinkHtml(f, compact = false) {
     return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
   }
   const kb          = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
-  const safeDataUrl = f.dataUrl || '';
+  const fileUrl     = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
+  const safeDataUrl = fileUrl;
   const safeName    = (f.name || 'arquivo').replace(/"/g, '&quot;');
-  const isImage     = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || safeDataUrl.startsWith('data:image/');
+  const isImage     = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || fileUrl.startsWith('data:image/');
   const btnBase     = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
     padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
     transition:border-color .1s;cursor:pointer;font-family:inherit;border-style:solid`;
@@ -2005,11 +2017,18 @@ function fileLinksHtml(files) {
 async function addMultiFile(input, key) {
   if (!input.files.length) return;
   if (!tempFilesData[key]) tempFilesData[key] = [];
+  const btn = input.closest('label');
+  if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; btn.textContent = 'Enviando…'; }
   for (const f of Array.from(input.files)) {
-    if (f.size > 8 * 1024 * 1024) { showToast('Arquivo muito grande (máx 8 MB): ' + f.name, 'err'); continue; }
-    const dataUrl = await fileToDataUrl(f);
-    tempFilesData[key].push({ name: f.name, size: f.size, dataUrl });
+    if (f.size > 20 * 1024 * 1024) { showToast('Arquivo muito grande (máx 20 MB): ' + f.name, 'err'); continue; }
+    try {
+      const fileData = await uploadToStorage(f);
+      tempFilesData[key].push(fileData);
+    } catch (err) {
+      showToast('Erro ao enviar ' + f.name + ': ' + (err.message || 'tente novamente'), 'err');
+    }
   }
+  if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; btn.textContent = '+ Adicionar arquivo(s)'; }
   input.value = '';
   refreshMultiFileList(key);
 }
@@ -2153,15 +2172,21 @@ function buildFieldHtml(f) {
 
 async function handleFile(input) {
   if (!input.files[0]) return;
-  const file = input.files[0];
-  if (file.size > 8 * 1024 * 1024) { showToast('Arquivo muito grande (máx 8 MB)', 'err'); return; }
-  const key = input.id.replace('f-','');
-  const dataUrl = await fileToDataUrl(file);
-  tempFilesData[key] = { name: file.name, size: file.size, dataUrl };
+  const file    = input.files[0];
+  if (file.size > 20 * 1024 * 1024) { showToast('Arquivo muito grande (máx 20 MB)', 'err'); return; }
+  const key     = input.id.replace('f-', '');
   const display = document.getElementById(`file-display-${key}`);
-  if (display) {
-    display.classList.add('has-file');
-    display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${file.name} <span style="font-weight:400;opacity:.7">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
+  if (display) display.innerHTML = `<div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Enviando…</div>`;
+  try {
+    const fileData = await uploadToStorage(file);
+    tempFilesData[key] = fileData;
+    if (display) {
+      display.classList.add('has-file');
+      display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${file.name} <span style="font-weight:400;opacity:.7">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
+    }
+  } catch (err) {
+    showToast('Erro ao enviar arquivo: ' + (err.message || 'tente novamente'), 'err');
+    if (display) display.innerHTML = `<div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para tentar novamente</div>`;
   }
 }
 

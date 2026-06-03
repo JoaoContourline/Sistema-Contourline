@@ -1989,18 +1989,23 @@ function fileLinkHtml(f, compact = false) {
     </span>`;
   }
 
+  const isPdf     = /\.pdf$/i.test(f.name || '');
+  const canPreview = isPdf && (f.url || safeDataUrl.startsWith('data:application/pdf'));
+  const vizAction  = canPreview
+    ? `onclick="showLightbox('${fileUrl.replace(/'/g,"\\'")}','${safeName}')"`
+    : `data-fileurl="${safeDataUrl}" data-filename="${safeName}" onclick="openFileBlob(this)"`;
+
   return `<span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">
     <span style="font-size:${compact?'11':'12'}px;color:var(--text);display:inline-flex;align-items:center;gap:4px">
-      ${icon('paperclip',12,'color:var(--text3)')} ${f.name}
+      ${icon(isPdf?'file-text':'paperclip',12,'color:var(--text3)')} ${f.name}
       ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
     </span>
     <button type="button" style="${btnBase};color:var(--accent)"
-      data-fileurl="${safeDataUrl}" data-filename="${safeName}"
-      onclick="openFileBlob(this)"
+      ${vizAction}
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      ${icon('external-link',11,'color:var(--accent)')} Visualizar
+      ${icon('eye',11,'color:var(--accent)')} Visualizar
     </button>
-    <a href="${safeDataUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
+    <a href="${fileUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
       ${icon('download',11,'color:var(--text2)')} Baixar
     </a>
@@ -3713,21 +3718,37 @@ function submitModal() {
   }
 }
 
-// ─── LIGHTBOX DE IMAGENS ────────────────────────────────────────────
+// ─── LIGHTBOX — imagens e PDFs ──────────────────────────────────────
 function showLightbox(src, name) {
+  const isPdf = /\.pdf$/i.test(name || '') || src.startsWith('data:application/pdf');
   let lb = document.getElementById('img-lightbox');
   if (!lb) {
     lb = document.createElement('div');
     lb.id = 'img-lightbox';
-    lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;padding:20px';
-    lb.onclick = () => { lb.style.display = 'none'; };
+    lb.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px';
     document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.style.display = 'none'; });
     document.body.appendChild(lb);
   }
-  lb.innerHTML = `
-    <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
-    <img src="${src}" alt="${name}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
-    <div style="color:#fff;font-size:10px;margin-top:10px;opacity:.45">Clique ou Esc para fechar</div>`;
+  // Botão fechar sempre visível (essencial para PDF onde clicar no iframe não fecha)
+  const closeBtn = `<button onclick="document.getElementById('img-lightbox').style.display='none'"
+    style="position:absolute;top:14px;right:18px;background:rgba(255,255,255,.15);border:none;color:#fff;
+      border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;
+      display:flex;align-items:center;justify-content:center">×</button>`;
+
+  if (isPdf) {
+    lb.onclick = null; // iframe consome o clique — usa só o botão X e o Esc
+    lb.innerHTML = `
+      ${closeBtn}
+      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
+      <iframe src="${src}" style="width:min(960px,95vw);height:calc(100vh - 130px);border:none;border-radius:6px;background:#fff"></iframe>`;
+  } else {
+    lb.onclick = () => { lb.style.display = 'none'; };
+    lb.innerHTML = `
+      ${closeBtn}
+      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
+      <img src="${src}" alt="${name}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out" onclick="document.getElementById('img-lightbox').style.display='none'">
+      <div style="color:#fff;font-size:10px;margin-top:10px;opacity:.45">Clique na imagem ou Esc para fechar</div>`;
+  }
   lb.style.display = 'flex';
 }
 

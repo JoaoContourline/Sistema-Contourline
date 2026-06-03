@@ -1550,6 +1550,7 @@ function directorOverride(opId, nota) {
   const user = getUser();
   op.history.push({ step: op.status, actor: 'diretoria', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: 'Liberado pela Diretoria', note: nota || '' });
   op.status = 'aguard_nf';
+  dbSaveOp(op);
   renderAll();
 }
 
@@ -2875,7 +2876,12 @@ function buildInfoSections(op, opId) {
           onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
           ${icon('download',13,'color:var(--text2)')} Baixar Arquivo da OP
         </a>` : sd.aberta?.arquivoOP ? fileLinkHtml(sd.aberta.arquivoOP, true) : ''}
-    </div>`;
+    </div>
+    ${sd.aberta?.comprovanteEntrada?.length ? `
+      <div style="margin-top:10px">
+        <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:5px">Comprovante da Entrada</div>
+        ${fileLinksHtml(sd.aberta.comprovanteEntrada)}
+      </div>` : ''}`;
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
     sections.push(infoAcc('Pedido', 'clipboard-list', `<div class="detail-grid">
@@ -2886,15 +2892,35 @@ function buildInfoSections(op, opId) {
   }
 
   // ── FINANCEIRO ───────────────────────────────────────────────────
-  if (sd.aguard_financeiro || sd.aguard_financeiro_reject) {
+  if (sd.aguard_financeiro || sd.aguard_financeiro_reject || op.boletoTask) {
     const df = sd.aguard_financeiro || {};
     const dr = sd.aguard_financeiro_reject || {};
-    let finHtml = `<div class="detail-grid">
-      ${dItem('Aprovação', df.descricao)}
-      ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
-    </div>`;
-    if (df.boleto?.length) finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Comprovante(s)</div>${fileLinksHtml(df.boleto)}</div>`;
-    if (df.extras?.length)  finHtml += `<div style="margin-top:8px"><div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Outros Anexos</div>${fileLinksHtml(df.extras)}</div>`;
+    const bt = op.boletoTask;
+    let finHtml = '';
+
+    if (sd.aguard_financeiro || sd.aguard_financeiro_reject) {
+      finHtml += `<div class="detail-grid">
+        ${dItem('Confirmação', df.descricao)}
+        ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
+      </div>`;
+      if (df.anexo?.length) finHtml += `<div style="margin-top:8px">${fileLinksHtml(df.anexo)}</div>`;
+    }
+
+    if (bt) {
+      const boletoStatus = bt.status === 'concluida'
+        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check',10,'color:var(--green)')} Enviado</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--yellow);background:var(--yellow-bg);border:1px solid rgba(202,138,4,.25);padding:1px 7px;border-radius:20px">Pendente</span>`;
+      finHtml += `<div style="margin-top:${finHtml?'12':'0'}px;padding-top:${finHtml?'10':'0'}px;${finHtml?'border-top:1px solid var(--border)':''}">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+          <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px">Envio de Boleto</div>
+          ${boletoStatus}
+        </div>
+        ${bt.email ? `<div style="font-size:11px;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px">${icon('mail',11,'color:var(--text3)')} ${bt.email}</div>` : ''}
+        ${bt.tsEnvio ? `<div style="font-size:10px;color:var(--text3);margin-bottom:6px">${bt.tsEnvio}</div>` : ''}
+        ${bt.arquivos?.length ? fileLinksHtml(bt.arquivos) : ''}
+      </div>`;
+    }
+
     sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
   }
 

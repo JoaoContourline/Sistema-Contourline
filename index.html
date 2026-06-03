@@ -1250,7 +1250,7 @@ function playNotifSound() {
 }
 
 function sendNotif(title, body) {
-  playNotifSound();
+  if (getUser()?.role !== 'gestor') playNotifSound();
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     const n = new Notification(title, { body, icon: '/Logo-Contourline-Azul-2048x597 (2).webp' });
     setTimeout(() => n.close(), 7000);

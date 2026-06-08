@@ -610,43 +610,6 @@ main { padding: 24px; }
       </button>
     </div>
 
-    <!-- PAINEL 2: Código de verificação (OTP) -->
-    <div class="login-card-body" id="loginOtpPanel" style="display:none">
-      <div style="text-align:center;padding:4px 0 8px">
-        <div style="width:48px;height:48px;background:#f0f4f8;border:1.5px solid #dde3ed;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2672B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        </div>
-        <div style="font-size:14px;font-weight:600;color:#0f1f35;margin-bottom:4px">Verifique seu e-mail</div>
-        <div style="font-size:12px;color:#8096b3">Código enviado para</div>
-        <div style="font-size:13px;font-weight:700;color:#2672B8;margin-top:2px" id="loginEmailDisplay"></div>
-      </div>
-      <div class="login-field">
-        <label class="login-label">Código de 6 dígitos</label>
-        <div class="login-input-wrap">
-          <span class="login-input-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
-          </span>
-          <input class="login-input" id="loginCode" type="text" inputmode="numeric" maxlength="6"
-            placeholder="000000" autocomplete="one-time-code"
-            style="letter-spacing:10px;text-align:center;font-size:22px;font-weight:700;font-family:'DM Mono',monospace;padding-left:48px;padding-right:16px"
-            oninput="this.value=this.value.replace(/\D/g,'')"
-            onkeydown="if(event.key==='Enter')doVerify()">
-        </div>
-      </div>
-      <div id="otpError" class="login-error"></div>
-      <button class="login-btn" id="verifyBtn" onclick="doVerify()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Verificar código
-      </button>
-      <div style="display:flex;justify-content:space-between;margin-top:4px">
-        <button onclick="backToLogin()" style="background:none;border:none;color:#8096b3;font-size:12px;cursor:pointer;padding:4px;font-family:'Inter',sans-serif">
-          ← Voltar
-        </button>
-        <button id="resendBtn" onclick="resendCode()" style="background:none;border:none;color:#2672B8;font-size:12px;cursor:pointer;padding:4px;font-family:'Inter',sans-serif">
-          Reenviar código
-        </button>
-      </div>
-    </div>
 
     <div class="login-card-footer">Rede interna · Acesso restrito</div>
   </div>
@@ -1325,32 +1288,26 @@ let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } — persisted em 
 let todasFilter      = ''; // filtro de busca na aba Todas as OPs
 let _pendingAdvance  = null; // dados pendentes p/ popup de atraso
 
-// ─── AUTH ──────────────────────────────────────────────────────────
-const SESSION_KEY = 'fluxo_session_v1';
+// ─── AUTH — Supabase Authentication ────────────────────────────────
+let _cachedUser = null; // { ...sector, userName, uid }
 
-function getUser() {
-  try {
-    const s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-    if (!s) return null;
-    const sector = SECTORS.find(sec => sec.id === s.sectorId);
-    if (!sector) return null;
-    return { ...sector, userName: s.userName || sector.name };
-  } catch { return null; }
+function getUser() { return _cachedUser; }
+
+async function fetchUserProfile() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) { _cachedUser = null; return null; }
+  const sectorId = user.user_metadata?.sector_id;
+  const sector   = SECTORS.find(s => s.id === sectorId);
+  if (!sector) { _cachedUser = null; return null; }
+  const { data: profile } = await sb.from('profiles').select('name').eq('id', user.id).single();
+  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
+  return _cachedUser;
 }
 
-function saveSession(sectorId, userName) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ sectorId, userName: userName || '' }));
-}
-
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
-
-let _loginToken = null; // token do servidor (sem o código)
+function clearSession() { _cachedUser = null; }
 
 const _loginSpinner = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
 const _loginIcon   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`;
-const _checkIcon   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 async function doLogin() {
   const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();
@@ -1361,96 +1318,29 @@ async function doLogin() {
   if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
 
   btn.disabled = true;
-  btn.innerHTML = _loginSpinner + ' Enviando código…';
+  btn.innerHTML = _loginSpinner + ' Entrando…';
 
-  try {
-    const res  = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Erro ao entrar.';
-      btn.disabled = false;
-      btn.innerHTML = _loginIcon + ' Entrar';
-      return;
-    }
-    _loginToken = data.token;
-    // Mostra painel de OTP
-    document.getElementById('loginCredPanel').style.display = 'none';
-    document.getElementById('loginOtpPanel').style.display  = '';
-    document.getElementById('loginEmailDisplay').textContent = email;
-    document.getElementById('loginCode').value = '';
-    document.getElementById('otpError').textContent = '';
-    setTimeout(() => document.getElementById('loginCode').focus(), 100);
-  } catch {
-    errEl.textContent = 'Erro de conexão. Tente novamente.';
-    btn.disabled = false;
-    btn.innerHTML = _loginIcon + ' Entrar';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = error.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : error.message;
+    btn.disabled = false; btn.innerHTML = _loginIcon + ' Entrar';
+    return;
   }
-}
 
-async function doVerify() {
-  const code   = (document.getElementById('loginCode').value || '').trim();
-  const errEl  = document.getElementById('otpError');
-  const btn    = document.getElementById('verifyBtn');
-  errEl.textContent = '';
-  if (code.length !== 6) { errEl.textContent = 'Digite os 6 dígitos do código.'; return; }
-  if (!_loginToken) { backToLogin(); return; }
-
-  btn.disabled = true;
-  btn.innerHTML = _loginSpinner + ' Verificando…';
-
-  try {
-    const res  = await fetch('/api/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: _loginToken, code }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.error || 'Código incorreto.';
-      btn.disabled = false;
-      btn.innerHTML = _checkIcon + ' Verificar código';
-      return;
-    }
-    saveSession(data.sectorId, data.name);
-    showApp();
-  } catch {
-    errEl.textContent = 'Erro de conexão. Tente novamente.';
-    btn.disabled = false;
-    btn.innerHTML = _checkIcon + ' Verificar código';
+  await fetchUserProfile();
+  if (!_cachedUser) {
+    errEl.textContent = 'Setor não configurado para este usuário. Contate o administrador.';
+    await sb.auth.signOut();
+    btn.disabled = false; btn.innerHTML = _loginIcon + ' Entrar';
+    return;
   }
+
+  showApp();
 }
 
-async function resendCode() {
-  const email = document.getElementById('loginEmailDisplay').textContent;
-  const rBtn  = document.getElementById('resendBtn');
-  rBtn.disabled = true;
-  rBtn.textContent = 'Enviando…';
-  document.getElementById('loginOtpPanel').style.display  = 'none';
-  document.getElementById('loginCredPanel').style.display = '';
-  document.getElementById('loginPassword').value = '';
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = false;
-  btn.innerHTML = _loginIcon + ' Entrar';
-  rBtn.disabled = false;
-  rBtn.textContent = 'Reenviar código';
-}
-
-function backToLogin() {
-  _loginToken = null;
-  document.getElementById('loginOtpPanel').style.display  = 'none';
-  document.getElementById('loginCredPanel').style.display = '';
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = false;
-  btn.innerHTML = _loginIcon + ' Entrar';
-  document.getElementById('loginError').textContent = '';
-}
-
-function doLogout() {
-  clearSession();
+async function doLogout() {
+  await sb.auth.signOut();
+  _cachedUser = null;
   window.location.reload();
 }
 
@@ -1477,14 +1367,14 @@ function showSessionExpiredOverlay() {
   div.innerHTML = `<div style="background:#fff;border-radius:14px;padding:36px 44px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#0f1f35">Sessão encerrada</div>
     <div style="font-size:13px;color:#3d5170;margin-bottom:22px;line-height:1.6">Sua sessão foi encerrada em outra aba ou o acesso expirou. Faça login novamente para continuar.</div>
-    <button onclick="clearSession();window.location.reload()" style="padding:10px 24px;background:#162C45;color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Fazer login novamente</button>
+    <button onclick="doLogout()" style="padding:10px 24px;background:#162C45;color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Fazer login novamente</button>
   </div>`;
   document.body.appendChild(div);
 }
 
-// Detecta sessão encerrada em outra aba
-window.addEventListener('storage', e => {
-  if (e.key === 'fluxo_session_v1' && !e.newValue && document.getElementById('appContainer')?.style.display !== 'none') {
+// Detecta sessão encerrada (Supabase Auth)
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT' && document.getElementById('appContainer')?.style.display !== 'none') {
     showSessionExpiredOverlay();
   }
 });
@@ -1498,11 +1388,15 @@ function showApp() {
   requestNotifPermission();
 }
 
-function checkSession() {
+async function checkSession() {
   copyLogoToLogin();
-  loadEquipItems(); // inicia o cache imediatamente — antes mesmo do login
-  const user = getUser();
-  if (user) showApp();
+  loadEquipItems();
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await fetchUserProfile();
+    if (_cachedUser) { showApp(); return; }
+  }
+  // sem sessão válida — tela de login já visível por padrão
 }
 
 // ═══════════════════════════════════════════════════════════════════

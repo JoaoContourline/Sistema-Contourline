@@ -1991,7 +1991,7 @@ function fileLinkHtml(f, compact = false) {
   const kb          = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
   const fileUrl     = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
   const safeDataUrl = fileUrl;
-  const safeName    = (f.name || 'arquivo').replace(/"/g, '&quot;');
+  const safeName    = (f.name || 'arquivo').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
   const isImage     = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || fileUrl.startsWith('data:image/');
   const btnBase     = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
     padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
@@ -2051,7 +2051,7 @@ async function addMultiFile(input, key) {
   if (!input.files.length) return;
   if (!tempFilesData[key]) tempFilesData[key] = [];
   const btn = input.closest('label');
-  if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; btn.textContent = 'Enviando…'; }
+  if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
   for (const f of Array.from(input.files)) {
     if (f.size > 20 * 1024 * 1024) { showToast('Arquivo muito grande (máx 20 MB): ' + f.name, 'err'); continue; }
     try {
@@ -2061,7 +2061,7 @@ async function addMultiFile(input, key) {
       showToast('Erro ao enviar ' + f.name + ': ' + (err.message || 'tente novamente'), 'err');
     }
   }
-  if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; btn.textContent = '+ Adicionar arquivo(s)'; }
+  if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
   input.value = '';
   refreshMultiFileList(key);
 }
@@ -2221,6 +2221,7 @@ async function handleFile(input) {
     showToast('Erro ao enviar arquivo: ' + (err.message || 'tente novamente'), 'err');
     if (display) display.innerHTML = `<div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para tentar novamente</div>`;
   }
+  input.value = '';
 }
 
 // ═══════════════════════════════════════════════════════════════════

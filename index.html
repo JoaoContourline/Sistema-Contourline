@@ -3503,22 +3503,42 @@ function openSimplesFaturamento(opId) {
   tempFilesData = {};
   activeOpId    = opId;
 
-  const op = ops.find(o => o.id === opId);
-  const sf = op?.stepData?.simples_faturamento;
+  const op  = ops.find(o => o.id === opId);
+  const sf  = op?.stepData?.simples_faturamento;
   const cur = (sf?.arquivos || []).length;
 
-  document.getElementById('modal').classList.remove('wide', 'split');
-  document.getElementById('modal').innerHTML = `
+  const formHtml = `
+    ${cur > 0 ? `<div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:var(--radius);display:flex;align-items:center;gap:6px">${icon('check-circle',13,'color:var(--green)')} Já ${cur} arquivo${cur>1?'s':''} anexado${cur>1?'s':''}. Novos serão adicionados.</div>` : ''}
+    ${buildFieldHtml({ key:'sf_arquivos', label:'Arquivo(s) *', type:'multi-file', accept:'.pdf,.xml,.png,.jpg,.jpeg' })}
+    ${buildFieldHtml({ key:'sf_data', label:'Data de Emissão', type:'date' })}
+    ${buildFieldHtml({ key:'sf_obs', label:'Observações', type:'textarea', placeholder:'Boa tarde,\n\nEnvio em anexo o simples faturamento.\n\nAtenciosamente,' })}`;
+
+  const modal = document.getElementById('modal');
+  modal.classList.remove('wide');
+  modal.classList.add('split');
+  modal.innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Simples Faturamento</div>
-           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
-    <div class="modal-body">
-      ${cur > 0 ? `<div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:var(--radius);display:flex;align-items:center;gap:6px">${icon('check-circle',13,'color:var(--green)')} Já ${cur} arquivo${cur>1?'s':''} anexado${cur>1?'s':''}. Novos serão adicionados.</div>` : ''}
-      ${buildFieldHtml({ key:'sf_arquivos', label:'Arquivo(s) *', type:'multi-file', accept:'.pdf,.xml,.png,.jpg,.jpeg' })}
-      ${buildFieldHtml({ key:'sf_data', label:'Data de Emissão', type:'date' })}
-      ${buildFieldHtml({ key:'sf_obs', label:'Observações', type:'textarea', placeholder:'Boa tarde,\n\nEnvio em anexo o simples faturamento.\n\nAtenciosamente,' })}
+    <div class="modal-split-body">
+      <div class="split-pane split-pane-right">
+        <div class="split-pane-header">Preencher agora</div>
+        ${formHtml}
+      </div>
+      <div class="split-pane split-pane-left">
+        <div class="split-pane-left-header">
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+            <span class="badge ${stepBadge(op.status, op).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status, op).label}</span>
+            ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
+        </div>
+        <div class="split-pane-left-scroll">
+          ${buildInfoSections(op, opId)}
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
@@ -3535,6 +3555,28 @@ function openSimplesFaturamento(opId) {
   }
 
   document.getElementById('overlay').classList.add('open');
+
+  requestAnimationFrame(() => {
+    const m      = document.getElementById('modal');
+    if (!m.classList.contains('split')) return;
+    const hEl    = m.querySelector('.modal-header');
+    const fEl    = m.querySelector('.modal-footer');
+    const body   = m.querySelector('.modal-split-body');
+    const lhEl   = m.querySelector('.split-pane-left-header');
+    const scroll = m.querySelector('.split-pane-left-scroll');
+    if (!body) return;
+    const maxH  = Math.min(window.innerHeight * 0.9, window.innerHeight - 40);
+    const bodyH = maxH - (hEl?.offsetHeight || 0) - (fEl?.offsetHeight || 0);
+    m.style.height    = maxH + 'px';
+    m.style.maxHeight = maxH + 'px';
+    body.style.height = bodyH + 'px';
+    if (scroll) {
+      const scrollH = bodyH - (lhEl?.offsetHeight || 0);
+      scroll.style.height    = scrollH + 'px';
+      scroll.style.maxHeight = scrollH + 'px';
+      scroll.style.overflowY = 'auto';
+    }
+  });
 }
 
 function saveSimplesFaturamento(opId) {

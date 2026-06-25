@@ -1579,6 +1579,20 @@ function advanceOP(opId, formData) {
 
   if (formData && Object.keys(formData).length) op.stepData[op.status] = { ...formData };
 
+  // Porta dupla: financeiro só avança quando simples faturamento também estiver pronto
+  if (op.status === 'aguard_financeiro') {
+    const sfPronto = (op.stepData?.simples_faturamento?.arquivos?.length || 0) > 0;
+    if (!sfPronto) {
+      op.stepData.aguard_financeiro = { ...(op.stepData.aguard_financeiro || {}), ...formData, aprovado: true };
+      const u = getUser(), v = getActiveView();
+      op.history.push({ step: op.status, actor: v?.role || '', actorName: u?.userName || u?.name || '—', ts: nowTs(), action: 'Financeiro aprovado — aguardando Simples Faturamento', note: formData?.descricao || '' });
+      dbSaveOp(op);
+      renderAll();
+      showToast('Financeiro aprovado! Aguardando Simples Faturamento do Fiscal.', 'ok');
+      return;
+    }
+  }
+
   const user     = getUser();
   const view     = getActiveView();
   op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
@@ -2719,6 +2733,11 @@ function openCard(opId) {
   if (!op) { showToast('OP não encontrada — recarregue', 'err'); return; }
   const view = getActiveView();
   const step = STEPS[op.status];
+  // Financeiro já aprovou mas aguarda simples faturamento: mostra info para todos
+  if (op.status === 'aguard_financeiro' && op.stepData?.aguard_financeiro?.aprovado === true) {
+    openInfoModal(opId);
+    return;
+  }
   const canAct = step?.owner === view?.role;
   canAct ? openActionModal(opId,'advance') : openInfoModal(opId);
 }
@@ -3071,6 +3090,12 @@ function buildInfoSections(op, opId) {
   }
 
   // ── SIMPLES FATURAMENTO (fiscal, side-channel) ────────────────────
+  if (sd.aguard_financeiro?.aprovado && !sd.simples_faturamento) {
+    sections.push(`<div style="background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
+      ${icon('alert-triangle',14,'color:var(--orange);flex-shrink:0;margin-top:1px')}
+      <div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Aguardando Simples Faturamento</strong><br><span style="color:var(--text2)">O Financeiro já aprovou. O Fiscal precisa lançar o Simples Faturamento para a OP avançar.</span></div>
+    </div>`);
+  }
   if (sd.simples_faturamento) {
     const d = sd.simples_faturamento;
     let sfHtml = `<div class="detail-grid">
@@ -3477,6 +3502,17 @@ function saveSimplesFaturamento(opId) {
     dataEmissao: data || existing.dataEmissao || '',
     observacoes: obs  || existing.observacoes || '',
   };
+
+  // Porta dupla: se financeiro já aprovou, avançar para aguard_nf agora
+  if (op.stepData?.aguard_financeiro?.aprovado === true && op.status === 'aguard_financeiro') {
+    const user = getUser(), view = getActiveView();
+    op.history.push({ step: 'aguard_financeiro', actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: 'Simples Faturamento lançado — avançado para Logística', note: '' });
+    op.status = 'aguard_nf';
+    dbSaveOp(op);
+    showToast('Simples faturamento salvo! OP avançada para Logística.', 'ok');
+    closeModal();
+    return;
+  }
 
   dbSaveOp(op);
   showToast('Simples faturamento salvo!', 'ok');

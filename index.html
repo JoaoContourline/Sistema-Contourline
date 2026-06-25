@@ -1547,6 +1547,7 @@ function getQueue(user) {
     const step = STEPS[op.status];
     if (!step) return false;
     if (user.role === 'fiscal' && op.status === 'aguard_financeiro' && !op.stepData?.simples_faturamento) return true;
+    if (user.role === 'financeiro' && op.status === 'aguard_financeiro' && op.stepData?.aguard_financeiro?.aprovado === true) return false;
     return step.owner === user.role;
   });
 }
@@ -1664,7 +1665,14 @@ function semaforo(op) {
   return { cls:'b-red', label:`${d-30}d crítico`, icon:'!!' };
 }
 
-function stepBadge(status) {
+function stepBadge(status, op) {
+  if (status === 'aguard_financeiro' && op) {
+    const finOk = op.stepData?.aguard_financeiro?.aprovado === true;
+    const sfOk  = (op.stepData?.simples_faturamento?.arquivos?.length || 0) > 0;
+    if (finOk && !sfOk)  return { cls: 'b-purple', label: 'Aguard. Simples Fat.' };
+    if (!finOk && sfOk)  return { cls: 'b-yellow', label: 'Aguard. Financeiro' };
+    if (!finOk && !sfOk) return { cls: 'b-yellow', label: 'Aguard. Fin. + SF' };
+  }
   const s = STEPS[status];
   return s ? { cls: COLOR_MAP[s.color]||'b-gray', label: s.label } : { cls:'b-gray', label: status };
 }
@@ -2394,7 +2402,7 @@ function renderQueue(user, el) {
 
   // ── FINANCEIRO (seções: Validação + Bloqueadas) ──────────────────
   if (user.role === 'financeiro') {
-    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro');
+    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro' && !o.stepData?.aguard_financeiro?.aprovado);
     const bloqueadaOps = ops.filter(o => o.status === 'bloqueada');
     const boletoOps    = ops.filter(o => o.boletoTask?.status === 'pendente');
     const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;
@@ -2572,7 +2580,7 @@ function filterTodas(val) {
 function card(op, inQueue, animIdx, infoOnly = false) {
   const user     = getActiveView();
   const step     = STEPS[op.status];
-  const badge    = stepBadge(op.status);
+  const badge    = stepBadge(op.status, op);
   const sem      = semaforo(op);
   const isBlocked = op.status === 'bloqueada';
 

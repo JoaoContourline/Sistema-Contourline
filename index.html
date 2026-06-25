@@ -2673,6 +2673,15 @@ function buildContextPanel(op) {
     ]));
   }
 
+  // Simples Faturamento (fiscal, side-channel)
+  if (sd.simples_faturamento) {
+    const d = sd.simples_faturamento;
+    parts.push(sec('Simples Faturamento', [
+      d.dataEmissao ? cRow('Data de emissão', fmtDate(d.dataEmissao)) : '',
+      cRow('Obs.', d.observacoes),
+    ]));
+  }
+
   // Re-emissão solicitada (logística rejeitou despacho)
   if (sd.aguard_despacho_reject) {
     const d = sd.aguard_despacho_reject;
@@ -3061,6 +3070,20 @@ function buildInfoSections(op, opId) {
     sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
   }
 
+  // ── SIMPLES FATURAMENTO (fiscal, side-channel) ────────────────────
+  if (sd.simples_faturamento) {
+    const d = sd.simples_faturamento;
+    let sfHtml = `<div class="detail-grid">
+      ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
+      ${dItem('Observações', d.observacoes)}
+    </div>`;
+    const sfFiles = d.arquivos
+      ? (Array.isArray(d.arquivos) ? d.arquivos : [d.arquivos])
+      : [];
+    if (sfFiles.length) sfHtml += `<div style="margin-top:8px">${fileLinksHtml(sfFiles)}</div>`;
+    sections.push(infoAcc('Simples Faturamento', 'file-text', sfHtml));
+  }
+
   // ── CONFIRMAÇÃO DE ENTREGA ────────────────────────────────────────
   if (sd.transito || op.status === 'entregue') {
     const d = sd.transito || {};
@@ -3271,12 +3294,18 @@ function openInfoModal(opId) {
 
   const activeView = getActiveView();
   const canAnexarFotos  = activeView?.role === 'logistica'  && !!sd.transito;
+  const canSimplesFat   = activeView?.role === 'fiscal';
 
   const anexarBoletoBtn = '';
 
   const anexarFotosBtn = canAnexarFotos
     ? `<button class="btn-action" onclick="openAnexarFotos(${opId})" style="display:inline-flex;align-items:center;gap:6px">
         ${icon('image',13)} Anexar Fotos
+       </button>` : '';
+
+  const simplesFatBtn = canSimplesFat
+    ? `<button class="btn-action" onclick="openSimplesFaturamento(${opId})" style="display:inline-flex;align-items:center;gap:6px">
+        ${icon('file-text',13)} ${sd.simples_faturamento ? 'Atualizar Simples Fat.' : 'Simples Faturamento'}
        </button>` : '';
 
   document.getElementById('modal').classList.add('wide');
@@ -3288,7 +3317,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer">${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${anexarBoletoBtn}${simplesFatBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }
@@ -3387,6 +3416,70 @@ function saveAnexarFotos(opId) {
 
   dbSaveOp(op);
   showToast(`${novas.length} foto${novas.length>1?'s':''} anexada${novas.length>1?'s':''}!`, 'ok');
+  openInfoModal(opId);
+}
+
+// ─── SIMPLES FATURAMENTO (fiscal, qualquer hora) ────────────────────
+function openSimplesFaturamento(opId) {
+  tempFiles     = {};
+  tempFilesData = {};
+  activeOpId    = opId;
+
+  const op = ops.find(o => o.id === opId);
+  const sf = op?.stepData?.simples_faturamento;
+  const cur = (sf?.arquivos || []).length;
+
+  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">Simples Faturamento</div>
+           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body">
+      ${cur > 0 ? `<div style="font-size:12px;color:var(--text2);margin-bottom:12px;padding:8px 10px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:var(--radius);display:flex;align-items:center;gap:6px">${icon('check-circle',13,'color:var(--green)')} Já ${cur} arquivo${cur>1?'s':''} anexado${cur>1?'s':''}. Novos serão adicionados.</div>` : ''}
+      ${buildFieldHtml({ key:'sf_arquivos', label:'Arquivo(s) *', type:'multi-file', accept:'.pdf,.xml,.png,.jpg,.jpeg' })}
+      ${buildFieldHtml({ key:'sf_data', label:'Data de Emissão', type:'date' })}
+      ${buildFieldHtml({ key:'sf_obs', label:'Observações', type:'textarea', placeholder:'Boa tarde,\n\nEnvio em anexo o simples faturamento.\n\nAtenciosamente,' })}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-primary" onclick="saveSimplesFaturamento(${opId})">${icon('file-text',13)} Salvar</button>
+    </div>`;
+
+  if (sf?.dataEmissao) {
+    const el = document.getElementById('f-sf_data');
+    if (el) el.value = sf.dataEmissao;
+  }
+  if (sf?.observacoes) {
+    const el = document.getElementById('f-sf_obs');
+    if (el) el.value = sf.observacoes;
+  }
+
+  document.getElementById('overlay').classList.add('open');
+}
+
+function saveSimplesFaturamento(opId) {
+  const op    = ops.find(o => o.id === opId);
+  const novos = tempFilesData['sf_arquivos'] || [];
+  const data  = document.getElementById('f-sf_data')?.value || '';
+  const obs   = document.getElementById('f-sf_obs')?.value?.trim() || '';
+
+  const existing = op.stepData?.simples_faturamento || {};
+  if (!novos.length && !(existing.arquivos?.length)) {
+    showToast('Anexe ao menos um arquivo', 'err');
+    return;
+  }
+
+  if (!op.stepData) op.stepData = {};
+  op.stepData.simples_faturamento = {
+    arquivos:    [...(existing.arquivos || []), ...novos],
+    dataEmissao: data || existing.dataEmissao || '',
+    observacoes: obs  || existing.observacoes || '',
+  };
+
+  dbSaveOp(op);
+  showToast('Simples faturamento salvo!', 'ok');
   openInfoModal(opId);
 }
 

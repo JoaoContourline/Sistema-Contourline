@@ -1546,6 +1546,7 @@ function getQueue(user) {
   return ops.filter(op => {
     const step = STEPS[op.status];
     if (!step) return false;
+    if (user.role === 'fiscal' && op.status === 'aguard_financeiro' && !op.stepData?.simples_faturamento) return true;
     return step.owner === user.role;
   });
 }
@@ -2453,10 +2454,54 @@ function renderQueue(user, el) {
     return;
   }
 
+  // ── FISCAL (seções: Simples Faturamento + Notas Fiscais) ────────
+  if (user.role === 'fiscal') {
+    const sfOps = ops.filter(o => o.status === 'aguard_financeiro' && !o.stepData?.simples_faturamento);
+    const nfOps = ops.filter(o => o.status === 'aguard_emissao');
+    const total = sfOps.length + nfOps.length;
+
+    let html = `<div class="step-header"><div class="step-title">Fiscal — Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Simples faturamento e emissão de notas fiscais</div></div>`;
+
+    if (!total) {
+      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação fiscal.</div></div>`;
+    } else {
+      if (sfOps.length) html += `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--purple-bg)">
+              ${icon('file-text',16,'color:var(--purple)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Simples Faturamento Pendente</div>
+              <div class="section-header-desc">Envie o simples faturamento para liberar a OP para logística</div>
+            </div>
+            <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${sfOps.length}</span>
+          </div>
+          <div class="card-grid">${sfOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+
+      if (nfOps.length) html += `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-header-icon" style="background:var(--purple-bg)">
+              ${icon('file-plus',16,'color:var(--purple)')}
+            </div>
+            <div style="flex:1">
+              <div class="section-header-title">Notas Fiscais a Emitir</div>
+              <div class="section-header-desc">Preencha os dados — emita a NF e registre o número aqui</div>
+            </div>
+            <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${nfOps.length}</span>
+          </div>
+          <div class="card-grid">${nfOps.map((op,i) => card(op,true,i)).join('')}</div>
+        </div>`;
+    }
+    el.innerHTML = html;
+    return;
+  }
+
   // ── DEMAIS SETORES ───────────────────────────────────────────────
-  const config = {
-    fiscal: ['Notas Fiscais a Emitir', 'Preencha os dados — emita a NF e registre o número aqui'],
-  };
+  const config = {};
   const [title, desc] = config[user.role] || ['Pendentes', ''];
   const queue = getQueue(user);
   el.innerHTML = `<div class="step-header"><div class="step-title">${title}</div><div class="step-desc">${desc}</div></div>

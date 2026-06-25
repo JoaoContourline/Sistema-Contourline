@@ -2592,7 +2592,8 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     return `<div class="pipe-dot"></div>`;
   }).join('');
 
-  const canAct = inQueue && step?.owner === user.role;
+  const canAct   = inQueue && step?.owner === user.role;
+  const needsSF  = inQueue && user.role === 'fiscal' && op.status === 'aguard_financeiro' && !op.stepData?.simples_faturamento;
 
   const skippedFin = op.history.some(h => h.note?.includes('Validação financeira pulada'));
   const lastEvt    = op.history[op.history.length-1];
@@ -2603,7 +2604,11 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     : `<span class="equip-chip">${op.equipamento||'—'}</span>`;
 
   let footer = '';
-  if (canAct) {
+  if (needsSF) {
+    footer = `<div class="card-footer">
+      <button class="btn-action" onclick="event.stopPropagation();openSimplesFaturamento(${op.id})">${icon('file-text',13)} Simples Faturamento</button>
+    </div>`;
+  } else if (canAct) {
     footer = `<div class="card-footer">
       <button class="btn-action" onclick="event.stopPropagation();openActionModal(${op.id},'advance')">${step.actionLabel}</button>
       ${step.getReject ? `<button class="btn-action danger" onclick="event.stopPropagation();openActionModal(${op.id},'reject')">${step.rejectLabel||'Bloquear'}</button>` : ''}
@@ -2612,7 +2617,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
 
   const isEntregue = op.status === 'entregue';
   return `
-  <div class="card ${canAct&&!infoOnly?'actionable':''} ${isBlocked?'blocked':''} ${isEntregue?'entregue':''}" style="animation-delay:${animIdx*.04}s" onclick="${infoOnly?`openInfoModal(${op.id})`:`openCard(${op.id})`}">
+  <div class="card ${(canAct||needsSF)&&!infoOnly?'actionable':''} ${isBlocked?'blocked':''} ${isEntregue?'entregue':''}" style="animation-delay:${animIdx*.04}s" onclick="${infoOnly?`openInfoModal(${op.id})`:`openCard(${op.id})`}">
     <div class="card-top">
       <div>
         <div class="card-op">OP ${op.numero}</div>
@@ -2786,7 +2791,10 @@ function openCard(opId) {
   if (!op) { showToast('OP não encontrada — recarregue', 'err'); return; }
   const view = getActiveView();
   const step = STEPS[op.status];
-  // Financeiro já aprovou mas aguarda simples faturamento: mostra info para todos
+  if (view?.role === 'fiscal' && op.status === 'aguard_financeiro' && !op.stepData?.simples_faturamento) {
+    openSimplesFaturamento(opId);
+    return;
+  }
   if (op.status === 'aguard_financeiro' && op.stepData?.aguard_financeiro?.aprovado === true) {
     openInfoModal(opId);
     return;
@@ -3372,18 +3380,12 @@ function openInfoModal(opId) {
 
   const activeView = getActiveView();
   const canAnexarFotos  = activeView?.role === 'logistica'  && !!sd.transito;
-  const canSimplesFat   = activeView?.role === 'fiscal';
 
   const anexarBoletoBtn = '';
 
   const anexarFotosBtn = canAnexarFotos
     ? `<button class="btn-action" onclick="openAnexarFotos(${opId})" style="display:inline-flex;align-items:center;gap:6px">
         ${icon('image',13)} Anexar Fotos
-       </button>` : '';
-
-  const simplesFatBtn = canSimplesFat
-    ? `<button class="btn-action" onclick="openSimplesFaturamento(${opId})" style="display:inline-flex;align-items:center;gap:6px">
-        ${icon('file-text',13)} ${sd.simples_faturamento ? 'Atualizar Simples Fat.' : 'Simples Faturamento'}
        </button>` : '';
 
   document.getElementById('modal').classList.add('wide');
@@ -3395,7 +3397,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer">${anexarBoletoBtn}${simplesFatBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }

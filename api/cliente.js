@@ -69,14 +69,18 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: err.message });
   }
 
-  // customerVendor devolve { items: [...] }; pode haver mais de uma loja
+  // customerVendor devolve { items: [...] } — o mesmo código pode trazer o
+  // CLIENTE (type 1) e o FORNECEDOR (type 2). Aqui queremos o cliente.
   const items = Array.isArray(json.items) ? json.items
               : Array.isArray(json.data)  ? json.data
               : (json && (json.name || json.shortName)) ? [json] : [];
 
-  let item = items[0] || null;
-  if (loja && items.length > 1) {
-    const byStore = items.find(i => String(i.store || i.storeId || '').trim() === loja);
+  const clientes = items.filter(i => i.type === 1 || i.type === '1');
+  const pool = clientes.length ? clientes : items;
+
+  let item = pool[0] || null;
+  if (loja && pool.length > 1) {
+    const byStore = pool.find(i => String(i.storeId || i.store || '').trim() === loja);
     if (byStore) item = byStore;
   }
 

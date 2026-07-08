@@ -4619,11 +4619,18 @@ function fillClientFromProtheus(d) {
   const govInfo = d.GovernmentalInformation || [];
   const rgEntry = govInfo.find(function(g){ return g.name === 'RG'; });
   if (rgEntry && rgEntry.id && rgEntry.id.trim()) fill('nova-rg', rgEntry.id.trim());
-  // CPF (11 díg.) ou CNPJ (14 díg.) — pega pela quantidade de dígitos, independente do rótulo
+  // CPF/CNPJ: casa pela entrada "CPF|CNPJ"; valida 11/14 dígitos; senão varre por tamanho
   let doc = '';
-  for (const g of govInfo) {
-    const dig = String(g.id || '').replace(/\D/g, '');
-    if (dig.length === 11 || dig.length === 14) { doc = dig; break; }
+  const docEntry = govInfo.find(g => /CPF|CNPJ/i.test(g.name || ''));
+  if (docEntry) {
+    const dig = String(docEntry.id || '').replace(/\D/g, '');
+    if (dig.length === 11 || dig.length === 14) doc = dig;
+  }
+  if (!doc) {
+    for (const g of govInfo) {
+      const dig = String(g.id || '').replace(/\D/g, '');
+      if (dig.length === 11 || dig.length === 14) { doc = dig; break; }
+    }
   }
   if (doc) fill('nova-cpf', doc);
   togglePFFields(d.entityType !== 'J');

@@ -1721,6 +1721,12 @@ function renderEquipItem(e, i) {
         value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>
+    <div style="display:flex;gap:5px;align-items:center">
+      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">QR</span>
+      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
+        type="text" placeholder="QR Code do equipamento"
+        value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
+    </div>
   </div>`;
 }
 
@@ -1849,6 +1855,11 @@ function equipPrice(idx, val) {
 }
 
 function equipDiscount(idx, val) { /* no-op - desconto global no formulario */ }
+
+function equipQrcode(idx, val) {
+  if (!tempEquipList[idx]) return;
+  tempEquipList[idx].qrcode = (val || '').trim();
+}
 
 function updateEquipListTotal() {
   const el = document.getElementById('equip-list-total');
@@ -3004,7 +3015,8 @@ function buildInfoSections(op, opId) {
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
       const lt = e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
-      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}</div>`;
+      const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
+      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
@@ -4407,6 +4419,7 @@ function preencherPedido(p) {
       qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
       valorUnit: Number(it.preco) > 0 ? Number(it.preco).toString() : '',
       desconto:  '',
+      qrcode:    (it.qrcode || '').trim(),
     }));
     refreshEquipList();
   }
@@ -4979,7 +4992,7 @@ function printPedidoVenda(opId) {
       return `<tr>
         <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>
         <td style="text-align:center;width:40px">${e.qty||1}</td>
-        <td>${e.name}</td>
+        <td>${e.name}${e.qrcode?`<br><span style="font-family:'DM Mono',monospace;font-size:9px;color:#555">QR: ${e.qrcode}</span>`:''}</td>
         <td style="text-align:right">${vu}</td>
         <td style="text-align:right">${vt}</td>
       </tr>`;

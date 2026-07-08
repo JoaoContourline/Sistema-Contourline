@@ -1320,6 +1320,7 @@ let currentTab    = 'fila';
 let activeOpId    = null;
 let modalMode     = null;
 let tempEquipList    = []; // [{name, qty}]
+let tempVendedores   = []; // vendedores (1..5) vindos do pedido de venda
 let tempFiles        = {}; // { key: [File, ...] } — only used for File object reference
 let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } — persisted em formData
 let todasFilter      = ''; // filtro de busca na aba Todas as OPs
@@ -1700,7 +1701,7 @@ function calcLineTotal(e) {
 
 function renderEquipItem(e, i) {
   const isFree    = !!e.gratuito;
-  const lineTotal = (!isFree && e.valorUnit) ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+  const lineTotal = (!isFree && e.valorUnit) ? Math.max(0, (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) - (parseFloat(e.desconto)||0)) : 0;
   const lt = isFree ? ''
            : lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
   return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px">
@@ -1722,6 +1723,12 @@ function renderEquipItem(e, i) {
         value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">`}
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>
+    ${isFree ? '' : `<div style="display:flex;gap:5px;align-items:center">
+      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desc.</span>
+      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
+        type="text" inputmode="decimal" placeholder="Desconto R$"
+        value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
+    </div>`}
     <div style="display:flex;gap:5px;align-items:center">
       <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">QR</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
@@ -1849,13 +1856,24 @@ function equipPrice(idx, val) {
   if (!tempEquipList[idx]) return;
   const numVal = parseBRL(val);
   tempEquipList[idx].valorUnit = numVal > 0 ? numVal.toString() : '';
-  const lineT = numVal ? (parseInt(tempEquipList[idx].qty)||1) * numVal : 0;
+  const desc = parseFloat(tempEquipList[idx].desconto) || 0;
+  const lineT = numVal ? Math.max(0, (parseInt(tempEquipList[idx].qty)||1) * numVal - desc) : 0;
   const el = document.getElementById('equip-total-' + idx);
   if (el) el.textContent = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
   updateEquipListTotal();
 }
 
-function equipDiscount(idx, val) { /* no-op - desconto global no formulario */ }
+// Desconto por equipamento (R$ sobre a linha)
+function equipDiscount(idx, val) {
+  if (!tempEquipList[idx]) return;
+  const n = parseBRL(val);
+  tempEquipList[idx].desconto = n > 0 ? n.toString() : '';
+  const unit  = parseFloat(tempEquipList[idx].valorUnit) || 0;
+  const lineT = unit ? Math.max(0, (parseInt(tempEquipList[idx].qty)||1) * unit - (n > 0 ? n : 0)) : 0;
+  const el = document.getElementById('equip-total-' + idx);
+  if (el) el.textContent = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  updateEquipListTotal();
+}
 
 function equipQrcode(idx, val) {
   if (!tempEquipList[idx]) return;
@@ -1877,28 +1895,21 @@ function updateEquipListTotal() {
 
 function calcDescontoTotal() {
   const isAllFree = tempEquipList.length > 0 && tempEquipList.every(e => e.gratuito);
-  const descEl = document.getElementById('nova-desconto');
-  if (descEl) {
-    descEl.disabled = isAllFree;
-    descEl.style.opacity = isAllFree ? '.45' : '';
-    if (isAllFree) descEl.value = '';
-  }
   const subtotal = tempEquipList.reduce((sum, e) => {
     if (e.gratuito || !e.valorUnit) return sum;
     return sum + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
   }, 0);
-  let desconto = isAllFree ? 0 : (parseBRL(descEl?.value) || 0);
-
-  // Cap visual: limita o campo quando há subtotal definido
-  if (subtotal > 0 && desconto > subtotal) {
-    desconto = subtotal;
-    const el = document.getElementById('nova-desconto');
-    if (el) el.value = subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    showToast('Desconto limitado ao valor total (100%)', 'err');
-  }
-  // Valor efetivo armazenado: nunca excede o subtotal (mesmo que subtotal=0)
-  const descontoEfetivo = Math.min(desconto, subtotal);
+  // Desconto = soma dos descontos por equipamento
+  const descTotal = tempEquipList.reduce((sum, e) => {
+    if (e.gratuito) return sum;
+    return sum + (parseFloat(e.desconto)||0);
+  }, 0);
+  const descontoEfetivo = Math.min(descTotal, subtotal);
   const total = Math.max(0, subtotal - descontoEfetivo);
+
+  // Campo global é só leitura: mostra a soma dos descontos por item
+  const descEl = document.getElementById('nova-desconto');
+  if (descEl) descEl.value = descontoEfetivo > 0 ? descontoEfetivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
 
   const elDisp = document.getElementById('nova-valor-total-display');
   if (elDisp) elDisp.textContent = isAllFree ? 'Gratuito' : (total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—');
@@ -2991,7 +3002,7 @@ function buildInfoSections(op, opId) {
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
       const lt = e.gratuito ? ` — <span style="color:var(--green);font-weight:700">Gratuito</span>`
-               : e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
+               : e.valorUnit ? ` — ${fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)))}` : '';
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
       return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
@@ -3393,7 +3404,7 @@ function openInfoModal(opId) {
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('modal').classList.remove('wide', 'split');
-  activeOpId = null; modalMode = null; tempEquipList = []; tempFiles = {}; tempFilesData = {};
+  activeOpId = null; modalMode = null; tempEquipList = []; tempVendedores = []; tempFiles = {}; tempFilesData = {};
   _pendingAdvance = null; // garante que delay modal não vaza entre opens
 }
 
@@ -4004,7 +4015,7 @@ const DRAFT_TEXT_IDS = [
   'nova-endCidade','nova-cep-cliente','nova-tel','nova-tipoContrato',
   'nova-detalhesPagamento','nova-simulador','nova-entrada','nova-valorEntrada',
   'nova-enderecoEntrega','nova-contatoEntrega','nova-prazo','nova-aContarDe',
-  'nova-treinamento','nova-descricao',
+  'nova-treinamento','nova-descricao','nova-instagram',
 ];
 
 function saveDraft() {
@@ -4059,6 +4070,7 @@ function clearDraft() {
 
 function openNovaOP() {
   tempEquipList    = [];
+  tempVendedores   = [];
   const todayISO = new Date().toISOString().split('T')[0];
   const analistaOptions = `<option value="">— Selecionar —</option>` + VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
@@ -4098,6 +4110,7 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Contrato</label>
               <input class="form-input" id="nova-numContrato"></div>
           </div>
+          <div id="nova-vendedores-extra"></div>
         </div></div>
 
       <div class="acc"><div ${acc('Dados do Cliente')}
@@ -4152,16 +4165,17 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Tel.</label>
               <input class="form-input" id="nova-tel"></div>
           </div>
+          <div class="form-group"><label class="form-label">Instagram</label>
+            <input class="form-input" id="nova-instagram"></div>
         </div></div>
 
       <div class="acc"><div ${acc('Equipamentos')}
           ${equipListHtml()}
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:6px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
             <div style="display:flex;align-items:center;gap:7px">
-              <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Desconto (R$)</span>
-              <input class="form-input" id="nova-desconto" type="text" inputmode="decimal"
-                oninput="brlFormat(this);calcDescontoTotal()"
-                style="width:130px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px"></div>
+              <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Desconto total (R$)</span>
+              <input class="form-input" id="nova-desconto" type="text" readonly title="Soma dos descontos por equipamento"
+                style="width:130px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;background:var(--surface2)"></div>
             <div style="display:flex;align-items:center;gap:7px">
               <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Valor Total</span>
               <span id="nova-valor-total-display" style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);min-width:110px;text-align:right">—</span>
@@ -4339,28 +4353,50 @@ function preencherPedido(p) {
     if (el && v != null && String(v).trim() !== '') el.value = String(v).trim();
   };
 
-  // Cliente (somente nome — CPF/endereço não vêm neste endpoint)
+  // Cliente (nome — CPF/endereço vêm da busca do cliente por código)
   fill('nova-cliente', p.cliente && p.cliente.nome);
-  // Data de emissão
   fill('nova-data', p.emissao);
-  // Contrato / Vendedor / Treinamento (se preenchidos no Protheus)
-  fill('nova-numContrato',   p.contrato);
-  fill('nova-vendedorCanal', p.vendedor);
-  fill('nova-treinamento',   p.treinamento);
+  fill('nova-numContrato', p.contrato);
+  fill('nova-treinamento', p.treinamento);
+  fill('nova-instagram',   p.instagram);
 
-  // Detalhes do pagamento (condição + parcelas)
-  const linhas = [];
-  if (p.condPagDesc || p.condPag) linhas.push('Cond. pagto: ' + (p.condPagDesc || p.condPag));
-  (p.parcelas || []).forEach(pc => {
-    const vlr = Number(pc.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    linhas.push(`Parcela ${pc.n}: R$ ${vlr}${pc.venc ? ' — venc. ' + pc.venc : ''}`);
-  });
+  // Vendedores (1..5): 1º no campo principal, extras aparecem abaixo (só preenchidos)
+  const vends = Array.isArray(p.vendedores) ? p.vendedores.filter(Boolean) : [];
+  fill('nova-vendedorCanal', vends[0]);
+  tempVendedores = vends.slice();
+  renderVendedoresExtra(vends.slice(1));
+
+  // Simulador
+  if (Number(p.simulador) > 0) fill('nova-simulador', brlFmtNum(p.simulador));
+
+  // Previsão de entrega (data do pedido) → converte em prazo de dias corridos
+  if (p.previsaoEntrega) {
+    const ac = document.getElementById('nova-aContarDe');
+    const du = document.getElementById('nova-diasUteis');
+    const pz = document.getElementById('nova-prazo');
+    if (du) du.checked = false;
+    if (ac && p.emissao) ac.value = p.emissao;
+    const base = new Date((ac?.value || p.emissao || '') + 'T12:00:00');
+    const alvo = new Date(p.previsaoEntrega + 'T12:00:00');
+    if (pz && !isNaN(base.getTime()) && !isNaN(alvo.getTime())) {
+      const dias = Math.round((alvo - base) / 86400000);
+      if (dias > 0) pz.value = dias;
+    }
+    calcDataPrevista();
+  }
+
+  // Pagamento: cada forma (condição) com parcela + vencimento — só as preenchidas
+  const linhas = (p.pagamentos || []).map(pg => {
+    const vlr = Number(pg.valor||0) > 0 ? ` — R$ ${Number(pg.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
+    const vc  = pg.venc ? ` (venc. ${pg.venc})` : '';
+    return `${pg.forma || ''}${vlr}${vc}`.trim();
+  }).filter(Boolean);
   if (linhas.length) {
     const el = document.getElementById('nova-detalhesPagamento');
     if (el) el.value = linhas.join('\n');
   }
 
-  // Itens → lista de equipamentos
+  // Itens → equipamentos (preço bruto + desconto por item)
   if (Array.isArray(p.itens) && p.itens.length) {
     // Condição de pagamento só com zeros (00 / 000) → itens saem gratuitos
     const cpDigits = String(p.condPag || '').replace(/\D/g, '');
@@ -4370,7 +4406,7 @@ function preencherPedido(p) {
       code:      (it.produto || '').trim(),
       qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
       valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
-      desconto:  '',
+      desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
       qrcode:    (it.qrcode || '').trim(),
       gratuito:  gratuito,
     }));
@@ -4378,6 +4414,17 @@ function preencherPedido(p) {
   }
 
   saveDraft();
+}
+
+// Vendedores extras (2..5) — exibição, aparecem quando vêm preenchidos no pedido
+function renderVendedoresExtra(list) {
+  const wrap = document.getElementById('nova-vendedores-extra');
+  if (!wrap) return;
+  wrap.innerHTML = (list || []).filter(Boolean).map((v, i) => `
+    <div class="form-group" style="margin-top:6px">
+      <label class="form-label">Vendedor(a) ${i + 2}</label>
+      <input class="form-input" value="${String(v).replace(/"/g,'&quot;')}" readonly style="background:var(--surface2)">
+    </div>`).join('');
 }
 
 function updateEntradaHint(v) {
@@ -4572,6 +4619,13 @@ function fillClientFromProtheus(d) {
   const govInfo = d.GovernmentalInformation || [];
   const rgEntry = govInfo.find(function(g){ return g.name === 'RG'; });
   if (rgEntry && rgEntry.id && rgEntry.id.trim()) fill('nova-rg', rgEntry.id.trim());
+  // CPF (11 díg.) ou CNPJ (14 díg.) — pega pela quantidade de dígitos, independente do rótulo
+  let doc = '';
+  for (const g of govInfo) {
+    const dig = String(g.id || '').replace(/\D/g, '');
+    if (dig.length === 11 || dig.length === 14) { doc = dig; break; }
+  }
+  if (doc) fill('nova-cpf', doc);
   togglePFFields(d.entityType !== 'J');
 }
 
@@ -4808,6 +4862,7 @@ async function submitNovaOP() {
   const aContarDe        = g('nova-aContarDe')?.value;
   const dataPrevista     = g('nova-data-prevista')?.textContent;
   const treinamento      = v('nova-treinamento');
+  const instagram        = v('nova-instagram');
   const descricao        = v('nova-descricao');
   const arquivo              = tempFilesData['nova-arquivo'] || null;
   const comprovanteEntrada   = (tempFilesData['comprovanteEntrada'] || []).length
@@ -4873,7 +4928,8 @@ async function submitNovaOP() {
       contatoEntrega, prazo, diasUteis,
       aContarDe: fmtD(aContarDe),
       dataPrevista: (dataPrevista && dataPrevista !== '—') ? dataPrevista : '',
-      treinamento,
+      treinamento, instagram,
+      vendedores: [...tempVendedores],
       equipamentos: tempEquipList.map(e => ({ ...e })),
     },
     stepData: {
@@ -4953,7 +5009,7 @@ function printPedidoVenda(opId) {
       // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
       const code = e.code || (_equipCache?.find(eq => eq.name === e.name)?.code) || '';
       const vu = e.gratuito ? 'Gratuito' : e.valorUnit ? fmtBRL(e.valorUnit) : '—';
-      const lineT = (!e.gratuito && e.valorUnit) ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+      const lineT = (!e.gratuito && e.valorUnit) ? Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)) : 0;
       const vt = e.gratuito ? 'Gratuito' : lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
       return `<tr>
         <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>

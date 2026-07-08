@@ -91,25 +91,44 @@ export default async function handler(req, res) {
 
   const cab = row.cabecalho;
 
-  // Parcelas (1..8) — só as que têm valor ou vencimento
-  const parcelas = [];
+  // Formas de pagamento (1..8): condição + parcela + vencimento — só as preenchidas
+  const formaCampos = ['C5_CONDPAG','C5_XFORPG2','C5_XFORPG3','C5_XFORPG4','C5_XFORPG5','C5_XFORPG6','C5_XFORPG7','C5_XFORPG8'];
+  const pagamentos = [];
   for (let n = 1; n <= 8; n++) {
+    const f  = cab[formaCampos[n - 1]];
+    const fd = desc(f) || val(f);
     const pv = Number(val(cab[`C5_PARC${n}`]) || 0);
     const dv = toBR(val(cab[`C5_DATA${n}`]));
-    if (pv > 0 || dv) parcelas.push({ n, valor: pv, venc: dv });
+    if (fd || pv > 0 || dv) pagamentos.push({ forma: fd, valor: pv, venc: dv });
   }
 
-  const itens = Array.isArray(row.itens) ? row.itens.map(it => ({
-    item:      val(it.C6_ITEM),
-    produto:   val(it.C6_PRODUTO),
-    descricao: val(it.C6_DESCRI),
-    um:        val(it.C6_UM),
-    qtd:       Number(val(it.C6_QTDVEN) || 0),
-    preco:     Number(val(it.C6_PRCVEN) || 0),
-    total:     Number(val(it.C6_VALOR)  || 0),
-    qrcode:    val(it.C6_XQRCODE),
-    numSerie:  val(it.C6_NUMSERI),
-  })) : [];
+  // Vendedores (1..5) — só os preenchidos (usa a descrição = nome)
+  const vendedores = [];
+  for (let n = 1; n <= 5; n++) {
+    const vd = desc(cab[`C5_VEND${n}`]) || val(cab[`C5_VEND${n}`]);
+    if (vd) vendedores.push(vd);
+  }
+
+  const itens = Array.isArray(row.itens) ? row.itens.map(it => {
+    const qtd     = Number(val(it.C6_QTDVEN)  || 0);
+    const total   = Number(val(it.C6_VALOR)   || 0);
+    const desconto = Number(val(it.C6_VALDESC) || 0);
+    // Preço unitário BRUTO (antes do desconto): (total líquido + desconto) / qtd.
+    // C6_PRCVEN já vem líquido; assim o desconto pode ser aplicado sem contar 2x.
+    const bruto = qtd > 0 ? (total + desconto) / qtd : Number(val(it.C6_PRCVEN) || 0);
+    return {
+      item:      val(it.C6_ITEM),
+      produto:   val(it.C6_PRODUTO),
+      descricao: val(it.C6_DESCRI),
+      um:        val(it.C6_UM),
+      qtd,
+      preco:     bruto,
+      desconto,
+      total,
+      qrcode:    val(it.C6_XQRCODE),
+      numSerie:  val(it.C6_NUMSERI),
+    };
+  }) : [];
 
   return res.status(200).json({
     numero:       val(cab.C5_NUM) || pedido,
@@ -121,14 +140,17 @@ export default async function handler(req, res) {
       tipo:     val(cab.C5_TIPOCLI),
       tipoDesc: desc(cab.C5_TIPOCLI),
     },
-    emissao:     toISO(val(cab.C5_EMISSAO)),
-    condPag:     val(cab.C5_CONDPAG),
-    condPagDesc: desc(cab.C5_CONDPAG),
-    parcelas,
+    emissao:         toISO(val(cab.C5_EMISSAO)),
+    condPag:         val(cab.C5_CONDPAG),
+    condPagDesc:     desc(cab.C5_CONDPAG),
+    pagamentos,
+    vendedores,
+    simulador:       Number(val(cab.C5_XSIMULA) || 0),
+    instagram:       val(cab.C5_XINSTA),
+    previsaoEntrega: toISO(val(cab.C5_XPREVEN)),
     nf:    { numero: val(cab.C5_NOTA), serie: val(cab.C5_SERIE) },
     frete: { tipo: val(cab.C5_TPFRETE), tipoDesc: desc(cab.C5_TPFRETE), valor: Number(val(cab.C5_FRETE) || 0) },
     contrato:    val(cab.C5_XCONTR),
-    vendedor:    desc(cab.C5_VEND1) || val(cab.C5_VEND1),
     treinamento: val(cab.C5_XTREINA),
     itens,
   });

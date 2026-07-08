@@ -4595,8 +4595,22 @@ function fillClientFromProtheus(d) {
   const fill = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = String(val).trim(); };
   fill('nova-cliente', d.name || d.shortName);
   const addr = d.address || {};
-  const ruaParts = [addr.address, addr.number, addr.complement].map(s => (s||'').trim()).filter(Boolean);
-  fill('nova-endRua',    ruaParts.join(', '));
+  // Número: usa o campo separado; senão extrai do fim da rua
+  // (Protheus manda "RUA XXX YYY, 515" — número após a vírgula)
+  let rua    = (addr.address || '').trim();
+  let numero = (addr.number  || '').trim();
+  if (rua.includes(',')) {
+    const parts = rua.split(',');
+    const last  = parts[parts.length - 1].trim();
+    const m     = last.match(/\d+[A-Za-z]?/);
+    if (m) {
+      if (!numero) numero = m[0];
+      rua = parts.slice(0, -1).join(',').trim();
+    }
+  }
+  const comp = (addr.complement || '').trim();
+  fill('nova-endRua',    [rua, comp].filter(Boolean).join(', '));
+  fill('nova-endNumero', numero);
   fill('nova-endBairro', addr.district);
   fill('nova-endCidade', addr.city && addr.city.cityDescription);
   const estEl = document.getElementById('nova-endEstado');

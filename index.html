@@ -4089,6 +4089,18 @@ function openNovaOP() {
     <div class="modal-body" style="gap:8px">
 
       <div class="acc"><div ${acc('Dados do Pedido')}
+          <div class="form-group" style="margin-bottom:6px">
+            <label class="form-label">Nº do Pedido de Venda (Protheus)</label>
+            <div style="display:flex;gap:6px">
+              <input class="form-input" id="nova-numPedido" placeholder="Ex: 003062" style="flex:1;min-width:0"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();puxarPedido();}">
+              <button type="button" id="btn-puxar-pedido" onclick="puxarPedido()"
+                style="padding:0 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px;align-self:stretch">
+                ${icon('download',13,'color:#fff')} Puxar
+              </button>
+            </div>
+            <div class="api-status" id="pedido-status"></div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Vendedor(a) *</label>
               <input class="form-input" id="nova-vendedorCanal"></div>
@@ -4302,6 +4314,81 @@ function openNovaOP() {
     document.getElementById('modal')?.addEventListener('input',  saveDraft);
     document.getElementById('modal')?.addEventListener('change', saveDraft);
   }, 50);
+}
+
+// ─── PUXAR PEDIDO DE VENDA DO PROTHEUS ──────────────────────────────
+// Busca o pedido (SC5/SC6) pelo número e preenche os campos da Nova OP.
+// Cliente vem só como código + nome; CPF/endereço não estão neste
+// endpoint (serão preenchidos por consulta ao cliente por código).
+async function puxarPedido() {
+  const inp = document.getElementById('nova-numPedido');
+  const num = (inp?.value || '').trim();
+  if (!num) { setStatus('pedido-status', 'Digite o número do pedido', 'err'); return; }
+
+  const btn = document.getElementById('btn-puxar-pedido');
+  if (btn) btn.disabled = true;
+  setStatus('pedido-status', 'Buscando pedido no Protheus…', 'loading');
+
+  try {
+    const resp = await fetch('/api/pedido-venda?pedido=' + encodeURIComponent(num),
+      { signal: AbortSignal.timeout(25000) });
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      setStatus('pedido-status', e.error || 'Pedido não encontrado', 'err');
+      return;
+    }
+    const p = await resp.json();
+    preencherPedido(p);
+    const st = p.statusPedido ? ` · ${p.statusPedido}` : '';
+    setStatus('pedido-status', `Pedido ${p.numero || num} carregado${st}`, 'ok');
+    showToast('Pedido carregado do Protheus');
+  } catch (err) {
+    setStatus('pedido-status', 'Falha ao buscar o pedido. Tente novamente.', 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function preencherPedido(p) {
+  const fill = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && v != null && String(v).trim() !== '') el.value = String(v).trim();
+  };
+
+  // Cliente (somente nome — CPF/endereço não vêm neste endpoint)
+  fill('nova-cliente', p.cliente && p.cliente.nome);
+  // Data de emissão
+  fill('nova-data', p.emissao);
+  // Contrato / Vendedor / Treinamento (se preenchidos no Protheus)
+  fill('nova-numContrato',   p.contrato);
+  fill('nova-vendedorCanal', p.vendedor);
+  fill('nova-treinamento',   p.treinamento);
+
+  // Detalhes do pagamento (condição + parcelas)
+  const linhas = [];
+  if (p.condPagDesc || p.condPag) linhas.push('Cond. pagto: ' + (p.condPagDesc || p.condPag));
+  (p.parcelas || []).forEach(pc => {
+    const vlr = Number(pc.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    linhas.push(`Parcela ${pc.n}: R$ ${vlr}${pc.venc ? ' — venc. ' + pc.venc : ''}`);
+  });
+  if (linhas.length) {
+    const el = document.getElementById('nova-detalhesPagamento');
+    if (el) el.value = linhas.join('\n');
+  }
+
+  // Itens → lista de equipamentos
+  if (Array.isArray(p.itens) && p.itens.length) {
+    tempEquipList = p.itens.map(it => ({
+      name:      (it.descricao || it.produto || '').trim(),
+      code:      (it.produto || '').trim(),
+      qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
+      valorUnit: Number(it.preco) > 0 ? Number(it.preco).toString() : '',
+      desconto:  '',
+    }));
+    refreshEquipList();
+  }
+
+  saveDraft();
 }
 
 function updateEntradaHint(v) {

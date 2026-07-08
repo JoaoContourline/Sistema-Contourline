@@ -1700,8 +1700,10 @@ function calcLineTotal(e) {
 }
 
 function renderEquipItem(e, i) {
-  const lineTotal = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
-  const lt = lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  const isFree    = !!e.gratuito;
+  const lineTotal = (!isFree && e.valorUnit) ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+  const lt = isFree ? `<span style="color:var(--green);font-weight:700">Gratuito</span>`
+           : lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
   return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px">
     <div style="display:flex;align-items:center;justify-content:space-between">
       <span class="equip-list-item-name">${e.name}</span>
@@ -1713,10 +1715,12 @@ function renderEquipItem(e, i) {
       </div>
     </div>
     <div style="display:flex;gap:5px;align-items:center">
-      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">R$</span>
+      ${isFree
+        ? `<span style="flex:1;font-size:11px;font-family:'DM Mono',monospace;color:var(--green);font-weight:700">Gratuito (cond. pagto 00)</span>`
+        : `<span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">R$</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
         type="text" inputmode="decimal"
-        value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">
+        value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">`}
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>
     <div style="display:flex;gap:5px;align-items:center">
@@ -3012,7 +3016,8 @@ function buildInfoSections(op, opId) {
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
-      const lt = e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
+      const lt = e.gratuito ? ` — <span style="color:var(--green);font-weight:700">Gratuito</span>`
+               : e.valorUnit ? ` — ${fmtBRL((parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0))}` : '';
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
       return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
@@ -4411,13 +4416,17 @@ function preencherPedido(p) {
 
   // Itens → lista de equipamentos
   if (Array.isArray(p.itens) && p.itens.length) {
+    // Condição de pagamento só com zeros (00 / 000) → itens saem gratuitos
+    const cpDigits = String(p.condPag || '').replace(/\D/g, '');
+    const gratuito = cpDigits.length > 0 && /^0+$/.test(cpDigits);
     tempEquipList = p.itens.map(it => ({
       name:      (it.descricao || it.produto || '').trim(),
       code:      (it.produto || '').trim(),
       qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
-      valorUnit: Number(it.preco) > 0 ? Number(it.preco).toString() : '',
+      valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
       desconto:  '',
       qrcode:    (it.qrcode || '').trim(),
+      gratuito:  gratuito,
     }));
     refreshEquipList();
   }
@@ -4856,7 +4865,7 @@ async function submitNovaOP() {
     return;
   }
   // Valor do equipamento obrigatório
-  const equipSemValor = tempEquipList.find(e => !e.valorUnit || parseFloat(e.valorUnit) <= 0);
+  const equipSemValor = tempEquipList.find(e => !e.gratuito && (!e.valorUnit || parseFloat(e.valorUnit) <= 0));
   if (equipSemValor) {
     showToast(`Informe o valor do equipamento: ${equipSemValor.name}`, 'err');
     const idx = tempEquipList.indexOf(equipSemValor);
@@ -4984,9 +4993,9 @@ function printPedidoVenda(opId) {
     .map(e => {
       // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
       const code = e.code || (_equipCache?.find(eq => eq.name === e.name)?.code) || '';
-      const vu = e.valorUnit ? fmtBRL(e.valorUnit) : '—';
-      const lineT = e.valorUnit ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
-      const vt = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+      const vu = e.gratuito ? 'Gratuito' : e.valorUnit ? fmtBRL(e.valorUnit) : '—';
+      const lineT = (!e.gratuito && e.valorUnit) ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0;
+      const vt = e.gratuito ? 'Gratuito' : lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
       return `<tr>
         <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>
         <td style="text-align:center;width:40px">${e.qty||1}</td>

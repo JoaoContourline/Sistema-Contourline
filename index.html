@@ -1334,10 +1334,10 @@ function getUser() { return _cachedUser; }
 async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
-  const sectorId = user.user_metadata?.sector_id;
+  const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
+  const sectorId = profile?.sector_id || user.user_metadata?.sector_id;
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
-  const { data: profile } = await sb.from('profiles').select('name').eq('id', user.id).single();
   _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
   return _cachedUser;
 }
@@ -1369,17 +1369,15 @@ async function doLogin() {
     return;
   }
 
-  // 2. Verifica se tem setor configurado
-  const sectorId = user.user_metadata?.sector_id;
+  // 2. Busca setor + nome no profiles (fallback: user_metadata do Auth)
+  const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
+  const sectorId = profile?.sector_id || user.user_metadata?.sector_id;
   if (!sectorId || !SECTORS.find(s => s.id === sectorId)) {
     errEl.textContent = 'Setor não configurado. Contate o administrador.';
     await sb.auth.signOut();
     btn.disabled = false; btn.innerHTML = _loginIcon + ' Entrar';
     return;
   }
-
-  // 3. Busca nome para personalizar o e-mail do OTP
-  const { data: profile } = await sb.from('profiles').select('name').eq('id', user.id).single();
   const userName = profile?.name || email.split('@')[0];
 
   // 4. Envia código OTP via Resend

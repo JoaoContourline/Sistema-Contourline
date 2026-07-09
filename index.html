@@ -2704,17 +2704,26 @@ function buildContextPanel(op) {
                            payRows.push(cRow('Entrada', (pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir') + ' — PENDENTE'));
 
     parts.push(sec('Pedido do Cliente', [
-      cRow('Vendedor(a)', pv.vendedorCanal),
+      cRow('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join(', ')),
+      cRow('Analista', pv.analista),
+      cRow('Contrato', pv.numContrato),
       cRow('Equipamentos', equipLines),
+      cRow('Cliente', pv.cliente),
       cRow('CPF / CNPJ', pv.cpf),
+      cRow('RG', pv.rg),
+      cRow('Nascimento', pv.dn),
+      cRow('Profissão', pv.profissao),
+      cRow('Doc. profissional', pv.numDocumento),
       cRow('Tel.', pv.tel),
       cRow('E-mail', pv.email),
+      cRow('Instagram', pv.instagram),
       cRow('Endereço', endDisplay),
       ...payRows,
+      (pv.simulador && parseFloat(pv.simulador) > 0) ? cRow('Simulador', fmtBRL(pv.simulador)) : '',
       pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay
                        ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
-      pv.dataPrevista  ? cRow('Prazo / Previsão', (pv.prazo ? pv.prazo + (pv.diasUteis===false?' dias':' dias úteis') + (pv.aContarDe ? ' a contar de ' + pv.aContarDe : '') + ' — ' : '') + pv.dataPrevista) : '',
+      pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '')) : '',
       cRow('Treinamento', pv.treinamento),
     ]));
   } else {
@@ -3020,7 +3029,7 @@ function buildInfoSections(op, opId) {
 
     let pvHtml = `
       <div class="detail-grid" style="margin-bottom:8px">
-        ${dItem('Vendedor(a)', pv.vendedorCanal)}
+        ${dItem('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join(', '))}
         ${dItem('Data', pv.data)}
         ${dItem('Analista', pv.analista)}
         ${dItem('Contrato', pv.numContrato)}
@@ -3040,11 +3049,17 @@ function buildInfoSections(op, opId) {
     pvHtml += `<div class="detail-grid">
       ${dItem('Cliente', `<strong>${pv.cliente||'—'}</strong>`)}
       ${dItem('CPF/CNPJ', pv.cpf)}
+      ${dItem('RG', pv.rg)}
+      ${dItem('Nascimento', pv.dn)}
+      ${dItem('Profissão', pv.profissao)}
+      ${dItem('Doc. profissional', pv.numDocumento)}
       ${dItem('Tel.', pv.tel)}
       ${dItem('E-mail', pv.email)}
+      ${dItem('Instagram', pv.instagram)}
+      ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
       ${pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
-      ${dItem('Prazo', pv.prazo ? pv.prazo+(pv.diasUteis===false?' dias':' dias úteis')+(pv.dataPrevista?' — '+pv.dataPrevista:'') : '')}
+      ${dItem('Previsão de entrega', pv.dataPrevista ? pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '') : '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
     </div>

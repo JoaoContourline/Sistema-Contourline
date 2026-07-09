@@ -1747,13 +1747,13 @@ function renderEquipItem(e, i) {
     ${isFree ? '' : `<div style="display:flex;gap:5px;align-items:center">
       <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
-        type="text" inputmode="decimal" placeholder="Desconto R$"
+        type="text" inputmode="decimal"
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
     </div>`}
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
       <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
-        type="text" placeholder="opcional - adesivo do equipamento" ${e.qrLocked?'readonly':''}
+        type="text" ${e.qrLocked?'readonly':''}
         value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
       ${e.qrLocked !== undefined ? (e.qrLocked
         ? `<button type="button" class="fl-btn" title="Editar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('pencil',13)}</button>`
@@ -2207,7 +2207,7 @@ function buildFieldHtml(f) {
     <div class="form-group">
       <label class="form-label">${f.label}</label>
       <div style="display:flex;gap:6px;align-items:stretch">
-        <input class="form-input" id="f-${f.key}" placeholder="00000-000" style="max-width:150px"
+        <input class="form-input" id="f-${f.key}" style="max-width:150px"
           oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'f-${f.targetKey}','cep-field-status-${f.key}')">
         <div id="cep-field-status-${f.key}" class="api-status" style="display:flex;align-items:center"></div>
       </div>
@@ -2921,11 +2921,11 @@ function openActionModal(opId, mode) {
       ${sh2('Dados de Despacho - verificar e corrigir')}
       <div class="form-group">
         <label class="form-label">Endereço de Entrega Completo *</label>
-        <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2" placeholder="Rua, número, bairro, cidade/UF, CEP">${nfData.enderecoEntrega||''}</textarea>
+        <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2">${nfData.enderecoEntrega||''}</textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Motorista / Transportadora *</label>
-        <input class="form-input" id="f-reNF_tecnico" placeholder="Ex: Alexandre - Expert - SHY8C17" value="${nfData.tecnico||''}">
+        <input class="form-input" id="f-reNF_tecnico" value="${nfData.tecnico||''}">
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Nº de Volumes *</label>
@@ -2957,7 +2957,7 @@ function openActionModal(opId, mode) {
       </div>
       <div class="form-group">
         <label class="form-label">Observações *</label>
-        <textarea class="form-textarea" id="f-descricao" rows="2" placeholder="Descreva as correções feitas na re-emissão...">${emData.descricao||''}</textarea>
+        <textarea class="form-textarea" id="f-descricao" rows="2">${emData.descricao||''}</textarea>
       </div>`;
   } else if (op.status === 'aguard_despacho' && mode === 'advance') {
     // Despacho: só data + hora, sem anexo
@@ -3091,8 +3091,8 @@ function buildInfoSections(op, opId) {
         ${pv.valorTotal && parseFloat(pv.valorTotal)>0 ? dItem('Valor Bruto', fmtBRL(pv.valorTotal)) : ''}
         ${pv.valorDesconto && parseFloat(pv.valorDesconto)>0 ? dItem('Desconto', '− '+fmtBRL(pv.valorDesconto)) : ''}
         ${pv.valorLiquido && parseFloat(pv.valorLiquido)>0 ? dItem('Valor Total', `<strong style="color:var(--green)">${fmtBRL(pv.valorLiquido)}</strong>`) : ''}
-        ${pv.tipoContrato ? dItem('Tipo', pv.tipoContrato) : ''}
         ${pv.entrada && pv.entrada !== 'sem' && pv.valorEntrada && parseFloat(pv.valorEntrada) > 0 ? dItem('Entrada', fmtBRL(pv.valorEntrada)) : ''}
+        ${pv.tipoContrato ? dItem('Tipo', pv.tipoContrato) : ''}
       </div>`;
     }
     if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
@@ -3775,8 +3775,7 @@ function openBoletoTask(opId) {
 
         <div class="form-group">
           <label class="form-label">E-mail *</label>
-          <input class="form-input" id="boleto-email" type="email"
-            placeholder="email@exemplo.com">
+          <input class="form-input" id="boleto-email" type="email">
           ${opEmail ? `
             <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer">
               <input type="checkbox" id="boleto-email-ref"
@@ -3899,8 +3898,7 @@ function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
       <div class="form-group" style="margin:0">
         <label class="form-label">Motivo do Atraso *</label>
         <textarea class="form-textarea" id="delay-reason-input" rows="2"
-          style="margin-top:4px"
-          placeholder="Ex: Problema na transportadora, cliente solicitou reagendamento…"></textarea>
+          style="margin-top:4px"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -4162,19 +4160,21 @@ function openNovaOP() {
     </div>
     <div class="modal-body" style="gap:8px">
 
+      <div class="form-group" style="margin-bottom:2px">
+        <label class="form-label">Nº do Pedido de Venda (Protheus)</label>
+        <div style="display:flex;gap:6px">
+          <input class="form-input" id="nova-numPedido" style="flex:1;min-width:0"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();puxarPedido();}">
+          <button type="button" id="btn-puxar-pedido" onclick="puxarPedido()"
+            style="padding:0 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px;align-self:stretch">
+            ${icon('search',13,'color:#fff')} Buscar
+          </button>
+        </div>
+        <div class="api-status" id="pedido-status"></div>
+      </div>
+
+      <div id="nova-form-fields" style="display:none">
       <div class="acc"><div ${acc('Dados do Pedido')}
-          <div class="form-group" style="margin-bottom:6px">
-            <label class="form-label">Nº do Pedido de Venda (Protheus)</label>
-            <div style="display:flex;gap:6px">
-              <input class="form-input" id="nova-numPedido" placeholder="Ex: 003062" style="flex:1;min-width:0"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();puxarPedido();}">
-              <button type="button" id="btn-puxar-pedido" onclick="puxarPedido()"
-                style="padding:0 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px;align-self:stretch">
-                ${icon('search',13,'color:#fff')} Buscar
-              </button>
-            </div>
-            <div class="api-status" id="pedido-status"></div>
-          </div>
           <div class="form-row" style="grid-template-columns:1fr 1fr">
             <div class="form-group"><label class="form-label">Vendedor(a) *</label>
               <input class="form-input" id="nova-vendedorCanal"></div>
@@ -4224,7 +4224,7 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Endereço (Rua/Av.)</label>
               <input class="form-input" id="nova-endRua"></div>
             <div class="form-group"><label class="form-label">Número</label>
-              <input class="form-input" id="nova-endNumero" placeholder="123"></div>
+              <input class="form-input" id="nova-endNumero"></div>
           </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Bairro</label>
@@ -4311,7 +4311,7 @@ function openNovaOP() {
               <input type="checkbox" id="nova-same-address" onchange="toggleSameAddress(this.checked)">
               Mesmo endereço do cliente</label>
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-              <input class="form-input" id="nova-cep-entrega" placeholder="CEP de entrega" style="max-width:160px"
+              <input class="form-input" id="nova-cep-entrega" style="max-width:160px"
                 oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'nova-enderecoEntrega','nova-cep-entrega-status')">
               <div id="nova-cep-entrega-status" class="api-status" style="font-size:11px"></div>
             </div>
@@ -4338,11 +4338,12 @@ function openNovaOP() {
           <div class="form-group"><label class="form-label">Observações / Pedido de Venda</label>
             <textarea class="form-textarea" id="nova-descricao" rows="3"></textarea></div>
         </div></div>
+      </div>
 
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="nova-modal-footer" style="display:none">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" id="btn-criar-op" onclick="submitNovaOP()">Criar OP →</button>
+      <button class="btn-primary" id="btn-criar-op" onclick="submitNovaOP()">Criar OP</button>
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
@@ -4382,6 +4383,12 @@ async function puxarPedido() {
     }
     const p = await resp.json();
     preencherPedido(p);
+
+    // Revela o restante do formulário (só aparece após buscar o pedido)
+    const ff = document.getElementById('nova-form-fields');
+    const ft = document.getElementById('nova-modal-footer');
+    if (ff) ff.style.display = '';
+    if (ft) ft.style.display = 'flex';
 
     // Fallback: só busca no cadastro se o pedido não trouxe o cliente (CPF vazio)
     if (p.cliente && p.cliente.cod && !p.cliente.cgc) {
@@ -5008,6 +5015,9 @@ async function submitNovaOP() {
   const entrada          = g('nova-entrada')?.value;
   const valorEntradaRaw  = parseBRL(g('nova-valorEntrada')?.value);
   const valorEntrada     = valorEntradaRaw > 0 ? valorEntradaRaw.toString() : '';
+  if (entrada === 'pendente' && !(valorEntradaRaw > 0)) {
+    highlightError('nova-valorEntrada'); showToast('Informe o valor da entrada', 'err'); return;
+  }
   const valorTotal       = g('nova-valorTotal')?.value;
   const valorDesconto    = g('nova-valorDesconto')?.value;
   const valorLiquido     = g('nova-valorLiquido')?.value;
@@ -5148,7 +5158,7 @@ async function submitNovaOP() {
   currentTab = 'todas';
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===2));
   renderAll();
-  openInfoModal(newId);
+  showToast('OP criada com sucesso', 'ok');
 }
 
 function highlightError(id) {
@@ -5223,7 +5233,7 @@ function printPedidoVenda(opId) {
 
   const w = window.open('', '_blank', 'width=860,height=1100');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Pedido do Cliente - OP ${op.numero}</title>
+<title>${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : 'Pedido de Venda'} - OP ${op.numero}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
@@ -5271,7 +5281,7 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
     <div class="brand">CONTOURLINE</div>
     <div class="brand-sub">Equipamentos Médicos e Diagnósticos Ltda<br>CNPJ: ${pv.cnpj}</div>
   </div>
-  <div class="doc-title">Pedido do Cliente</div>
+  <div class="doc-title">${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : 'Pedido de Venda'}</div>
 </div>
 
 <table class="meta-grid">

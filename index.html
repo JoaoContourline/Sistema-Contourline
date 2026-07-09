@@ -4357,6 +4357,10 @@ function preencherPedido(p) {
   fill('nova-numContrato', p.contrato);
   fill('nova-treinamento', p.treinamento);
   fill('nova-instagram',   p.instagram);
+  fill('nova-profissao',    p.profissao);
+  fill('nova-numDocumento', p.docProfissional);
+  fill('nova-dn',           p.dataNascimento);
+  fill('nova-descricao',    p.outrasInfo);
 
   // Vendedores (1..5): 1º no campo principal, extras aparecem abaixo (só preenchidos)
   const vends = Array.isArray(p.vendedores) ? p.vendedores.filter(Boolean) : [];
@@ -4419,9 +4423,10 @@ function renderVendedoresExtra(list) {
   const wrap = document.getElementById('nova-vendedores-extra');
   if (!wrap) return;
   wrap.innerHTML = (list || []).filter(Boolean).map((v, i) => `
-    <div class="form-group" style="margin-top:6px">
+    <div class="form-group" style="margin-top:6px;max-width:320px">
       <label class="form-label">Vendedor(a) ${i + 2}</label>
-      <input class="form-input" value="${String(v).replace(/"/g,'&quot;')}" readonly style="background:var(--surface2)">
+      <input class="form-input" value="${String(v).replace(/"/g,'&quot;')}" readonly
+        style="background:var(--surface2);font-size:12px;padding:5px 8px">
     </div>`).join('');
 }
 

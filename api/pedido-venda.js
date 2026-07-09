@@ -59,6 +59,11 @@ function toBR(d) {
   const s = String(d || '').replace(/\D/g, '');
   return s.length === 8 ? `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)}` : '';
 }
+// Data DD/MM/AAAA → ISO AAAA-MM-DD (para <input type="date">)
+function brToISO(d) {
+  const m = String(d || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
@@ -150,8 +155,12 @@ export default async function handler(req, res) {
     previsaoEntrega: toISO(val(cab.C5_XPREVEN)),
     nf:    { numero: val(cab.C5_NOTA), serie: val(cab.C5_SERIE) },
     frete: { tipo: val(cab.C5_TPFRETE), tipoDesc: desc(cab.C5_TPFRETE), valor: Number(val(cab.C5_FRETE) || 0) },
-    contrato:    val(cab.C5_XCONTR),
-    treinamento: val(cab.C5_XTREINA),
+    contrato:        val(cab.C5_XCONTR),
+    treinamento:     desc(cab.C5_XTREINA) || val(cab.C5_XTREINA),
+    outrasInfo:      val(cab.C5_XOUTINF),
+    profissao:       val(cab.A1_XPROFIS),
+    docProfissional: val(cab.A1_XDOCPRO),
+    dataNascimento:  brToISO(val(cab.A1_DTNASC)),
     itens,
   });
 }

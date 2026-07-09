@@ -4098,9 +4098,11 @@ function openNovaOP() {
             </div>
             <div class="api-status" id="pedido-status"></div>
           </div>
-          <div class="form-group"><label class="form-label">Vendedor(a) *</label>
-            <input class="form-input" id="nova-vendedorCanal"></div>
-          <div id="nova-vendedores-extra"></div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr">
+            <div class="form-group"><label class="form-label">Vendedor(a) *</label>
+              <input class="form-input" id="nova-vendedorCanal"></div>
+            <div id="nova-vendedores-extra" style="display:contents"></div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Data</label>
               <input class="form-input" id="nova-data" type="date" value="${todayISO}"></div>
@@ -4444,10 +4446,10 @@ function renderVendedoresExtra(list) {
   const wrap = document.getElementById('nova-vendedores-extra');
   if (!wrap) return;
   wrap.innerHTML = (list || []).filter(Boolean).map((v, i) => `
-    <div class="form-group" style="margin-top:6px;max-width:320px">
+    <div class="form-group">
       <label class="form-label">Vendedor(a) ${i + 2}</label>
       <input class="form-input" value="${String(v).replace(/"/g,'&quot;')}" readonly
-        style="background:var(--surface2);font-size:12px;padding:5px 8px">
+        style="background:var(--surface2)">
     </div>`).join('');
 }
 

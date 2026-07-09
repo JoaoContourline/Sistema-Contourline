@@ -1575,8 +1575,10 @@ function getCompleted(user) {
   if (user.role === 'vendedor') return ops.filter(o => o.status === 'entregue');
   const queue = getQueue(user);
   return ops.filter(op => {
-    const acted = op.history.some(h => h.actor === user.role);
-    return acted && !queue.some(q => q.id === op.id);
+    if (queue.some(q => q.id === op.id)) return false;
+    // Financeiro: OP sem entrada é auto-concluída (não há nada a aprovar)
+    if (user.role === 'financeiro' && !finNeeded(op) && op.status !== 'aberta') return true;
+    return op.history.some(h => h.actor === user.role);
   });
 }
 
@@ -1750,11 +1752,19 @@ function renderEquipItem(e, i) {
     </div>`}
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
       <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
-      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)"
-        type="text" placeholder="opcional — adesivo do equipamento"
+      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
+        type="text" placeholder="opcional — adesivo do equipamento" ${e.qrLocked?'readonly':''}
         value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
+      ${e.qrLocked !== undefined ? (e.qrLocked
+        ? `<button type="button" class="fl-btn" title="Editar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('pencil',13)}</button>`
+        : `<button type="button" class="fl-btn fl-ok" title="Confirmar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('check',14)}</button>`) : ''}
     </div>
   </div>`;
+}
+function toggleQrLock(idx) {
+  if (!tempEquipList[idx]) return;
+  tempEquipList[idx].qrLocked = !tempEquipList[idx].qrLocked;
+  refreshEquipList();
 }
 
 let equipSearchFocusIdx = -1;
@@ -4477,6 +4487,7 @@ function preencherPedido(p) {
       valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
       desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
       qrcode:    (it.qrcode || '').trim(),
+      qrLocked:  (it.qrcode || '').trim() ? true : undefined,
       gratuito:  gratuito,
     }));
     refreshEquipList();

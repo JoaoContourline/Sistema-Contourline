@@ -2196,8 +2196,8 @@ function buildFieldHtml(f) {
     }).join('');
     const btnHtml = op?.pedidoProtheus ? `
       <button type="button" id="btn-puxar-serie" onclick="puxarSerieLote(${op.id})"
-        style="margin-bottom:8px;padding:7px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-        ${icon('download',13,'color:#fff')} Puxar série e lote do Protheus
+        style="margin-bottom:8px;padding:5px 10px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+        ${icon('search',12,'color:#fff')} Buscar série e lote
       </button>` : '';
     return btnHtml + inputsHtml;
   }
@@ -2769,11 +2769,10 @@ function buildContextPanel(op) {
       cRow('Telefone', pv.tel),
       cRow('E-mail', pv.email),
       cRow('Instagram', pv.instagram),
-      cRow('Endereço', endDisplay),
+      cRow('Endereço do cliente', endDisplay),
       ...payRows,
       (pv.simulador && parseFloat(pv.simulador) > 0) ? cRow('Simulador', fmtBRL(pv.simulador)) : '',
-      pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay
-                       ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
+      pv.enderecoEntrega ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
       pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '')) : '',
       cRow('Treinamento', pv.treinamento),
@@ -3112,8 +3111,8 @@ function buildInfoSections(op, opId) {
       ${dItem('E-mail', pv.email)}
       ${dItem('Instagram', pv.instagram)}
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
-      ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
-      ${pv.enderecoEntrega && pv.enderecoEntrega !== endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
+      ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
+      ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
       ${dItem('Previsão de entrega', pv.dataPrevista ? pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '') : '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
@@ -4312,9 +4311,9 @@ function openNovaOP() {
 
       <div class="acc"><div ${acc('Observações')}
           <div class="form-group"><label class="form-label">Endereço de entrega</label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-bottom:6px">
-              <input type="checkbox" id="nova-same-address" onchange="toggleSameAddress(this.checked)">
-              Mesmo endereço do cliente</label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer;margin-bottom:8px;padding:8px 10px;background:var(--blue-bg);border:1px solid var(--border2);border-radius:var(--radius)">
+              <input type="checkbox" id="nova-same-address" onchange="toggleSameAddress(this.checked)" style="width:15px;height:15px;cursor:pointer">
+              <span>Usar o mesmo endereço do cliente (informado no pedido de venda)</span></label>
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
               <input class="form-input" id="nova-cep-entrega" style="max-width:160px"
                 oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPforField(this.value,'nova-enderecoEntrega','nova-cep-entrega-status')">

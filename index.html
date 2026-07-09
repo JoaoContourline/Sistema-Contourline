@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fluxo de Vendas — Contourline</title>
+<title>Fluxo de Vendas - Contourline</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -339,7 +339,7 @@ main { padding: 24px; }
 .api-status { font-size:10px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
 
 /* SPLIT ACTION MODAL */
-/* NOTA: overlay usa display:grid;place-items:center — max-height sozinho não
+/* NOTA: overlay usa display:grid;place-items:center - max-height sozinho não
    dá altura definitiva ao modal, então flex:1 nos filhos não funciona.
    Solução: height:90vh dá altura concreta para a cadeia de flex/grid funcionar. */
 .modal.split {
@@ -698,7 +698,7 @@ main { padding: 24px; }
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// ICON HELPER — Lucide inline SVG (no DOM dependency)
+// ICON HELPER - Lucide inline SVG (no DOM dependency)
 // ═══════════════════════════════════════════════════════════════════
 function icon(name, size = 16, style = '') {
   const s = `width:${size}px;height:${size}px;display:inline-block;vertical-align:middle;flex-shrink:0${style?';'+style:''}`;
@@ -733,7 +733,7 @@ function icon(name, size = 16, style = '') {
 // STATE MACHINE
 // ═══════════════════════════════════════════════════════════════════
 
-// _EQUIP_FALLBACK removido — catálogo vem exclusivamente da API /api/retail-items
+// _EQUIP_FALLBACK removido - catálogo vem exclusivamente da API /api/retail-items
 const _EQUIP_FALLBACK_STUB = [
   { code:'000016',  name:'BHS 156 FULL' },
   { code:'000016R', name:'BHS 156 FULL (R)' },
@@ -951,7 +951,7 @@ const _EQUIP_FALLBACK_STUB = [
   { code:'011407',  name:'GENEO' },
   { code:'MJOLNIR', name:'PLASMA FRIO DE BAI' },
   { code:'PROT-047',name:'NUERA TIGHT 1 CH' },
-]; // stub — não usado; mantido para não quebrar referências antigas em OPs salvas
+]; // stub - não usado; mantido para não quebrar referências antigas em OPs salvas
 function equipLabel(e) { return e.code ? `${e.name} - ${e.code}` : e.name; }
 
 // ── Cache de equipamentos (Protheus /api/retail/v1/retailItem?productType=PA) ──
@@ -974,9 +974,9 @@ async function loadEquipItems() {
     }
   } catch (e) {
     console.warn('[equip] API falhou:', e.message);
-    // Sem fallback — informa o usuário
+    // Sem fallback - informa o usuário
     const inp = document.getElementById('equip-search-input');
-    if (inp) inp.placeholder = 'Catálogo indisponível — verifique a conexão';
+    if (inp) inp.placeholder = 'Catálogo indisponível - verifique a conexão';
   } finally {
     _equipLoading = false;
   }
@@ -1012,7 +1012,7 @@ function equipSearch(query) {
 const STEPS = {
 
   aberta: {
-    // Apenas referência para histórico e pipeline bar — vendedor não precisa de ação após criar
+    // Apenas referência para histórico e pipeline bar - vendedor não precisa de ação após criar
     label: 'Aberta', color: 'blue', owner: null, pipelineIdx: 0,
     actionLabel: null, formFields: [],
     getNext(op) {
@@ -1027,7 +1027,7 @@ const STEPS = {
     actionLabel: 'Confirmar Pagamento',
     rejectLabel: 'Bloquear OP',
     formFields: [
-      { key: 'descricao', label: 'Observação *', type: 'textarea', required: true, placeholder: 'Ex: Confirmado via PIX em 02/06 — protocolo 123456' },
+      { key: 'descricao', label: 'Observação *', type: 'textarea', required: true, placeholder: 'Ex: Confirmado via PIX em 02/06 - protocolo 123456' },
       { key: 'anexo',     label: '',             type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: false },
     ],
     rejectFields: [
@@ -1039,9 +1039,9 @@ const STEPS = {
 
   bloqueada: {
     label: 'Bloqueada', color: 'red', owner: 'financeiro', pipelineIdx: 1,
-    actionLabel: 'Desbloquear — Retornar para Validação',
+    actionLabel: 'Desbloquear - Retornar para Validação',
     formFields: [
-      { key: 'descricao', label: 'Resolução / Nova tentativa *', type: 'textarea', required: true, placeholder: 'Ex: Cliente realizou PIX em 26/05 — comprovante em anexo...' },
+      { key: 'descricao', label: 'Resolução / Nova tentativa *', type: 'textarea', required: true, placeholder: 'Ex: Cliente realizou PIX em 26/05 - comprovante em anexo...' },
     ],
     getNext() { return 'aguard_financeiro'; },
   },
@@ -1082,7 +1082,7 @@ const STEPS = {
     formFields: [], // data/hora são coletados via modal especial (não via formFields genérico)
     rejectFields: [
       { key: 'motivoReemissao', label: 'Motivo da Re-emissão *', type: 'textarea', required: true,
-        placeholder: 'Ex: Endereço incorreto — correto é Av. Inocêncio Lima nº 515, sala 302...' },
+        placeholder: 'Ex: Endereço incorreto - correto é Av. Inocêncio Lima nº 515, sala 302...' },
       { key: 'dadosCorrigidos', label: 'Dados corrigidos para a nova NF *', type: 'textarea', required: true,
         placeholder: 'Liste os campos e valores corretos que o fiscal deve usar na re-emissão.' },
     ],
@@ -1131,7 +1131,7 @@ const SECTORS = [
 ];
 
 
-// Visão simulada pelo gestor — inicia como 'comercial'
+// Visão simulada pelo gestor - inicia como 'comercial'
 let gestorViewAs = 'comercial';
 
 function getActiveView() {
@@ -1148,7 +1148,7 @@ function setGestorView(sectorId) {
   renderAll();
 }
 
-// Pessoas — usadas apenas no form Nova OP e no histórico
+// Pessoas - usadas apenas no form Nova OP e no histórico
 const VENDEDORES = [
   { id:'barbara', name:'Barbara Kelly' },
   { id:'ana',     name:'Ana Paula'     },
@@ -1175,7 +1175,7 @@ const HIST_REJECT = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// DATA — Supabase
+// DATA - Supabase
 // ═══════════════════════════════════════════════════════════════════
 
 let nextId = 1;
@@ -1229,7 +1229,7 @@ function dbSaveOp(op) {
   const json = JSON.stringify(op);
   const kb   = (json.length / 1024).toFixed(0);
   if (json.length > 5 * 1024 * 1024) {
-    console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB — considere reduzir arquivos anexados`);
+    console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB - considere reduzir arquivos anexados`);
   }
   setSaveIndicator('saving');
   sb.from('ops')
@@ -1281,7 +1281,7 @@ function requestNotifPermission() {
   }
 }
 
-// Realtime — sincroniza mudanças de outros usuários
+// Realtime - sincroniza mudanças de outros usuários
 function startRealtime() {
   sb.channel('ops-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ops' }, payload => {
@@ -1294,7 +1294,7 @@ function startRealtime() {
           const step = STEPS[newOp.status];
           if (step?.owner === view?.role) {
             showToast(`Nova OP na fila: ${newOp.cliente}`, 'ok');
-            sendNotif('Nova OP na fila', `${newOp.cliente} — ${(newOp.equipamentos||[newOp.equipamento||'']).join(', ')}`);
+            sendNotif('Nova OP na fila', `${newOp.cliente} - ${(newOp.equipamentos||[newOp.equipamento||'']).join(', ')}`);
           }
         }
       } else if (payload.eventType === 'UPDATE') {
@@ -1305,13 +1305,13 @@ function startRealtime() {
           const step  = STEPS[updated.status];
           // Notifica quando uma OP avança para a fila do usuário atual
           if (prev && prev.status !== updated.status && step?.owner === view?.role) {
-            showToast(`OP ${updated.numero} — ${updated.cliente} entrou na sua fila`, 'ok');
-            sendNotif(`OP ${updated.numero} na sua fila`, `${updated.cliente} — ${step?.label || updated.status}`);
+            showToast(`OP ${updated.numero} - ${updated.cliente} entrou na sua fila`, 'ok');
+            sendNotif(`OP ${updated.numero} na sua fila`, `${updated.cliente} - ${step?.label || updated.status}`);
           }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
         } else {
-          // payload sem data (REPLICA IDENTITY não está FULL) — re-busca do servidor
+          // payload sem data (REPLICA IDENTITY não está FULL) - re-busca do servidor
           sb.from('ops').select('id,data').eq('id', payload.new.id).single()
             .then(({ data: row }) => { if (row) { const u = rowToOp(row); if (u) { const i = ops.findIndex(o=>o.id===u.id); if(i>=0) ops[i]=u; else ops.unshift(u); renderAll(); } } });
           return;
@@ -1323,7 +1323,7 @@ function startRealtime() {
     })
     .subscribe(status => {
       if (status === 'CHANNEL_ERROR') {
-        console.warn('[Realtime] erro no canal — reconectando em 5s');
+        console.warn('[Realtime] erro no canal - reconectando em 5s');
         setTimeout(startRealtime, 5000);
       }
     });
@@ -1338,12 +1338,12 @@ let activeOpId    = null;
 let modalMode     = null;
 let tempEquipList    = []; // [{name, qty}]
 let tempVendedores   = []; // vendedores (1..5) vindos do pedido de venda
-let tempFiles        = {}; // { key: [File, ...] } — only used for File object reference
-let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } — persisted em formData
+let tempFiles        = {}; // { key: [File, ...] } - only used for File object reference
+let tempFilesData    = {}; // { key: [{name, size, dataUrl}] } - persisted em formData
 let todasFilter      = ''; // filtro de busca na aba Todas as OPs
 let _pendingAdvance  = null; // dados pendentes p/ popup de atraso
 
-// ─── AUTH — Supabase Authentication ────────────────────────────────
+// ─── AUTH - Supabase Authentication ────────────────────────────────
 let _cachedUser = null; // { ...sector, userName, uid }
 
 function getUser() { return _cachedUser; }
@@ -1378,7 +1378,7 @@ async function doLogin() {
   btn.disabled = true;
   btn.innerHTML = _loginSpinner + ' Verificando…';
 
-  // 1. Supabase Auth — valida email + senha
+  // 1. Supabase Auth - valida email + senha
   const { data: { user }, error: authErr } = await sb.auth.signInWithPassword({ email, password: pass });
   if (authErr) {
     errEl.textContent = authErr.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : authErr.message;
@@ -1458,7 +1458,7 @@ async function doVerify() {
     return;
   }
 
-  // OTP verificado — carrega perfil e abre o app
+  // OTP verificado - carrega perfil e abre o app
   await fetchUserProfile();
   if (!_cachedUser) {
     document.getElementById('otpError').textContent = 'Erro ao carregar perfil. Contate o administrador.';
@@ -1545,7 +1545,7 @@ async function checkSession() {
     await fetchUserProfile();
     if (_cachedUser) { showApp(); return; }
   }
-  // sem sessão válida — tela de login já visível por padrão
+  // sem sessão válida - tela de login já visível por padrão
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1606,7 +1606,7 @@ function advanceOP(opId, formData) {
     op.stepData.aguard_financeiro = { ...(op.stepData.aguard_financeiro || {}), ...formData, aprovado: true };
     if (!sfDone(op)) {
       const u = getUser(), v = getActiveView();
-      op.history.push({ step: op.status, actor: v?.role || '', actorName: u?.userName || u?.name || '—', ts: nowTs(), action: 'Financeiro aprovado — aguardando Simples Faturamento', note: formData?.descricao || '' });
+      op.history.push({ step: op.status, actor: v?.role || '', actorName: u?.userName || u?.name || '-', ts: nowTs(), action: 'Financeiro aprovado - aguardando Simples Faturamento', note: formData?.descricao || '' });
       dbSaveOp(op);
       renderAll();
       showToast('Financeiro aprovado! Aguardando Simples Faturamento do Fiscal.', 'ok');
@@ -1616,7 +1616,7 @@ function advanceOP(opId, formData) {
 
   const user     = getUser();
   const view     = getActiveView();
-  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
+  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
 
   // Quando fiscal conclui a NF, cria tarefa paralela de envio de boleto para o financeiro
   if (op.status === 'aguard_emissao' && !op.boletoTask) {
@@ -1636,13 +1636,13 @@ function rejectOP(opId, formData) {
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
-  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '—', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
+  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
 }
 
-// directorOverride removido — role diretoria não existe mais
+// directorOverride removido - role diretoria não existe mais
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPERS
@@ -1688,9 +1688,9 @@ function stepBadge(status, op) {
   if (status === 'aguard_financeiro' && op) {
     const fOk = finDone(op);
     const sOk = sfDone(op);
-    if (fOk && !sOk)  return { cls: 'b-purple', label: 'Aguard. Simples Fat.' };
-    if (!fOk && sOk)  return { cls: 'b-yellow', label: 'Aguard. Financeiro' };
-    if (!fOk && !sOk) return { cls: 'b-yellow', label: finNeeded(op) ? 'Aguard. Fin. + SF' : 'Aguard. Simples Fat.' };
+    if (fOk && !sOk)  return { cls: 'b-purple', label: 'Aguardando Simples Faturamento' };
+    if (!fOk && sOk)  return { cls: 'b-yellow', label: 'Aguardando Financeiro' };
+    if (!fOk && !sOk) return { cls: 'b-yellow', label: finNeeded(op) ? 'Aguardando Financeiro e Simples Faturamento' : 'Aguardando Simples Faturamento' };
   }
   const s = STEPS[status];
   return s ? { cls: COLOR_MAP[s.color]||'b-gray', label: s.label } : { cls:'b-gray', label: status };
@@ -1699,7 +1699,7 @@ function stepBadge(status, op) {
 function entradaHtml(e) {
   if (e==='paga')     return `<span style="color:var(--green);font-size:11px;display:inline-flex;align-items:center;gap:3px">${icon('check-circle',11,'color:var(--green)')} Paga</span>`;
   if (e==='pendente') return `<span style="color:var(--yellow);font-size:11px;display:inline-flex;align-items:center;gap:3px">${icon('alert-triangle',11,'color:var(--yellow)')} Pendente</span>`;
-  return `<span style="color:var(--text3);font-size:11px">— Sem entrada</span>`;
+  return `<span style="color:var(--text3);font-size:11px">- Sem entrada</span>`;
 }
 
 function flagsHtml(op) {
@@ -1745,7 +1745,7 @@ function renderEquipItem(e, i) {
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>
     ${isFree ? '' : `<div style="display:flex;gap:5px;align-items:center">
-      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desc.</span>
+      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
         type="text" inputmode="decimal" placeholder="Desconto R$"
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
@@ -1753,7 +1753,7 @@ function renderEquipItem(e, i) {
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
       <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
-        type="text" placeholder="opcional — adesivo do equipamento" ${e.qrLocked?'readonly':''}
+        type="text" placeholder="opcional - adesivo do equipamento" ${e.qrLocked?'readonly':''}
         value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
       ${e.qrLocked !== undefined ? (e.qrLocked
         ? `<button type="button" class="fl-btn" title="Editar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('pencil',13)}</button>`
@@ -1941,7 +1941,7 @@ function calcDescontoTotal() {
   if (descEl) descEl.value = descontoEfetivo > 0 ? descontoEfetivo.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '';
 
   const elDisp = document.getElementById('nova-valor-total-display');
-  if (elDisp) elDisp.textContent = isAllFree ? 'Gratuito' : (total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—');
+  if (elDisp) elDisp.textContent = isAllFree ? 'Gratuito' : (total > 0 ? 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '-');
   const vt = document.getElementById('nova-valorTotal');
   const vd = document.getElementById('nova-valorDesconto');
   const vl = document.getElementById('nova-valorLiquido');
@@ -1988,7 +1988,7 @@ function brlFmtNum(n) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FILE SYSTEM — Supabase Storage (bucket: op-files)
+// FILE SYSTEM - Supabase Storage (bucket: op-files)
 // ═══════════════════════════════════════════════════════════════════
 
 async function uploadToStorage(file) {
@@ -2010,7 +2010,7 @@ function fileToDataUrl(file) {
   });
 }
 
-// Abre arquivo — URL do Storage diretamente, ou Blob para base64 legado
+// Abre arquivo - URL do Storage diretamente, ou Blob para base64 legado
 function openFileBlob(btn) {
   const dataUrl = btn.getAttribute('data-fileurl');
   const name    = btn.getAttribute('data-filename') || 'arquivo';
@@ -2035,7 +2035,7 @@ function openFileBlob(btn) {
 
 // Gera HTML de link para visualizar/baixar arquivo armazenado
 function fileLinkHtml(f, compact = false) {
-  if (!f) return '—';
+  if (!f) return '-';
   if (typeof f === 'string') {
     // legado: apenas nome sem dataUrl
     return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
@@ -2191,7 +2191,7 @@ function buildFieldHtml(f) {
       const ph         = tracking === 'lote' ? 'Ex: LOT-20240601' : 'Ex: SN123456';
       return `
       <div class="form-group">
-        <label class="form-label">${fieldLabel} — <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${equipLabel}</span></label>
+        <label class="form-label">${fieldLabel} - <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${equipLabel}</span></label>
         <input class="form-input" id="f-numSerie_${i}" data-tracking="${tracking}" placeholder="${ph}">
       </div>`;
     }).join('');
@@ -2306,10 +2306,10 @@ function renderRoles() {
   if (center) {
     center.innerHTML = user.id === 'gestor' ? `
       <div class="view-switcher">
-        <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">COM</button>
-        <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">FIN</button>
-        <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">LOG</button>
-        <button class="view-btn ${gestorViewAs === 'fiscal'     ? 'active' : ''}" onclick="setGestorView('fiscal')">FIS</button>
+        <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">Comercial</button>
+        <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">Financeiro</button>
+        <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">Logística</button>
+        <button class="view-btn ${gestorViewAs === 'fiscal'     ? 'active' : ''}" onclick="setGestorView('fiscal')">Fiscal</button>
       </div>` : '';
   }
 
@@ -2355,10 +2355,10 @@ function renderQueue(user, el) {
     return;
   }
 
-  // ── COMERCIAL — pendentes = em andamento ─────────────────────────
+  // ── COMERCIAL - pendentes = em andamento ─────────────────────────
   if (user.role === 'vendedor') {
     const pendentes = ops.filter(o => o.status !== 'entregue');
-    let html = `<div class="step-header"><div class="step-title">Minhas OPs — Pendentes</div>
+    let html = `<div class="step-header"><div class="step-title">Minhas OPs - Pendentes</div>
       <div class="step-desc">OPs ainda em andamento. Acompanhe o progresso ou clique para ver detalhes.</div></div>`;
     if (!ops.length) {
       html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP cadastrada</div><div class="empty-desc">Clique em "+ Nova OP" para criar a primeira.</div></div>`;
@@ -2377,8 +2377,8 @@ function renderQueue(user, el) {
     const despachoOps= ops.filter(o => o.status === 'aguard_despacho');
     const transitoOps= ops.filter(o => o.status === 'transito');
     const total = nfOps.length + despachoOps.length + transitoOps.length;
-    let html = `<div class="step-header"><div class="step-title">Logística — Pendentes</div>
-      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Solicitação NF, despacho e entregas</div></div>`;
+    let html = `<div class="step-header"><div class="step-title">Logística - Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Solicitação NF, despacho e entregas</div></div>`;
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Nenhuma pendência agora</div><div class="empty-desc">Todas as etapas de logística estão em dia.</div></div>`;
     } else {
@@ -2404,7 +2404,7 @@ function renderQueue(user, el) {
             </div>
             <div style="flex:1">
               <div class="section-header-title">Aguardando Despacho</div>
-              <div class="section-header-desc">NF emitida — confirme a data e hora do despacho</div>
+              <div class="section-header-desc">NF emitida - confirme a data e hora do despacho</div>
             </div>
             <span class="section-header-count" style="background:var(--teal-bg);color:var(--teal)">${despachoOps.length}</span>
           </div>
@@ -2417,8 +2417,8 @@ function renderQueue(user, el) {
               ${icon('package',16,'color:var(--orange)')}
             </div>
             <div style="flex:1">
-              <div class="section-header-title">Em Trânsito — Confirmar Entrega</div>
-              <div class="section-header-desc">Produto despachado — registre a entrega ao cliente</div>
+              <div class="section-header-title">Em Trânsito - Confirmar Entrega</div>
+              <div class="section-header-desc">Produto despachado - registre a entrega ao cliente</div>
             </div>
             <span class="section-header-count" style="background:var(--orange-bg);color:var(--orange)">${transitoOps.length}</span>
           </div>
@@ -2436,8 +2436,8 @@ function renderQueue(user, el) {
     const boletoOps    = ops.filter(o => o.boletoTask?.status === 'pendente');
     const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;
 
-    let html = `<div class="step-header"><div class="step-title">Financeiro — Pendentes</div>
-      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Validação de pagamentos, bloqueados e envio de boletos</div></div>`;
+    let html = `<div class="step-header"><div class="step-title">Financeiro - Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Validação de pagamentos, bloqueados e envio de boletos</div></div>`;
 
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação financeira.</div></div>`;
@@ -2465,7 +2465,7 @@ function renderQueue(user, el) {
             </div>
             <div style="flex:1">
               <div class="section-header-title">Bloqueados</div>
-              <div class="section-header-desc">Pedidos bloqueados pelo financeiro — aguardando resolução ou desbloqueio</div>
+              <div class="section-header-desc">Pedidos bloqueados pelo financeiro - aguardando resolução ou desbloqueio</div>
             </div>
             <span class="section-header-count" style="background:var(--red-bg);color:var(--red)">${bloqueadaOps.length}</span>
           </div>
@@ -2480,7 +2480,7 @@ function renderQueue(user, el) {
             </div>
             <div style="flex:1">
               <div class="section-header-title">Envio de Boleto ao Cliente</div>
-              <div class="section-header-desc">NF emitida — aguardando envio do boleto ao cliente</div>
+              <div class="section-header-desc">NF emitida - aguardando envio do boleto ao cliente</div>
             </div>
             <span class="section-header-count" style="background:rgba(38,114,184,.1);color:var(--accent)">${boletoOps.length}</span>
           </div>
@@ -2497,8 +2497,8 @@ function renderQueue(user, el) {
     const nfOps = ops.filter(o => o.status === 'aguard_emissao');
     const total = sfOps.length + nfOps.length;
 
-    let html = `<div class="step-header"><div class="step-title">Fiscal — Pendentes</div>
-      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} — Simples faturamento e emissão de notas fiscais</div></div>`;
+    let html = `<div class="step-header"><div class="step-title">Fiscal - Pendentes</div>
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Simples faturamento e emissão de notas fiscais</div></div>`;
 
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação fiscal.</div></div>`;
@@ -2526,7 +2526,7 @@ function renderQueue(user, el) {
             </div>
             <div style="flex:1">
               <div class="section-header-title">Notas Fiscais a Emitir</div>
-              <div class="section-header-desc">Preencha os dados — emita a NF e registre o número aqui</div>
+              <div class="section-header-desc">Preencha os dados - emita a NF e registre o número aqui</div>
             </div>
             <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${nfOps.length}</span>
           </div>
@@ -2566,7 +2566,7 @@ function renderConcluidas(user, el) {
           </div>
           <div class="card-grid">${cards}</div>
         </div>`;
-      if (sfConcl.length) html += sec('Simples Faturamento', 'Lançados — aguardando a logística solicitar a emissão', sfConcl.length, sfConcl.map((op,i)=>card(op,false,i)).join(''));
+      if (sfConcl.length) html += sec('Simples Faturamento', 'Lançados - aguardando a logística solicitar a emissão', sfConcl.length, sfConcl.map((op,i)=>card(op,false,i)).join(''));
       if (nfConcl.length) html += sec('Notas Fiscais Emitidas', 'NFs já emitidas por você', nfConcl.length, nfConcl.map((op,i)=>card(op,false,i)).join(''));
     }
     el.innerHTML = html;
@@ -2599,7 +2599,7 @@ function renderTodas(el) {
         <span class="badge ${badgeCls}" style="font-size:9px;padding:1px 6px">${colOps.length}</span>
       </div>
       <div class="kanban-col-body">
-        ${colOps.length ? colOps.map((op,i)=>card(op,false,i,true)).join('') : '<div class="kanban-empty">—</div>'}
+        ${colOps.length ? colOps.map((op,i)=>card(op,false,i,true)).join('') : '<div class="kanban-empty">-</div>'}
       </div>
     </div>`;
   }).join('');
@@ -2654,7 +2654,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   // Equipment chips
   const equipList = op.equipamentos?.length
     ? op.equipamentos.map(e=>`<span class="equip-chip">${e}</span>`).join('')
-    : `<span class="equip-chip">${op.equipamento||'—'}</span>`;
+    : `<span class="equip-chip">${op.equipamento||'-'}</span>`;
 
   let footer = '';
   if (needsSF) {
@@ -2686,7 +2686,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-meta">
       <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
       ${op.status!=='entregue' ? `<span class="sema ${sem.cls}">${sem.icon?sem.icon+' ':''}${sem.label}</span>` : ''}
-      ${skippedFin ? `<span class="skip-badge">↷ Fin. pulado</span>` : ''}
+      ${skippedFin ? `<span class="skip-badge">Financeiro dispensado</span>` : ''}
     </div>
     <div class="pipe-bar">${dots}</div>
     <div style="font-size:11px;color:var(--text3)">${op.numContrato||op.canal||op.contrato}</div>
@@ -2697,7 +2697,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CONTEXT PANEL — acumula respostas anteriores
+// CONTEXT PANEL - acumula respostas anteriores
 // ═══════════════════════════════════════════════════════════════════
 
 function buildContextPanel(op) {
@@ -2732,7 +2732,7 @@ function buildContextPanel(op) {
   // Pedido do Cliente
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e=>{
-      const nsl = [e.numSerie && 'NS '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
+      const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
       return `${e.name}${e.qty>1?' ×'+e.qty:''}${nsl?` <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">· ${nsl}</span>`:''}`;
     }).join('<br>');
     const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
@@ -2748,10 +2748,10 @@ function buildContextPanel(op) {
     if (pv.simulador && parseFloat(pv.simulador) > 0)
                            payRows.push(cRow('Simulador', fmtBRL(pv.simulador)));
     if (pv.entrada === 'pendente')
-                           payRows.push(cRow('Entrada', (pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir') + ' — PENDENTE'));
+                           payRows.push(cRow('Entrada', (pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir') + ' - PENDENTE'));
 
     parts.push(sec('Pedido do Cliente', [
-      cRow('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join(', ')),
+      cRow('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join('<br>')),
       cRow('Analista', pv.analista),
       cRow('Contrato', pv.numContrato),
       cRow('Equipamentos', equipLines),
@@ -2760,8 +2760,8 @@ function buildContextPanel(op) {
       cRow('RG', pv.rg),
       cRow('Nascimento', pv.dn),
       cRow('Profissão', pv.profissao),
-      cRow('Doc. profissional', pv.numDocumento),
-      cRow('Tel.', pv.tel),
+      cRow('Documento profissional', pv.numDocumento),
+      cRow('Telefone', pv.tel),
       cRow('E-mail', pv.email),
       cRow('Instagram', pv.instagram),
       cRow('Endereço', endDisplay),
@@ -2776,7 +2776,7 @@ function buildContextPanel(op) {
     ]));
   } else {
     parts.push(sec('Pedido', [
-      cRow('Equipamentos', (op.equipamentos||[op.equipamento||'—']).join(', ')),
+      cRow('Equipamentos', (op.equipamentos||[op.equipamento||'-']).join(', ')),
       cRow('Contrato', op.numContrato||op.contrato),
     ]));
   }
@@ -2788,14 +2788,14 @@ function buildContextPanel(op) {
     ]));
   }
 
-  // Logística — solicitação de NF
+  // Logística - solicitação de NF
   if (sd.aguard_nf) {
     const d = sd.aguard_nf;
     parts.push(sec('Solicitação de NF (Logística)', [
       cRow('Endereço de entrega', d.enderecoEntrega),
       cRow('Técnico / Transportadora', d.tecnico),
-      (d.volumes||d.peso) ? cRow('Vol / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : '',
-      cRow('Obs.', d.descricao),
+      (d.volumes||d.peso) ? cRow('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : '',
+      cRow('Observações', d.descricao),
     ]));
   }
 
@@ -2805,7 +2805,7 @@ function buildContextPanel(op) {
     parts.push(sec('Nota Fiscal Emitida', [
       cRow('Número NF', d.numeroNF),
       d.dataEmissao ? cRow('Data de emissão', fmtDate(d.dataEmissao)) : '',
-      cRow('Obs.', d.descricao),
+      cRow('Observações', d.descricao),
     ]));
   }
 
@@ -2814,7 +2814,7 @@ function buildContextPanel(op) {
     const d = sd.simples_faturamento;
     parts.push(sec('Simples Faturamento', [
       d.dataEmissao ? cRow('Data de emissão', fmtDate(d.dataEmissao)) : '',
-      cRow('Obs.', d.observacoes),
+      cRow('Observações', d.observacoes),
     ]));
   }
 
@@ -2852,7 +2852,7 @@ function buildContextPanel(op) {
 
 function openCard(opId) {
   const op   = ops.find(o => o.id === opId);
-  if (!op) { showToast('OP não encontrada — recarregue', 'err'); return; }
+  if (!op) { showToast('OP não encontrada - recarregue', 'err'); return; }
   const view = getActiveView();
   const step = STEPS[op.status];
   if (view?.role === 'fiscal' && op.status === 'aguard_financeiro' && !op.stepData?.simples_faturamento) {
@@ -2876,7 +2876,7 @@ function openActionModal(opId, mode) {
   // Reset and pre-seed equipment list for aberta step
   if (op.status === 'aberta' && mode === 'advance') {
     tempEquipList = (op.equipamentos||[])
-      .filter(e => e && e !== '—')
+      .filter(e => e && e !== '-')
       .map(e => {
         const m = e.match(/^(.+)\s\(x(\d+)\)$/);
         return m ? { name: m[1], qty: parseInt(m[2]) } : { name: e, qty: 1 };
@@ -2893,8 +2893,8 @@ function openActionModal(opId, mode) {
   let algoNote = '';
   if (op.status === 'aberta' && mode === 'advance') {
     algoNote = op.entrada === 'pendente'
-      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> — esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</span></div>`
-      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</span></div>`;
+      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> - esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</span></div>`
+      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> - validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</span></div>`;
   }
 
   const dirNote = '';
@@ -2918,7 +2918,7 @@ function openActionModal(opId, mode) {
     const emData = op.stepData.aguard_emissao || {};
     const sh2 = l => `<div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border);padding:8px 0 2px;margin-top:2px">${l}</div>`;
     fieldsHtml = `
-      ${sh2('Dados de Despacho — verificar e corrigir')}
+      ${sh2('Dados de Despacho - verificar e corrigir')}
       <div class="form-group">
         <label class="form-label">Endereço de Entrega Completo *</label>
         <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2" placeholder="Rua, número, bairro, cidade/UF, CEP">${nfData.enderecoEntrega||''}</textarea>
@@ -2951,7 +2951,7 @@ function openActionModal(opId, mode) {
         <label style="cursor:pointer">
           <input type="file" id="f-arquivoNF" accept=".pdf" style="display:none" onchange="handleFile(this)">
           <div class="file-upload-area" id="file-display-arquivoNF">
-            <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} ${emData.arquivoNF ? 'Anterior: '+(emData.arquivoNF?.name||emData.arquivoNF)+' — clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
+            <div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} ${emData.arquivoNF ? 'Anterior: '+(emData.arquivoNF?.name||emData.arquivoNF)+' - clique para substituir' : 'Clique para anexar o novo PDF da NF'}</div>
           </div>
         </label>
       </div>
@@ -3014,7 +3014,7 @@ function openActionModal(opId, mode) {
 
   document.getElementById('overlay').classList.add('open');
 
-  // Força alturas via JS — CSS cascade no grid do overlay não é confiável
+  // Força alturas via JS - CSS cascade no grid do overlay não é confiável
   requestAnimationFrame(() => {
     const modal  = document.getElementById('modal');
     if (!modal.classList.contains('split')) return;
@@ -3052,7 +3052,7 @@ function infoAcc(title, iconName, contentHtml, open = false) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SHARED INFO SECTIONS (accordion) — used by info modal & action modal left panel
+// SHARED INFO SECTIONS (accordion) - used by info modal & action modal left panel
 // ═══════════════════════════════════════════════════════════════════
 
 function buildInfoSections(op, opId) {
@@ -3067,10 +3067,10 @@ function buildInfoSections(op, opId) {
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
-      const lt = e.gratuito ? ` — <span style="color:var(--green);font-weight:700">Gratuito</span>`
-               : e.valorUnit ? ` — ${fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)))}` : '';
+      const lt = e.gratuito ? ` - <span style="color:var(--green);font-weight:700">Gratuito</span>`
+               : e.valorUnit ? ` - ${fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)))}` : '';
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
-      const nsl = [e.numSerie && 'NS '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
+      const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
       const nslHtml = nsl ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· ${nsl}</span>` : '';
       return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
@@ -3079,7 +3079,7 @@ function buildInfoSections(op, opId) {
 
     let pvHtml = `
       <div class="detail-grid" style="margin-bottom:8px">
-        ${dItem('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join(', '))}
+        ${dItem('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join('<br>'))}
         ${dItem('Data', pv.data)}
         ${dItem('Analista', pv.analista)}
         ${dItem('Contrato', pv.numContrato)}
@@ -3097,13 +3097,13 @@ function buildInfoSections(op, opId) {
     }
     if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
     pvHtml += `<div class="detail-grid">
-      ${dItem('Cliente', `<strong>${pv.cliente||'—'}</strong>`)}
+      ${dItem('Cliente', `<strong>${pv.cliente||'-'}</strong>`)}
       ${dItem('CPF/CNPJ', pv.cpf)}
       ${dItem('RG', pv.rg)}
       ${dItem('Nascimento', pv.dn)}
       ${dItem('Profissão', pv.profissao)}
-      ${dItem('Doc. profissional', pv.numDocumento)}
-      ${dItem('Tel.', pv.tel)}
+      ${dItem('Documento profissional', pv.numDocumento)}
+      ${dItem('Telefone', pv.tel)}
       ${dItem('E-mail', pv.email)}
       ${dItem('Instagram', pv.instagram)}
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
@@ -3133,7 +3133,7 @@ function buildInfoSections(op, opId) {
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
     sections.push(infoAcc('Pedido', 'clipboard-list', `<div class="detail-grid">
-      ${dItem('Equipamentos', (op.equipamentos||[op.equipamento||'—']).join(', '))}
+      ${dItem('Equipamentos', (op.equipamentos||[op.equipamento||'-']).join(', '))}
       ${dItem('Contrato', op.numContrato||op.contrato)}
       ${dItem('Vendedor', op.vendedorCanal||op.vendedorName)}
     </div>`, true));
@@ -3186,7 +3186,7 @@ function buildInfoSections(op, opId) {
     let entHtml = `<div class="detail-grid">
       ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>` : ''}
       ${dItem('Motorista / Transportadora', d.tecnico)}
-      ${d.volumes||d.peso ? dItem('Vol / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
+      ${d.volumes||d.peso ? dItem('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
       ${nsRows}
       ${dItem('Observações', d.descricao)}
     </div>`;
@@ -3292,7 +3292,7 @@ function buildInfoSections(op, opId) {
             ? (HIST_REJECT[h.step] || 'Bloqueado')
             : (HIST_ACTION[h.step] || 'Ação');
         })();
-        return `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName||h.actor}</span> — ${acao}</div></div>`;
+        return `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName||h.actor}</span> - ${acao}</div></div>`;
       }).join('')
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
   sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
@@ -3446,7 +3446,7 @@ function openInfoModal(opId) {
         ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">
-        <span>${op.vendedorCanal||op.vendedorName||'—'}</span><span>${op.numContrato||op.contrato||''}</span>
+        <span>${op.vendedorCanal||op.vendedorName||'-'}</span><span>${op.numContrato||op.contrato||''}</span>
         <span>${daysSince(op.dataAbertura)}d</span>
       </div>
       <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
@@ -3676,7 +3676,7 @@ function saveSimplesFaturamento(opId) {
 
   // Registra que o fiscal lançou o SF (para aparecer nas concluídas dele)
   const _u = getUser(), _v = getActiveView();
-  op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '—', ts: nowTs(), action: 'Simples Faturamento lançado', note: '' });
+  op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '-', ts: nowTs(), action: 'Simples Faturamento lançado', note: '' });
 
   // Porta dupla: se o gate do financeiro já está satisfeito, avança para aguard_nf
   if (op.status === 'aguard_financeiro' && finDone(op)) {
@@ -3694,12 +3694,12 @@ function saveSimplesFaturamento(opId) {
 
 // ─── TAREFA PARALELA: ENVIO DE BOLETO AO CLIENTE ────────────────────
 function boletoTaskCard(op) {
-  const nf        = op.stepData?.aguard_emissao?.numeroNF || '—';
+  const nf        = op.stepData?.aguard_emissao?.numeroNF || '-';
   const nfDate    = op.stepData?.aguard_emissao?.dataEmissao || '';
   const sem       = semaforo(op);
   const equipList = op.equipamentos?.length
     ? op.equipamentos.map(e => `<span class="equip-chip">${e}</span>`).join('')
-    : `<span class="equip-chip">${op.equipamento || '—'}</span>`;
+    : `<span class="equip-chip">${op.equipamento || '-'}</span>`;
   const lastEvt   = op.history?.[op.history.length - 1];
   const opNum     = op.numero && op.numero !== 'PENDENTE' ? op.numero : '#' + op.id;
 
@@ -3739,7 +3739,7 @@ function openBoletoTask(opId) {
   const sd      = op.stepData || {};
   const pv      = op.pedidoVenda || {};
   const opEmail = (pv.email || '').replace(/'/g, '&#39;');
-  const nf      = sd.aguard_emissao?.numeroNF || '—';
+  const nf      = sd.aguard_emissao?.numeroNF || '-';
   const nfDate  = sd.aguard_emissao?.dataEmissao || '';
   const equips  = (op.equipamentos || [op.equipamento || '']).join(', ');
   const valor   = pv.valorLiquido
@@ -3752,7 +3752,7 @@ function openBoletoTask(opId) {
     '',
     `Segue em anexo o boleto referente à sua aquisição de ${equips} pela Contourline Equipamentos Médicos.`,
     '',
-    `Nota Fiscal: ${nf}${nfDate ? ' — ' + nfDate : ''}`,
+    `Nota Fiscal: ${nf}${nfDate ? ' - ' + nfDate : ''}`,
     valor ? `Valor: ${valor}` : '',
     '',
     'Em caso de dúvidas, entre em contato conosco.',
@@ -3764,7 +3764,7 @@ function openBoletoTask(opId) {
   document.getElementById('modal').classList.add('split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Envio de Boleto — OP ${op.numero}</div>
+      <div><div class="modal-title">Envio de Boleto - OP ${op.numero}</div>
            <div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
@@ -3879,7 +3879,7 @@ function saveBoletoTask(opId) {
   dbSaveOp(op);
   closeModal();
   renderAll();
-  showToast(`Boleto(s) registrado(s) — ${op.cliente}`, 'ok');
+  showToast(`Boleto(s) registrado(s) - ${op.cliente}`, 'ok');
 }
 
 // ─── POPUP DE MOTIVO DE ATRASO ──────────────────────────────────────
@@ -3914,7 +3914,7 @@ function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
 function confirmDelay() {
   const reason = document.getElementById('delay-reason-input')?.value?.trim();
   if (!reason) { showToast('Informe o motivo do atraso', 'err'); return; }
-  if (!_pendingAdvance) { showToast('Sessão expirada — tente novamente', 'err'); closeModal(); return; }
+  if (!_pendingAdvance) { showToast('Sessão expirada - tente novamente', 'err'); closeModal(); return; }
   // Proteção duplo clique: zera _pendingAdvance antes de processar
   const { opId, formData } = pending;
   formData.motivoAtraso = reason;
@@ -3937,7 +3937,7 @@ function cancelDelay() {
 function submitModal() {
   if (!activeOpId || !modalMode) return;
   const op = ops.find(o => o.id === activeOpId);
-  if (!op) { showToast('OP não encontrada — recarregue a página', 'err'); closeModal(); return; }
+  if (!op) { showToast('OP não encontrada - recarregue a página', 'err'); closeModal(); return; }
   const step = STEPS[op.status];
   if (!step) { showToast('Estado inválido da OP', 'err'); closeModal(); return; }
 
@@ -4049,7 +4049,7 @@ function submitModal() {
   }
 }
 
-// ─── LIGHTBOX — imagens e PDFs ──────────────────────────────────────
+// ─── LIGHTBOX - imagens e PDFs ──────────────────────────────────────
 function showLightbox(src, name) {
   const isPdf = /\.pdf$/i.test(name || '') || src.startsWith('data:application/pdf');
   let lb = document.getElementById('img-lightbox');
@@ -4067,7 +4067,7 @@ function showLightbox(src, name) {
       display:flex;align-items:center;justify-content:center">×</button>`;
 
   if (isPdf) {
-    lb.onclick = null; // iframe consome o clique — usa só o botão X e o Esc
+    lb.onclick = null; // iframe consome o clique - usa só o botão X e o Esc
     lb.innerHTML = `
       ${closeBtn}
       <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
@@ -4142,7 +4142,7 @@ function clearDraft() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// NOVA OP — Pedido de Venda completo
+// NOVA OP - Pedido de Venda completo
 // ═══════════════════════════════════════════════════════════════════
 
 function openNovaOP() {
@@ -4156,7 +4156,7 @@ function openNovaOP() {
   document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Nova OP — Pedido do Cliente</div>
+      <div><div class="modal-title">Nova OP - Pedido do Cliente</div>
         <div class="modal-subtitle">Contourline · CNPJ 14.458.149/0001-23 · Frete: EMPRESA</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
@@ -4255,7 +4255,7 @@ function openNovaOP() {
                 style="width:130px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;background:var(--surface2)"></div>
             <div style="display:flex;align-items:center;gap:7px">
               <span style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Valor Total</span>
-              <span id="nova-valor-total-display" style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);min-width:110px;text-align:right">—</span>
+              <span id="nova-valor-total-display" style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);min-width:110px;text-align:right">-</span>
             </div>
           </div>
           <input type="hidden" id="nova-valorTotal">
@@ -4277,7 +4277,7 @@ function openNovaOP() {
             </select></div>
           <div class="form-group"><label class="form-label">Detalhes do Pagamento</label>
             <textarea class="form-textarea" id="nova-detalhesPagamento" rows="6"></textarea></div>
-          <div class="form-group"><label class="form-label">Simulador <span style="font-weight:400;color:var(--text3)">(R$ — opcional)</span></label>
+          <div class="form-group"><label class="form-label">Simulador <span style="font-weight:400;color:var(--text3)">(R$ - opcional)</span></label>
             <input class="form-input" id="nova-simulador" type="text" inputmode="decimal"
               oninput="brlFormat(this)" style="font-family:'DM Mono',monospace"></div>
           <hr class="form-divider">
@@ -4325,7 +4325,7 @@ function openNovaOP() {
               <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}" readonly style="background:var(--surface2)"></div>
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:-4px;padding-bottom:8px">
-            Prazo: <span id="nova-prazo-info" style="color:var(--accent)">—</span></div>
+            Prazo: <span id="nova-prazo-info" style="color:var(--accent)">-</span></div>
           <div class="form-group"><label class="form-label">Treinamento</label>
             <input class="form-input" id="nova-treinamento"></div>
           <div class="form-group" style="margin-top:6px">
@@ -4352,7 +4352,7 @@ function openNovaOP() {
     if (draftTs) {
       const mins = Math.round((Date.now() - draftTs) / 60000);
       const when = mins < 1 ? 'agora há pouco' : mins < 60 ? `há ${mins} min` : `há ${Math.round(mins/60)}h`;
-      showToast(`Rascunho restaurado (salvo ${when}) — preencha os campos restantes`, 'ok');
+      showToast(`Rascunho restaurado (salvo ${when}) - preencha os campos restantes`, 'ok');
     }
     document.getElementById('modal')?.addEventListener('input',  saveDraft);
     document.getElementById('modal')?.addEventListener('change', saveDraft);
@@ -4413,7 +4413,7 @@ async function buscarClientePorCodigo(cod, loja) {
       fillClientFromProtheus(d);
       saveDraft();
     }
-  } catch (err) { /* silencioso — dados do cliente ficam manuais */ }
+  } catch (err) { /* silencioso - dados do cliente ficam manuais */ }
 }
 
 function preencherPedido(p) {
@@ -4422,8 +4422,8 @@ function preencherPedido(p) {
     if (el && v != null && String(v).trim() !== '') el.value = String(v).trim();
   };
 
-  // Cliente (nome — CPF/endereço vêm da busca do cliente por código)
-  // Cliente completo — vem no próprio pedido (objeto A1)
+  // Cliente (nome - CPF/endereço vêm da busca do cliente por código)
+  // Cliente completo - vem no próprio pedido (objeto A1)
   const cl = p.cliente || {};
   fill('nova-cliente', cl.nome);
   if (cl.cgc) fill('nova-cpf', cl.cgc);
@@ -4433,7 +4433,7 @@ function preencherPedido(p) {
   fill('nova-numDocumento', cl.docProfissional);
   fill('nova-dn', cl.dataNascimento);
   if (cl.tel) fill('nova-tel', cl.ddd ? `(${cl.ddd}) ${cl.tel}` : cl.tel);
-  // Endereço — separa o número que vem após a vírgula (ex.: "RUA X, 146")
+  // Endereço - separa o número que vem após a vírgula (ex.: "RUA X, 146")
   let rua = (cl.endereco || '').trim(), numero = '';
   if (rua.includes(',')) {
     const parts = rua.split(','); const last = parts[parts.length - 1].trim();
@@ -4463,15 +4463,15 @@ function preencherPedido(p) {
   // Simulador
   if (Number(p.simulador) > 0) fill('nova-simulador', brlFmtNum(p.simulador));
 
-  // Previsão de entrega — data exata do pedido (prazo calculado a partir de hoje)
+  // Previsão de entrega - data exata do pedido (prazo calculado a partir de hoje)
   if (p.previsaoEntrega) {
     fill('nova-previsaoEntrega', p.previsaoEntrega);
     calcPrazoEntrega();
   }
 
-  // Pagamento: cada forma (condição) com parcela + vencimento — só as preenchidas
+  // Pagamento: cada forma (condição) com parcela + vencimento - só as preenchidas
   const linhas = (p.pagamentos || []).map(pg => {
-    const vlr = Number(pg.valor||0) > 0 ? ` — R$ ${Number(pg.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
+    const vlr = Number(pg.valor||0) > 0 ? ` - R$ ${Number(pg.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}` : '';
     const vc  = pg.venc ? ` (venc. ${pg.venc})` : '';
     return `${pg.forma || ''}${vlr}${vc}`.trim();
   }).filter(Boolean);
@@ -4504,7 +4504,7 @@ function preencherPedido(p) {
   lockCamposPuxados();   // bloqueia os campos preenchidos (edita via lápis)
 }
 
-// Vendedores extras (2..5) — exibição, aparecem quando vêm preenchidos no pedido
+// Vendedores extras (2..5) - exibição, aparecem quando vêm preenchidos no pedido
 function renderVendedoresExtra(list) {
   const wrap = document.getElementById('nova-vendedores-extra');
   if (!wrap) return;
@@ -4567,13 +4567,13 @@ function calcPrazoEntrega() {
   const prev = document.getElementById('nova-previsaoEntrega')?.value;
   const info = document.getElementById('nova-prazo-info');
   if (!info) return;
-  if (!prev) { info.textContent = '—'; return; }
+  if (!prev) { info.textContent = '-'; return; }
   const hoje = new Date(); hoje.setHours(12,0,0,0);
   const alvo = new Date(prev + 'T12:00:00');
-  if (isNaN(alvo.getTime())) { info.textContent = '—'; return; }
+  if (isNaN(alvo.getTime())) { info.textContent = '-'; return; }
   const dias = Math.round((alvo - hoje) / 86400000);
   const dataFmt = alvo.toLocaleDateString('pt-BR');
-  info.textContent = dias >= 0 ? `faltam ${dias} dia(s) — entrega ${dataFmt}` : `data já passou — ${dataFmt}`;
+  info.textContent = dias >= 0 ? `faltam ${dias} dia(s) - entrega ${dataFmt}` : `data já passou - ${dataFmt}`;
 }
 
 function updateEntradaHint(v) {
@@ -4657,7 +4657,7 @@ function calcDataPrevista() {
   const diasUteis = document.getElementById('nova-diasUteis')?.checked !== false;
   const el = document.getElementById('nova-data-prevista');
   if (!el) return;
-  if (!prazo || prazo <= 0) { el.textContent = '—'; return; }
+  if (!prazo || prazo <= 0) { el.textContent = '-'; return; }
   const d = aContarDe ? new Date(aContarDe + 'T12:00:00') : new Date();
   if (diasUteis) {
     let dias = 0;
@@ -4681,7 +4681,7 @@ function validateEmailField(input) {
   if (!ok) {
     input.style.outline = '2px solid var(--red)';
     input.style.borderColor = 'var(--red)';
-    showToast('E-mail pode estar inválido — verifique o formato', 'err');
+    showToast('E-mail pode estar inválido - verifique o formato', 'err');
     setTimeout(() => { input.style.outline = ''; input.style.borderColor = ''; }, 2500);
   }
 }
@@ -4718,7 +4718,7 @@ function toggleSameAddress(checked) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROTHEUS — busca direto no Supabase (tabela protheus_clientes)
+// PROTHEUS - busca direto no Supabase (tabela protheus_clientes)
 // ═══════════════════════════════════════════════════════════════════
 
 function clearClientFields() {
@@ -4732,13 +4732,13 @@ function clearClientFields() {
 }
 
 function fillClientFromProtheus(d) {
-  // Sempre sobrescreve — limpa antes para não misturar dados de pessoas diferentes
+  // Sempre sobrescreve - limpa antes para não misturar dados de pessoas diferentes
   clearClientFields();
   const fill = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = String(val).trim(); };
   fill('nova-cliente', d.name || d.shortName);
   const addr = d.address || {};
   // Número: usa o campo separado; senão extrai do fim da rua
-  // (Protheus manda "RUA XXX YYY, 515" — número após a vírgula)
+  // (Protheus manda "RUA XXX YYY, 515" - número após a vírgula)
   let rua    = (addr.address || '').trim();
   let numero = (addr.number  || '').trim();
   if (rua.includes(',')) {
@@ -4822,7 +4822,7 @@ async function lookupProtheusClient(rawVal) {
   } catch {}
 
   // ── 2. Fallback: busca ao vivo na API do Protheus ────────────────
-  setStatus('cnpj-status', 'Não encontrado no cache — buscando na API…', 'loading');
+  setStatus('cnpj-status', 'Não encontrado no cache - buscando na API…', 'loading');
   try {
     const resp = await fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(25000) });
     if (resp.ok) {
@@ -4854,7 +4854,7 @@ function searchClientBtn() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// BRASIL API — CEP e CNPJ
+// BRASIL API - CEP e CNPJ
 // ═══════════════════════════════════════════════════════════════════
 
 function fmtCEP(input) {
@@ -4918,7 +4918,7 @@ async function lookupCEPforField(rawVal, targetId, statusId) {
     }
     setStatus(statusId, `✓ ${[d.city, d.state].filter(Boolean).join('/')}`, 'ok');
   } catch (e) {
-    if (e.name === 'AbortError') return; // cancelado por nova digitação — ignora
+    if (e.name === 'AbortError') return; // cancelado por nova digitação - ignora
     setStatus(statusId, '✗ CEP não encontrado', 'err');
   }
 }
@@ -4973,7 +4973,7 @@ async function lookupCNPJ(rawVal) {
     if (d.cep) fill('nova-cep-cliente', d.cep.replace(/\D/g,'').replace(/^(\d{5})(\d{3})$/,'$1-$2'));
     togglePFFields(false);
     setStatus('cnpj-status', '✓ ' + (d.razao_social || d.nome_fantasia || 'CNPJ encontrado'), 'ok');
-    showToast('CNPJ encontrado — dados preenchidos automaticamente');
+    showToast('CNPJ encontrado - dados preenchidos automaticamente');
   } catch {
     setStatus('cnpj-status', '✗ CNPJ não encontrado ou inválido', 'err');
   }
@@ -5060,7 +5060,7 @@ async function submitNovaOP() {
   const equipNames = tempEquipList.map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
   const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 
-  // Constrói o objeto OP sem ID ainda — Supabase vai gerar
+  // Constrói o objeto OP sem ID ainda - Supabase vai gerar
   const opData = {
     id: 0,            // placeholder; será substituído pelo ID real do DB
     numero: 'PENDENTE',
@@ -5093,7 +5093,7 @@ async function submitNovaOP() {
       enderecoEntrega: enderecoEntrega || '',
       contatoEntrega, prazo, diasUteis,
       aContarDe: fmtD(aContarDe),
-      dataPrevista: (dataPrevista && dataPrevista !== '—') ? dataPrevista : '',
+      dataPrevista: (dataPrevista && dataPrevista !== '-') ? dataPrevista : '',
       treinamento, instagram,
       vendedores: [...tempVendedores],
       equipamentos: tempEquipList.map(e => ({ ...e })),
@@ -5103,7 +5103,7 @@ async function submitNovaOP() {
     },
     history: [{
       step: 'aberta', actor: 'vendedor', actorName: (getUser()?.userName || getUser()?.name || vendedorCanal || ''), ts: nowTs(),
-      action: 'OP Criada' + (pulou ? ' — Fin. pulado' : ''),
+      action: 'OP Criada' + (pulou ? ' - Fin. pulado' : ''),
       note: descricao || '',
     }],
     obs: '',
@@ -5160,12 +5160,12 @@ function highlightError(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PDF EXPORT — Pedido de Venda
+// PDF EXPORT - Pedido de Venda
 // ═══════════════════════════════════════════════════════════════════
 
 function fmtBRL(v) {
   const n = parseFloat(v);
-  return isNaN(n) ? '—' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return isNaN(n) ? '-' : 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function printPedidoVenda(opId) {
@@ -5177,9 +5177,9 @@ function printPedidoVenda(opId) {
     .map(e => {
       // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
       const code = e.code || (_equipCache?.find(eq => eq.name === e.name)?.code) || '';
-      const vu = e.gratuito ? 'Gratuito' : e.valorUnit ? fmtBRL(e.valorUnit) : '—';
+      const vu = e.gratuito ? 'Gratuito' : e.valorUnit ? fmtBRL(e.valorUnit) : '-';
       const lineT = (!e.gratuito && e.valorUnit) ? Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)) : 0;
-      const vt = e.gratuito ? 'Gratuito' : lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+      const vt = e.gratuito ? 'Gratuito' : lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '-';
       return `<tr>
         <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>
         <td style="text-align:center;width:40px">${e.qty||1}</td>
@@ -5215,7 +5215,7 @@ function printPedidoVenda(opId) {
   if (pv.prazo) {
     let prazoStr = `${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
     if (pv.aContarDe) prazoStr += ` (a contar de ${pv.aContarDe})`;
-    if (pv.dataPrevista) prazoStr += ` — Previsão: ${pv.dataPrevista}`;
+    if (pv.dataPrevista) prazoStr += ` - Previsão: ${pv.dataPrevista}`;
     obsParts.push(`Prazo de entrega: ${prazoStr}`);
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
@@ -5223,7 +5223,7 @@ function printPedidoVenda(opId) {
 
   const w = window.open('', '_blank', 'width=860,height=1100');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Pedido do Cliente — OP ${op.numero}</title>
+<title>Pedido do Cliente - OP ${op.numero}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
@@ -5276,40 +5276,40 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
 
 <table class="meta-grid">
   <tr>
-    <td class="lbl">Vendedor(a)</td><td>${pv.vendedorCanal||'—'}</td>
-    <td class="lbl">Data</td><td>${pv.data||'—'}</td>
+    <td class="lbl">Vendedor(a)</td><td>${pv.vendedorCanal||'-'}</td>
+    <td class="lbl">Data</td><td>${pv.data||'-'}</td>
   </tr>
   <tr>
-    <td class="lbl">Analista</td><td>${pv.analista||'—'}</td>
-    <td class="lbl">Contrato</td><td>${pv.numContrato||'—'}</td>
+    <td class="lbl">Analista</td><td>${pv.analista||'-'}</td>
+    <td class="lbl">Contrato</td><td>${pv.numContrato||'-'}</td>
   </tr>
 </table>
 
 <table class="cli">
   <tr>
-    <td colspan="3"><strong>{ X } Nome: ${pv.cliente||'—'}</strong></td>
-    <td style="white-space:nowrap"><span class="lbl">DN: </span>${pv.dn||'—'}</td>
+    <td colspan="3"><strong>{ X } Nome: ${pv.cliente||'-'}</strong></td>
+    <td style="white-space:nowrap"><span class="lbl">DN: </span>${pv.dn||'-'}</td>
   </tr>
   <tr>
-    <td><span class="lbl">CPF: </span>${pv.cpf||'—'}</td>
-    <td><span class="lbl">RG: </span>${pv.rg||'—'}</td>
-    <td colspan="2"><span class="lbl">E-mail: </span>${pv.email||'—'}</td>
+    <td><span class="lbl">CPF: </span>${pv.cpf||'-'}</td>
+    <td><span class="lbl">RG: </span>${pv.rg||'-'}</td>
+    <td colspan="2"><span class="lbl">E-mail: </span>${pv.email||'-'}</td>
   </tr>
   <tr>
-    <td colspan="4"><span class="lbl">Endereço: </span>${[pv.endRua, pv.endNumero].filter(Boolean).join(', ')||pv.enderecoCliente||'—'}</td>
+    <td colspan="4"><span class="lbl">Endereço: </span>${[pv.endRua, pv.endNumero].filter(Boolean).join(', ')||pv.enderecoCliente||'-'}</td>
   </tr>
   <tr>
-    <td><span class="lbl">Bairro: </span>${pv.endBairro||'—'}</td>
-    <td><span class="lbl">Cidade: </span>${pv.endCidade||'—'}</td>
-    <td><span class="lbl">CEP: </span>${pv.endCEP||'—'}</td>
+    <td><span class="lbl">Bairro: </span>${pv.endBairro||'-'}</td>
+    <td><span class="lbl">Cidade: </span>${pv.endCidade||'-'}</td>
+    <td><span class="lbl">CEP: </span>${pv.endCEP||'-'}</td>
     <td></td>
   </tr>
   <tr>
-    <td><span class="lbl">Estado: </span>${pv.endEstado||'—'}</td>
-    <td colspan="3"><span class="lbl">Tel.: </span>${pv.tel||'—'}</td>
+    <td><span class="lbl">Estado: </span>${pv.endEstado||'-'}</td>
+    <td colspan="3"><span class="lbl">Tel.: </span>${pv.tel||'-'}</td>
   </tr>
   <tr>
-    <td><span class="lbl">Profissão: </span>${pv.profissao||'—'}</td>
+    <td><span class="lbl">Profissão: </span>${pv.profissao||'-'}</td>
     <td colspan="3"><span class="lbl">Nº documento: </span>${pv.numDocumento||'N/A'}</td>
   </tr>
 </table>
@@ -5351,7 +5351,7 @@ ${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsH
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════════
 
-// setUser removido — autenticação agora via login screen
+// setUser removido - autenticação agora via login screen
 function setTab(tab, btn) {
   if (tab !== 'todas') todasFilter = ''; // limpa busca ao sair da aba
   currentTab = tab;
@@ -5362,7 +5362,7 @@ function setTab(tab, btn) {
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 
 // ═══════════════════════════════════════════════════════════════════
-// INIT — carrega do Supabase e inicia Realtime
+// INIT - carrega do Supabase e inicia Realtime
 // ═══════════════════════════════════════════════════════════════════
 checkSession();
 </script>

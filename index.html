@@ -4313,8 +4313,8 @@ async function puxarPedido() {
     const p = await resp.json();
     preencherPedido(p);
 
-    // Busca dados completos do cliente (CPF/endereço) pelo código do pedido
-    if (p.cliente && p.cliente.cod) {
+    // Fallback: só busca no cadastro se o pedido não trouxe o cliente (CPF vazio)
+    if (p.cliente && p.cliente.cod && !p.cliente.cgc) {
       setStatus('pedido-status', 'Buscando dados do cliente…', 'loading');
       await buscarClientePorCodigo(p.cliente.cod, p.cliente.loja);
     }
@@ -4352,15 +4352,36 @@ function preencherPedido(p) {
   };
 
   // Cliente (nome — CPF/endereço vêm da busca do cliente por código)
-  fill('nova-cliente', p.cliente && p.cliente.nome);
+  // Cliente completo — vem no próprio pedido (objeto A1)
+  const cl = p.cliente || {};
+  fill('nova-cliente', cl.nome);
+  if (cl.cgc) fill('nova-cpf', cl.cgc);
+  fill('nova-rg', cl.rg);
+  fill('nova-email', cl.email);
+  fill('nova-profissao', cl.profissao);
+  fill('nova-numDocumento', cl.docProfissional);
+  fill('nova-dn', cl.dataNascimento);
+  if (cl.tel) fill('nova-tel', cl.ddd ? `(${cl.ddd}) ${cl.tel}` : cl.tel);
+  // Endereço — separa o número que vem após a vírgula (ex.: "RUA X, 146")
+  let rua = (cl.endereco || '').trim(), numero = '';
+  if (rua.includes(',')) {
+    const parts = rua.split(','); const last = parts[parts.length - 1].trim();
+    const m = last.match(/\d+[A-Za-z]?/);
+    if (m) { numero = m[0]; rua = parts.slice(0, -1).join(',').trim(); }
+  }
+  fill('nova-endRua', rua);
+  fill('nova-endNumero', numero);
+  fill('nova-endBairro', cl.bairro);
+  fill('nova-endCidade', cl.cidade);
+  if (cl.estado) { const est = document.getElementById('nova-endEstado'); if (est) est.value = cl.estado; }
+  if (cl.cep && cl.cep.length === 8) fill('nova-cep-cliente', cl.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2'));
+  togglePFFields((cl.pessoa || '') !== 'J');
+
   fill('nova-data', p.emissao);
   fill('nova-numContrato', p.contrato);
   fill('nova-treinamento', p.treinamento);
   fill('nova-instagram',   p.instagram);
-  fill('nova-profissao',    p.profissao);
-  fill('nova-numDocumento', p.docProfissional);
-  fill('nova-dn',           p.dataNascimento);
-  fill('nova-descricao',    p.outrasInfo);
+  fill('nova-descricao',   p.outrasInfo);
 
   // Vendedores (1..5): 1º no campo principal, extras aparecem abaixo (só preenchidos)
   const vends = Array.isArray(p.vendedores) ? p.vendedores.filter(Boolean) : [];

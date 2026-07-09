@@ -135,16 +135,33 @@ export default async function handler(req, res) {
     };
   }) : [];
 
+  // Cadastro completo do cliente vem no próprio pedido (objeto "cliente", tabela A1)
+  const cli = row.cliente || {};
+  const cliente = {
+    cod:    val(cli.A1_COD)  || val(cab.C5_CLIENTE),
+    loja:   val(cli.A1_LOJA) || val(cab.C5_LOJACLI),
+    nome:   val(cli.A1_NOME) || desc(cab.C5_CLIENTE),
+    pessoa: val(cli.A1_PESSOA),   // F (física) ou J (jurídica)
+    cgc:    String(val(cli.A1_CGC) || '').replace(/\D/g, ''),
+    rg:     val(cli.A1_PFISICA) || val(cli.A1_RG),
+    email:  val(cli.A1_EMAIL),
+    ddd:    val(cli.A1_DDD),
+    tel:    val(cli.A1_TEL),
+    endereco: val(cli.A1_END),
+    bairro:   val(cli.A1_BAIRRO),
+    cidade:   val(cli.A1_MUN),
+    estado:   val(cli.A1_EST),
+    cep:      String(val(cli.A1_CEP) || '').replace(/\D/g, ''),
+    contato:  val(cli.A1_CONTATO),
+    profissao:       val(cli.A1_XPROFIS),
+    docProfissional: val(cli.A1_XDOCPRO),
+    dataNascimento:  brToISO(val(cli.A1_DTNASC)),
+  };
+
   return res.status(200).json({
     numero:       val(cab.C5_NUM) || pedido,
     statusPedido: row.status_pedido || '',
-    cliente: {
-      cod:      val(cab.C5_CLIENTE),
-      loja:     val(cab.C5_LOJACLI),
-      nome:     desc(cab.C5_CLIENTE),
-      tipo:     val(cab.C5_TIPOCLI),
-      tipoDesc: desc(cab.C5_TIPOCLI),
-    },
+    cliente,
     emissao:         toISO(val(cab.C5_EMISSAO)),
     condPag:         val(cab.C5_CONDPAG),
     condPagDesc:     desc(cab.C5_CONDPAG),
@@ -158,9 +175,6 @@ export default async function handler(req, res) {
     contrato:        val(cab.C5_XCONTR),
     treinamento:     desc(cab.C5_XTREINA) || val(cab.C5_XTREINA),
     outrasInfo:      val(cab.C5_XOUTINF),
-    profissao:       val(cab.A1_XPROFIS),
-    docProfissional: val(cab.A1_XDOCPRO),
-    dataNascimento:  brToISO(val(cab.A1_DTNASC)),
     itens,
   });
 }

@@ -29,6 +29,12 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--azul-claro); border-radius: 3px; }
+/* Campos puxados do Protheus: bloqueio com lápis/confirmar/cancelar */
+.fl-wrap { display: flex; gap: 3px; align-items: flex-start; }
+.fl-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--text3); display: flex; align-items: center; border-radius: 5px; flex-shrink: 0; }
+.fl-btn:hover { background: var(--surface2); color: var(--text); }
+.fl-btn.fl-ok { color: var(--green); }
+.fl-btn.fl-cancel { color: var(--red); }
 
 /* HEADER */
 header {
@@ -704,6 +710,9 @@ function icon(name, size = 16, style = '') {
     'check-circle':   `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
     'eye':            `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
     'x':              `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    'pencil':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,
+    'check':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    'qr-code':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>`,
     'printer':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
     'file-text':      `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
     'chevron-down':   `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
@@ -1729,10 +1738,10 @@ function renderEquipItem(e, i) {
         type="text" inputmode="decimal" placeholder="Desconto R$"
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
     </div>`}
-    <div style="display:flex;gap:5px;align-items:center">
-      <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">QR</span>
-      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
-        type="text" placeholder="QR Code do equipamento"
+    <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
+      <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
+      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)"
+        type="text" placeholder="opcional — adesivo do equipamento"
         value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
     </div>
   </div>`;
@@ -4015,7 +4024,7 @@ const DRAFT_TEXT_IDS = [
   'nova-endCidade','nova-cep-cliente','nova-tel','nova-tipoContrato',
   'nova-detalhesPagamento','nova-simulador','nova-entrada','nova-valorEntrada',
   'nova-enderecoEntrega','nova-contatoEntrega','nova-prazo','nova-aContarDe',
-  'nova-treinamento','nova-descricao','nova-instagram',
+  'nova-treinamento','nova-descricao','nova-instagram','nova-previsaoEntrega',
 ];
 
 function saveDraft() {
@@ -4053,7 +4062,7 @@ function loadDraft() {
     const estado = g('nova-endEstado');
     if (estado && draft.fields['nova-endEstado']) estado.value = draft.fields['nova-endEstado'];
     if (draft.equips?.length)    { tempEquipList = draft.equips;       refreshEquipList();      }
-    calcDataPrevista();
+    calcPrazoEntrega();
     calcDescontoTotal();
     updateEntradaHint(g('nova-entrada')?.value || 'sem');
     return draft.ts;
@@ -4072,7 +4081,7 @@ function openNovaOP() {
   tempEquipList    = [];
   tempVendedores   = [];
   const todayISO = new Date().toISOString().split('T')[0];
-  const analistaOptions = `<option value="">— Selecionar —</option>` + VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  const analistaOptions = `<option value="" selected disabled hidden></option>` + VENDEDORES.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
   const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
@@ -4206,6 +4215,7 @@ function openNovaOP() {
           <hr class="form-divider">
           <div class="form-group"><label class="form-label">Entrada</label>
             <select class="form-select" id="nova-entrada" onchange="updateEntradaHint(this.value)">
+              <option value="" selected disabled hidden></option>
               <option value="sem">Sem entrada</option>
               <option value="pendente">Com entrada</option>
             </select></div>
@@ -4241,23 +4251,13 @@ function openNovaOP() {
           <div class="form-group"><label class="form-label">Contato responsável</label>
             <input class="form-input" id="nova-contatoEntrega"></div>
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" style="display:flex;align-items:center;gap:8px">
-                Prazo de entrega
-                <label style="display:inline-flex;align-items:center;gap:4px;font-weight:400;font-size:10px;color:var(--text2);cursor:pointer">
-                  <input type="checkbox" id="nova-diasUteis" checked oninput="calcDataPrevista()" style="width:13px;height:13px;cursor:pointer">
-                  Dias úteis
-                </label>
-              </label>
-              <input class="form-input" id="nova-prazo" type="number" min="1"
-                oninput="calcDataPrevista()">
-            </div>
-            <div class="form-group"><label class="form-label">A contar de</label>
-              <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}"
-                oninput="calcDataPrevista()"></div>
+            <div class="form-group"><label class="form-label">Previsão de entrega</label>
+              <input class="form-input" id="nova-previsaoEntrega" type="date" oninput="calcPrazoEntrega()"></div>
+            <div class="form-group"><label class="form-label">A contar de (hoje)</label>
+              <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}" readonly style="background:var(--surface2)"></div>
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:-4px;padding-bottom:8px">
-            Previsão: <span id="nova-data-prevista" style="color:var(--accent)">—</span></div>
+            Prazo: <span id="nova-prazo-info" style="color:var(--accent)">—</span></div>
           <div class="form-group"><label class="form-label">Treinamento</label>
             <input class="form-input" id="nova-treinamento"></div>
           <div class="form-group" style="margin-top:6px">
@@ -4279,7 +4279,7 @@ function openNovaOP() {
 
   document.getElementById('overlay').classList.add('open');
   setTimeout(() => {
-    calcDataPrevista();
+    calcPrazoEntrega();
     const draftTs = loadDraft();
     if (draftTs) {
       const mins = Math.round((Date.now() - draftTs) / 60000);
@@ -4319,6 +4319,7 @@ async function puxarPedido() {
     if (p.cliente && p.cliente.cod && !p.cliente.cgc) {
       setStatus('pedido-status', 'Buscando dados do cliente…', 'loading');
       await buscarClientePorCodigo(p.cliente.cod, p.cliente.loja);
+      lockCamposPuxados();
     }
 
     const st = p.statusPedido ? ` · ${p.statusPedido}` : '';
@@ -4394,20 +4395,10 @@ function preencherPedido(p) {
   // Simulador
   if (Number(p.simulador) > 0) fill('nova-simulador', brlFmtNum(p.simulador));
 
-  // Previsão de entrega (data do pedido) → converte em prazo de dias corridos
+  // Previsão de entrega — data exata do pedido (prazo calculado a partir de hoje)
   if (p.previsaoEntrega) {
-    const ac = document.getElementById('nova-aContarDe');
-    const du = document.getElementById('nova-diasUteis');
-    const pz = document.getElementById('nova-prazo');
-    if (du) du.checked = false;
-    if (ac && p.emissao) ac.value = p.emissao;
-    const base = new Date((ac?.value || p.emissao || '') + 'T12:00:00');
-    const alvo = new Date(p.previsaoEntrega + 'T12:00:00');
-    if (pz && !isNaN(base.getTime()) && !isNaN(alvo.getTime())) {
-      const dias = Math.round((alvo - base) / 86400000);
-      if (dias > 0) pz.value = dias;
-    }
-    calcDataPrevista();
+    fill('nova-previsaoEntrega', p.previsaoEntrega);
+    calcPrazoEntrega();
   }
 
   // Pagamento: cada forma (condição) com parcela + vencimento — só as preenchidas
@@ -4439,6 +4430,7 @@ function preencherPedido(p) {
   }
 
   saveDraft();
+  lockCamposPuxados();   // bloqueia os campos preenchidos (edita via lápis)
 }
 
 // Vendedores extras (2..5) — exibição, aparecem quando vêm preenchidos no pedido
@@ -4451,6 +4443,66 @@ function renderVendedoresExtra(list) {
       <input class="form-input" value="${String(v).replace(/"/g,'&quot;')}" readonly
         style="background:var(--surface2)">
     </div>`).join('');
+}
+
+// ─── BLOQUEIO DE CAMPOS PUXADOS (edição via lápis) ──────────────────
+const CAMPOS_PUXADOS = ['nova-cliente','nova-cpf','nova-rg','nova-email','nova-profissao',
+  'nova-numDocumento','nova-dn','nova-tel','nova-endRua','nova-endNumero','nova-endBairro',
+  'nova-endCidade','nova-endEstado','nova-cep-cliente','nova-data','nova-numContrato',
+  'nova-treinamento','nova-instagram','nova-descricao','nova-vendedorCanal','nova-simulador',
+  'nova-previsaoEntrega'];
+
+function setFieldEditing(el, bar, editing) {
+  if (editing) el.dataset.flOrig = el.value;
+  const isSel = el.tagName === 'SELECT';
+  if (isSel) el.disabled = !editing; else el.readOnly = !editing;
+  if (isSel || el.type === 'date') el.style.pointerEvents = editing ? '' : 'none';
+  el.style.background = editing ? '' : 'var(--surface2)';
+  bar.querySelector('.fl-pencil').style.display = editing ? 'none' : '';
+  bar.querySelector('.fl-cancel').style.display = editing ? '' : 'none';
+  bar.querySelector('.fl-ok').style.display     = editing ? '' : 'none';
+  if (editing && !isSel) el.focus();
+}
+
+function lockField(id) {
+  const el = document.getElementById(id);
+  if (!el || !String(el.value || '').trim()) return;   // só bloqueia o que veio preenchido
+  if (!el.dataset.flInit) {
+    el.dataset.flInit = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'fl-wrap';
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    el.style.flex = '1'; el.style.minWidth = '0';
+    const bar = document.createElement('span');
+    bar.style.cssText = 'display:flex;gap:1px;flex-shrink:0';
+    bar.innerHTML =
+      `<button type="button" class="fl-btn fl-pencil" title="Editar">${icon('pencil',13)}</button>` +
+      `<button type="button" class="fl-btn fl-cancel" title="Cancelar" style="display:none">${icon('x',14)}</button>` +
+      `<button type="button" class="fl-btn fl-ok" title="Confirmar" style="display:none">${icon('check',14)}</button>`;
+    wrap.appendChild(bar);
+    bar.querySelector('.fl-pencil').onclick = () => setFieldEditing(el, bar, true);
+    bar.querySelector('.fl-cancel').onclick = () => { el.value = el.dataset.flOrig || ''; setFieldEditing(el, bar, false); };
+    bar.querySelector('.fl-ok').onclick     = () => setFieldEditing(el, bar, false);
+    el._flBar = bar;
+  }
+  setFieldEditing(el, el._flBar, false);
+}
+
+function lockCamposPuxados() { CAMPOS_PUXADOS.forEach(lockField); }
+
+// Prazo = dias corridos de HOJE até a previsão de entrega (data exata do pedido)
+function calcPrazoEntrega() {
+  const prev = document.getElementById('nova-previsaoEntrega')?.value;
+  const info = document.getElementById('nova-prazo-info');
+  if (!info) return;
+  if (!prev) { info.textContent = '—'; return; }
+  const hoje = new Date(); hoje.setHours(12,0,0,0);
+  const alvo = new Date(prev + 'T12:00:00');
+  if (isNaN(alvo.getTime())) { info.textContent = '—'; return; }
+  const dias = Math.round((alvo - hoje) / 86400000);
+  const dataFmt = alvo.toLocaleDateString('pt-BR');
+  info.textContent = dias >= 0 ? `faltam ${dias} dia(s) — entrega ${dataFmt}` : `data já passou — ${dataFmt}`;
 }
 
 function updateEntradaHint(v) {
@@ -4890,10 +4942,18 @@ async function submitNovaOP() {
   const valorLiquido     = g('nova-valorLiquido')?.value;
   const enderecoEntrega  = v('nova-enderecoEntrega');
   const contatoEntrega   = v('nova-contatoEntrega');
-  const prazo            = g('nova-prazo')?.value;
-  const diasUteis        = g('nova-diasUteis')?.checked !== false;
+  const previsaoISO      = g('nova-previsaoEntrega')?.value || '';
   const aContarDe        = g('nova-aContarDe')?.value;
-  const dataPrevista     = g('nova-data-prevista')?.textContent;
+  const diasUteis        = false;
+  let prazo = '', dataPrevista = '';
+  if (previsaoISO) {
+    const _hoje = new Date(); _hoje.setHours(12,0,0,0);
+    const _alvo = new Date(previsaoISO + 'T12:00:00');
+    if (!isNaN(_alvo.getTime())) {
+      prazo = String(Math.max(0, Math.round((_alvo - _hoje) / 86400000)));
+      dataPrevista = _alvo.toLocaleDateString('pt-BR');
+    }
+  }
   const treinamento      = v('nova-treinamento');
   const instagram        = v('nova-instagram');
   const descricao        = v('nova-descricao');
@@ -4905,6 +4965,8 @@ async function submitNovaOP() {
 
   if (!vendedorCanal) { highlightError('nova-vendedorCanal'); return; }
   if (!cliente)       { highlightError('nova-cliente');       return; }
+  if (!analistaId)    { highlightError('nova-analista'); showToast('Selecione o analista', 'err'); return; }
+  if (!entrada)       { highlightError('nova-entrada'); showToast('Selecione a entrada (com ou sem)', 'err'); return; }
   if (email && !email.includes('@')) { highlightError('nova-email'); showToast('E-mail inválido', 'err'); return; }
   if (!tempEquipList.length) {
     const el = g('equip-list-items');
@@ -4957,7 +5019,7 @@ async function submitNovaOP() {
       simulador: simulador || '',
       valorTotal, valorDesconto, valorLiquido,
       entrada, valorEntrada,
-      enderecoEntrega: enderecoEntrega || enderecoCliente || '',
+      enderecoEntrega: enderecoEntrega || '',
       contatoEntrega, prazo, diasUteis,
       aContarDe: fmtD(aContarDe),
       dataPrevista: (dataPrevista && dataPrevista !== '—') ? dataPrevista : '',

@@ -2431,7 +2431,7 @@ function renderQueue(user, el) {
 
   // ── FINANCEIRO (seções: Validação + Bloqueadas) ──────────────────
   if (user.role === 'financeiro') {
-    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro' && !o.stepData?.aguard_financeiro?.aprovado);
+    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro' && finNeeded(o) && !finDone(o));
     const bloqueadaOps = ops.filter(o => o.status === 'bloqueada');
     const boletoOps    = ops.filter(o => o.boletoTask?.status === 'pendente');
     const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;

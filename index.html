@@ -5295,7 +5295,7 @@ body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2.5px solid #162C45;padding-bottom:10px;margin-bottom:12px}
 .brand{font-size:19px;font-weight:900;color:#162C45;letter-spacing:-1px}
 .brand-sub{font-size:9px;color:#555;margin-top:3px}
-.doc-title{text-align:right;text-decoration:underline;font-size:17px;font-weight:800;color:#162C45}
+.doc-title{text-align:right;font-size:17px;font-weight:800;color:#162C45}
 /* meta grid */
 .meta-grid{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
 .meta-grid td{padding:3px 8px;border:1px solid #c8d0dc;vertical-align:top}
@@ -5334,12 +5334,12 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
     <div class="brand">CONTOURLINE</div>
     <div class="brand-sub">Equipamentos Médicos e Diagnósticos Ltda<br>CNPJ: ${pv.cnpj}</div>
   </div>
-  <div class="doc-title">${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : 'Pedido de Venda'}</div>
+  <div class="doc-title">${op.pedidoProtheus ? 'Pedido de venda: ' + op.pedidoProtheus : 'Pedido de Venda'}</div>
 </div>
 
 <table class="meta-grid">
   <tr>
-    <td class="lbl">Vendedor(a)</td><td>${pv.vendedorCanal||'-'}</td>
+    <td class="lbl">Vendedor(a)</td><td>${[pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join('<br>')||'-'}</td>
     <td class="lbl">Data</td><td>${pv.data||'-'}</td>
   </tr>
   <tr>

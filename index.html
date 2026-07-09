@@ -2184,17 +2184,22 @@ function buildFieldHtml(f) {
     const nameCount = {};
     const nameIdx   = {};
     trackItems.forEach(({ name: n }) => { nameCount[n] = (nameCount[n]||0)+1; });
-    return trackItems.map(({ name: nm, tracking }, i) => {
+    const inputsHtml = trackItems.map(({ name: nm, tracking }, i) => {
       nameIdx[nm] = (nameIdx[nm]||0)+1;
       const equipLabel = nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm;
       const fieldLabel = tracking === 'lote' ? 'Lote' : 'Nº de Série';
-      const ph         = tracking === 'lote' ? 'Ex: LOT-20240601' : 'Ex: SN123456';
       return `
       <div class="form-group">
         <label class="form-label">${fieldLabel} - <span style="color:var(--accent);font-family:'DM Mono',monospace;font-size:11px">${equipLabel}</span></label>
-        <input class="form-input" id="f-numSerie_${i}" data-tracking="${tracking}" placeholder="${ph}">
+        <input class="form-input" id="f-numSerie_${i}" data-tracking="${tracking}" data-name="${String(nm).replace(/"/g,'&quot;')}">
       </div>`;
     }).join('');
+    const btnHtml = op?.pedidoProtheus ? `
+      <button type="button" id="btn-puxar-serie" onclick="puxarSerieLote(${op.id})"
+        style="margin-bottom:8px;padding:7px 14px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+        ${icon('download',13,'color:#fff')} Puxar série e lote do Protheus
+      </button>` : '';
+    return btnHtml + inputsHtml;
   }
 
   if (f.type === 'cep-lookup') {
@@ -4421,6 +4426,54 @@ async function buscarClientePorCodigo(cod, loja) {
       saveDraft();
     }
   } catch (err) { /* silencioso - dados do cliente ficam manuais */ }
+}
+
+// Puxa série/lote do pedido (já faturado) e trava os campos preenchidos
+async function puxarSerieLote(opId) {
+  const op  = ops.find(o => o.id === opId);
+  const num = op?.pedidoProtheus;
+  if (!num) { showToast('Esta OP não tem pedido do Protheus vinculado', 'err'); return; }
+  const btn = document.getElementById('btn-puxar-serie');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
+  try {
+    const resp = await fetch('/api/pedido-venda?pedido=' + encodeURIComponent(num), { signal: AbortSignal.timeout(25000) });
+    if (!resp.ok) { showToast('Não foi possível buscar o pedido', 'err'); return; }
+    const p = await resp.json();
+
+    // fila de valores (série/lote) por nome de produto
+    const porNome = {};
+    (p.itens || []).forEach(it => {
+      const nome = (it.descricao || it.produto || '').trim();
+      const q = [];
+      if ((it.numSerie || '').trim()) q.push({ tipo: 'serie', val: it.numSerie.trim() });
+      if ((it.lote     || '').trim()) q.push({ tipo: 'lote',  val: it.lote.trim() });
+      if (q.length) (porNome[nome] = porNome[nome] || []).push(...q);
+    });
+
+    let algum = 0;
+    document.querySelectorAll('[id^="f-numSerie_"]').forEach(inp => {
+      if (inp.dataset.puxado === '1') return;         // já travado
+      const nome     = inp.getAttribute('data-name') || '';
+      const tracking = inp.getAttribute('data-tracking') || '';
+      const fila     = porNome[nome];
+      if (!fila || !fila.length) return;
+      let idx = fila.findIndex(x => x.tipo === tracking);
+      if (idx < 0) idx = 0;
+      const item = fila.splice(idx, 1)[0];
+      inp.value = item.val;
+      inp.readOnly = true;
+      inp.style.background = 'var(--surface2)';
+      inp.dataset.puxado = '1';
+      algum++;
+    });
+
+    if (algum) showToast(`${algum} série(s)/lote(s) puxado(s) do Protheus`, 'ok');
+    else showToast('Nenhuma série/lote disponível no pedido ainda (fatura o pedido primeiro)', 'err');
+  } catch (e) {
+    showToast('Falha ao buscar série/lote do Protheus', 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
 }
 
 function preencherPedido(p) {

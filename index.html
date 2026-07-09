@@ -4098,19 +4098,17 @@ function openNovaOP() {
             </div>
             <div class="api-status" id="pedido-status"></div>
           </div>
+          <div class="form-group"><label class="form-label">Vendedor(a) *</label>
+            <input class="form-input" id="nova-vendedorCanal"></div>
+          <div id="nova-vendedores-extra"></div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">Vendedor(a) *</label>
-              <input class="form-input" id="nova-vendedorCanal"></div>
             <div class="form-group"><label class="form-label">Data</label>
               <input class="form-input" id="nova-data" type="date" value="${todayISO}"></div>
-          </div>
-          <div class="form-row">
             <div class="form-group"><label class="form-label">Analista *</label>
               <select class="form-select" id="nova-analista">${analistaOptions}</select></div>
-            <div class="form-group"><label class="form-label">Contrato</label>
-              <input class="form-input" id="nova-numContrato"></div>
           </div>
-          <div id="nova-vendedores-extra"></div>
+          <div class="form-group"><label class="form-label">Contrato</label>
+            <input class="form-input" id="nova-numContrato"></div>
         </div></div>
 
       <div class="acc"><div ${acc('Dados do Cliente')}
@@ -4970,9 +4968,12 @@ async function submitNovaOP() {
 
   // Atualiza com ID e numero reais
   const newId  = Number(rows[0].id);
-  const numero = newId + '/' + new Date().getFullYear();
+  const pedidoProtheus = (g('nova-numPedido')?.value || '').trim();
+  const baseNum = newId + '/' + new Date().getFullYear();
+  const numero  = pedidoProtheus ? `${baseNum} - Pedido de venda ${pedidoProtheus}` : baseNum;
   opData.id     = newId;
   opData.numero = numero;
+  opData.pedidoProtheus = pedidoProtheus;
   if (opData.pedidoVenda) opData.pedidoVenda.numero = numero;
 
   // Atualiza Supabase com numero correto (fire-and-forget)

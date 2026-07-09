@@ -2674,7 +2674,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-top">
       <div>
         <div class="card-op">OP ${op.numero}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorCanal||op.vendedorName||''}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : fmtDate(op.dataAbertura) + ' · ' + (op.vendedorCanal||op.vendedorName||'')}</div>
       </div>
       <div class="card-flags">
         ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
@@ -2731,7 +2731,10 @@ function buildContextPanel(op) {
 
   // Pedido do Cliente
   if (pv) {
-    const equipLines = (pv.equipamentos||[]).map(e=>`${e.name}${e.qty>1?' ×'+e.qty:''}`).join('<br>');
+    const equipLines = (pv.equipamentos||[]).map(e=>{
+      const nsl = [e.numSerie && 'NS '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
+      return `${e.name}${e.qty>1?' ×'+e.qty:''}${nsl?` <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">· ${nsl}</span>`:''}`;
+    }).join('<br>');
     const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -3067,7 +3070,9 @@ function buildInfoSections(op, opId) {
       const lt = e.gratuito ? ` — <span style="color:var(--green);font-weight:700">Gratuito</span>`
                : e.valorUnit ? ` — ${fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)))}` : '';
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
-      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}</div>`;
+      const nsl = [e.numSerie && 'NS '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
+      const nslHtml = nsl ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· ${nsl}</span>` : '';
+      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
@@ -3501,7 +3506,7 @@ function openAnexarBoleto(opId) {
       ${buildFieldHtml({ key:'boleto_avulso', label:'Boleto(s)', type:'multi-file', accept:'.pdf,.png,.jpg,.jpeg' })}
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveAnexarBoleto(${opId})">${icon('paperclip',13)} Salvar Boleto</button>
     </div>`;
 
@@ -3546,7 +3551,7 @@ function openAnexarFotos(opId) {
       ${buildFieldHtml({ key:'fotos_avulsas', label:'Fotos / Comprovante de Entrega', type:'multi-file', accept:'image/*,.pdf' })}
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveAnexarFotos(${opId})">${icon('image',13)} Salvar Fotos</button>
     </div>`;
 
@@ -3612,7 +3617,7 @@ function openSimplesFaturamento(opId) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="openInfoModal(${opId})">Cancelar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveSimplesFaturamento(${opId})">${icon('file-text',13)} Salvar</button>
     </div>`;
 
@@ -3703,7 +3708,7 @@ function boletoTaskCard(op) {
     <div class="card-top">
       <div>
         <div class="card-op">OP ${opNum}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)} · ${op.vendedorCanal||op.vendedorName||''}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : fmtDate(op.dataAbertura) + ' · ' + (op.vendedorCanal||op.vendedorName||'')}</div>
       </div>
     </div>
     <div class="card-client">${op.cliente}</div>
@@ -4227,13 +4232,13 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Cidade</label>
               <input class="form-input" id="nova-endCidade"></div>
           </div>
-          <div class="form-row" style="grid-template-columns:120px 70px 1fr">
+          <div class="form-row" style="grid-template-columns:120px 96px 1fr">
             <div class="form-group"><label class="form-label">CEP</label>
               <input class="form-input" id="nova-cep-cliente"
                 oninput="fmtCEP(this);if(this.value.replace(/\\D/g,'').length===8)lookupCEPSplit(this.value,'nova-endRua','nova-endBairro','nova-endCidade','nova-endEstado','cep-status-cliente')">
               <div class="api-status" id="cep-status-cliente"></div></div>
             <div class="form-group"><label class="form-label">Estado</label>
-              <select class="form-select" id="nova-endEstado"><option value="">UF</option>${estadoOptions}</select></div>
+              <select class="form-select" id="nova-endEstado" style="padding-right:26px"><option value="">UF</option>${estadoOptions}</select></div>
             <div class="form-group"><label class="form-label">Tel.</label>
               <input class="form-input" id="nova-tel"></div>
           </div>
@@ -4488,6 +4493,8 @@ function preencherPedido(p) {
       desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
       qrcode:    (it.qrcode || '').trim(),
       qrLocked:  (it.qrcode || '').trim() ? true : undefined,
+      numSerie:  (it.numSerie || '').trim(),
+      lote:      (it.lote || '').trim(),
       gratuito:  gratuito,
     }));
     refreshEquipList();

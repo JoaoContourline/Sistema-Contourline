@@ -132,6 +132,7 @@ export default async function handler(req, res) {
       total,
       qrcode:    val(it.C6_XQRCODE),
       numSerie:  val(it.C6_NUMSERI),
+      lote:      val(it.C6_LOTECTL) || val(it.C6_NUMLOTE),
     };
   }) : [];
 

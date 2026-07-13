@@ -1124,17 +1124,17 @@ const ESTADOS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS',
 // Nomes exibidos no histórico para cada etapa (avanço e rejeição)
 const HIST_ACTION = {
   aberta:           'OP Criada',
-  aguard_financeiro:'Aprovar Pagamento',
-  bloqueada:        'Desbloquear OP',
-  aguard_nf:        'Emissão de NF',
-  aguard_emissao:   'Confirmar Emissão da Nota Fiscal',
-  aguard_despacho:  'Despachado',
-  transito:         'Confirmar Entrega ao Cliente',
-  entregue:         'Entregue',
+  aguard_financeiro:'Pagamento Aprovado',
+  bloqueada:        'OP Desbloqueada',
+  aguard_nf:        'NF Emitida',
+  aguard_emissao:   'Emissão da NF Confirmada',
+  aguard_despacho:  'OP Despachada',
+  transito:         'Entrega ao Cliente Confirmada',
+  entregue:         'OP Entregue',
 };
 const HIST_REJECT = {
-  aguard_financeiro:'Bloquear OP',
-  aguard_despacho:  'Solicitar Re-emissão de NF',
+  aguard_financeiro:'OP Bloqueada',
+  aguard_despacho:  'Re-emissão de NF Solicitada',
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1521,7 +1521,7 @@ function rejectOP(opId, formData) {
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
-  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'Bloqueado', note: formData.descricao || formData.motivoReemissao || '' });
+  op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'OP Bloqueada', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();

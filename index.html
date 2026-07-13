@@ -4039,7 +4039,7 @@ function openNovaOP() {
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
   const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
-  document.getElementById('modal').classList.add('wide');
+  document.getElementById('modal').classList.remove('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Nova OP - Pedido do Cliente</div>
@@ -4061,7 +4061,7 @@ function openNovaOP() {
         <div class="api-status" id="pedido-status"></div>
       </div>
 
-      <div id="nova-form-fields">
+      <div id="nova-form-fields" style="display:none">
       <div class="acc"><div ${acc('Dados do Pedido')}
           <div class="form-row" style="grid-template-columns:1fr 1fr">
             <div class="form-group"><label class="form-label">Vendedor(a) *</label>
@@ -4229,7 +4229,7 @@ function openNovaOP() {
       </div>
 
     </div>
-    <div class="modal-footer" id="nova-modal-footer">
+    <div class="modal-footer" id="nova-modal-footer" style="display:none">
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" id="btn-criar-op" onclick="submitNovaOP()">Criar OP</button>
     </div>`;
@@ -4272,7 +4272,8 @@ async function puxarPedido() {
     const p = await resp.json();
     preencherPedido(p);
 
-    // Revela o restante do formulário (só aparece após buscar o pedido)
+    // Revela o restante do formulário e expande o modal
+    document.getElementById('modal').classList.add('wide');
     const ff = document.getElementById('nova-form-fields');
     const ft = document.getElementById('nova-modal-footer');
     if (ff) ff.style.display = '';

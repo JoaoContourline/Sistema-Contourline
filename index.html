@@ -3544,7 +3544,7 @@ function openSimplesFaturamento(opId) {
   modal.innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
-      <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
       <div class="split-pane split-pane-right">

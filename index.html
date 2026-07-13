@@ -5102,8 +5102,8 @@ function printPedidoVenda(opId) {
   const cpfClean = String(pv.cpf || '').replace(/\D/g, '');
   const isPJ = cpfClean.length === 14;
 
-  // Número do pedido (Protheus)
-  const pvNum = op.pedidoProtheus || '-';
+  // Número sequencial da OP (ex: 1/2026)
+  const pvNum = numOp(op).split(' - ')[0];
 
   // Data de criação da OP (dataAbertura ISO → DD/MM/AAAA)
   const dataCriacao = (() => {

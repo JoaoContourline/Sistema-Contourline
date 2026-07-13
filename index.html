@@ -4247,6 +4247,47 @@ function openNovaOP() {
 // Busca o pedido (SC5/SC6) pelo número e preenche os campos da Nova OP.
 // Cliente vem só como código + nome; CPF/endereço não estão neste
 // endpoint (serão preenchidos por consulta ao cliente por código).
+function showDupPedidoWarn(dupOp, num, onContinue) {
+  const el = document.createElement('div');
+  el.id = '_dup-warn';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;display:flex;align-items:center;justify-content:center';
+  el.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px 26px;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.35)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        ${icon('alert-triangle',20,'color:var(--orange);flex-shrink:0')}
+        <div style="font-size:14px;font-weight:700;color:var(--text)">Pedido já vinculado a uma OP</div>
+      </div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
+        O PV <strong>${num}</strong> já está vinculado à OP <strong>${numOp(dupOp)}</strong>
+        (${dupOp.cliente || ''}). Criar uma OP repetida pode prejudicar o fluxo de trabalho.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="_dup-cancel" style="padding:7px 16px;border-radius:var(--radius);border:1px solid rgba(220,38,38,.4);background:var(--red-bg);color:var(--red);font-size:12px;font-weight:600;cursor:pointer">Cancelar</button>
+        <button id="_dup-continue" style="padding:7px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;font-weight:600;cursor:pointer">Continuar mesmo assim</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.getElementById('_dup-cancel').onclick   = () => el.remove();
+  document.getElementById('_dup-continue').onclick = () => { el.remove(); onContinue(); };
+  el.onclick = e => { if (e.target === el) el.remove(); };
+}
+
+async function _aplicarPedido(p, num) {
+  preencherPedido(p);
+  const ff = document.getElementById('nova-form-fields');
+  const ft = document.getElementById('nova-modal-footer');
+  if (ff) ff.style.display = '';
+  if (ft) ft.style.display = 'flex';
+  if (p.cliente && p.cliente.cod && !p.cliente.cgc) {
+    setStatus('pedido-status', 'Buscando dados do cliente…', 'loading');
+    await buscarClientePorCodigo(p.cliente.cod, p.cliente.loja);
+    lockCamposPuxados();
+  }
+  const st = p.statusPedido ? ` · ${p.statusPedido}` : '';
+  setStatus('pedido-status', `Pedido ${p.numero || num} carregado${st}`, 'ok');
+  showToast('Pedido carregado do Protheus');
+}
+
 async function puxarPedido() {
   const inp = document.getElementById('nova-numPedido');
   const num = (inp?.value || '').trim();
@@ -4265,24 +4306,15 @@ async function puxarPedido() {
       return;
     }
     const p = await resp.json();
-    preencherPedido(p);
 
-    // Revela o restante do formulário
-    const ff = document.getElementById('nova-form-fields');
-    const ft = document.getElementById('nova-modal-footer');
-    if (ff) ff.style.display = '';
-    if (ft) ft.style.display = 'flex';
-
-    // Fallback: só busca no cadastro se o pedido não trouxe o cliente (CPF vazio)
-    if (p.cliente && p.cliente.cod && !p.cliente.cgc) {
-      setStatus('pedido-status', 'Buscando dados do cliente…', 'loading');
-      await buscarClientePorCodigo(p.cliente.cod, p.cliente.loja);
-      lockCamposPuxados();
+    const dupOp = ops.find(o => String(o.pedidoProtheus) === String(num));
+    if (dupOp) {
+      setStatus('pedido-status', `PV ${num} já vinculado à OP ${numOp(dupOp)}`, 'err');
+      showDupPedidoWarn(dupOp, num, () => _aplicarPedido(p, num));
+      return;
     }
 
-    const st = p.statusPedido ? ` · ${p.statusPedido}` : '';
-    setStatus('pedido-status', `Pedido ${p.numero || num} carregado${st}`, 'ok');
-    showToast('Pedido carregado do Protheus');
+    await _aplicarPedido(p, num);
   } catch (err) {
     setStatus('pedido-status', 'Falha ao buscar o pedido. Tente novamente.', 'err');
   } finally {

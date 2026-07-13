@@ -1578,6 +1578,10 @@ function diasRestantesLabel(dataBR) {
   return ` (${Math.abs(diff)}d de atraso)`;
 }
 
+function numOp(op) {
+  return (op.numero && op.numero !== 'PENDENTE') ? op.numero : '#' + op.id;
+}
+
 function semaforo(op) {
   if (op.status === 'entregue') return { cls:'b-gray', label:'Entregue', icon:'' };
 
@@ -2588,7 +2592,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   <div class="card ${(canAct||needsSF)&&!infoOnly?'actionable':''} ${isBlocked?'blocked':''} ${isEntregue?'entregue':''}" style="animation-delay:${animIdx*.04}s" onclick="${infoOnly?`openInfoModal(${op.id})`:`openCard(${op.id})`}">
     <div class="card-top">
       <div>
-        <div class="card-op">OP ${op.numero}</div>
+        <div class="card-op">OP ${numOp(op)}</div>
         <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : fmtDate(op.dataAbertura) + ' · ' + (op.vendedorCanal||op.vendedorName||'')}</div>
       </div>
       <div class="card-flags">
@@ -2904,7 +2908,7 @@ function openActionModal(opId, mode) {
   document.getElementById('modal').classList.add('split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
@@ -3387,7 +3391,7 @@ function openInfoModal(opId) {
   document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">OP ${op.numero}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <div><div class="modal-title">OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-body" style="gap:0;padding:16px 22px">
@@ -3421,7 +3425,7 @@ function openAnexarBoleto(opId) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Anexar Boleto</div>
-           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+           <div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
     <div class="modal-body">
@@ -3466,7 +3470,7 @@ function openAnexarFotos(opId) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Anexar Fotos de Entrega</div>
-           <div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+           <div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
     <div class="modal-body">
@@ -3519,7 +3523,7 @@ function openSimplesFaturamento(opId) {
   modal.classList.add('split');
   modal.innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${op.numero} · ${op.cliente}</div></div>
+      <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
@@ -3689,7 +3693,7 @@ function openBoletoTask(opId) {
   document.getElementById('modal').classList.add('split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Envio de Boleto - OP ${op.numero}</div>
+      <div><div class="modal-title">Envio de Boleto - OP ${numOp(op)}</div>
            <div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
@@ -5054,8 +5058,8 @@ async function submitNovaOP() {
   opData.pedidoProtheus = pedidoProtheus;
   if (opData.pedidoVenda) opData.pedidoVenda.numero = numero;
 
-  // Atualiza Supabase com numero correto (fire-and-forget)
-  sb.from('ops').update({ numero, data: opData }).eq('id', newId);
+  // Atualiza Supabase com numero correto (await para garantir que data.numero não fique 'PENDENTE')
+  await sb.from('ops').update({ numero, data: opData }).eq('id', newId);
 
   ops.unshift(opData);
   nextId = newId + 1;

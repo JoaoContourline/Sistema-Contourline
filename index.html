@@ -2710,7 +2710,7 @@ function buildContextPanel(op) {
       (pv.simulador && parseFloat(pv.simulador) > 0) ? cRow('Simulador', fmtBRL(pv.simulador)) : '',
       pv.enderecoEntrega ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
-      pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista + diasRestantesLabel(pv.dataPrevista)) : '',
+      pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista) : '',
       cRow('Treinamento', pv.treinamento),
       cRow('Observações', op.stepData?.aberta?.descricao),
     ]));
@@ -3052,7 +3052,7 @@ function buildInfoSections(op, opId) {
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
       ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
-      ${dItem('Previsão de entrega', pv.dataPrevista ? pv.dataPrevista + diasRestantesLabel(pv.dataPrevista) : '')}
+      ${dItem('Previsão de entrega', pv.dataPrevista || '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
       ${op.stepData?.aberta?.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Observações</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${op.stepData.aberta.descricao}</div></div>` : ''}

@@ -2315,6 +2315,24 @@ function renderMain() {
   else                                  renderTodas(el);
 }
 
+function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) {
+  const collapsed = getSectionCollapsed(key);
+  return `<div class="section">
+    <div class="section-header collapsible" onclick="toggleSection(this)" data-skey="${key}">
+      <div class="section-header-icon" style="background:${iconBg}">${iconHtml}</div>
+      <div style="flex:1">
+        <div class="section-header-title">${title}</div>
+        <div class="section-header-desc">${desc}</div>
+      </div>
+      <span class="section-header-count" style="${countStyle}">${count}</span>
+      <span class="sec-chevron${collapsed?' collapsed':''}">${icon('chevron-down',14)}</span>
+    </div>
+    <div class="section-body"${collapsed?' style="display:none"':''}>
+      <div class="card-grid">${cards}</div>
+    </div>
+  </div>`;
+}
+
 function renderQueue(user, el) {
   // ── GESTOR ───────────────────────────────────────────────────────
   if (user.role === 'gestor') {
@@ -2337,25 +2355,6 @@ function renderQueue(user, el) {
     }
     el.innerHTML = html;
     return;
-  }
-
-  // ── SEÇÃO COLAPSÁVEL ─────────────────────────────────────────────
-  function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) {
-    const collapsed = getSectionCollapsed(key);
-    return `<div class="section">
-      <div class="section-header collapsible" onclick="toggleSection(this)" data-skey="${key}">
-        <div class="section-header-icon" style="background:${iconBg}">${iconHtml}</div>
-        <div style="flex:1">
-          <div class="section-header-title">${title}</div>
-          <div class="section-header-desc">${desc}</div>
-        </div>
-        <span class="section-header-count" style="${countStyle}">${count}</span>
-        <span class="sec-chevron${collapsed?' collapsed':''}">${icon('chevron-down',14)}</span>
-      </div>
-      <div class="section-body"${collapsed?' style="display:none"':''}>
-        <div class="card-grid">${cards}</div>
-      </div>
-    </div>`;
   }
 
   // ── LOGÍSTICA UNIFICADA ──────────────────────────────────────────
@@ -4002,63 +4001,7 @@ function showLightbox(src, name) {
   lb.style.display = 'flex';
 }
 
-// ─── RASCUNHO AUTOMÁTICO DO FORMULÁRIO NOVA OP ──────────────────────
-const DRAFT_KEY = 'contourline_novaop_draft';
-const DRAFT_TEXT_IDS = [
-  'nova-vendedorCanal','nova-data','nova-analista','nova-numContrato',
-  'nova-cliente','nova-dn','nova-cpf','nova-rg','nova-email','nova-profissao',
-  'nova-numDocumento','nova-endRua','nova-endNumero','nova-endBairro',
-  'nova-endCidade','nova-cep-cliente','nova-tel','nova-tipoContrato',
-  'nova-detalhesPagamento','nova-simulador','nova-entrada','nova-valorEntrada',
-  'nova-enderecoEntrega','nova-contatoEntrega','nova-prazo','nova-aContarDe',
-  'nova-treinamento','nova-descricao','nova-instagram','nova-previsaoEntrega',
-];
-
-function saveDraft() {
-  const g = id => document.getElementById(id);
-  const draft = {
-    ts: Date.now(),
-    fields: {},
-    equips: tempEquipList.map(e => ({ ...e })),
-  };
-  DRAFT_TEXT_IDS.forEach(id => {
-    const el = g(id);
-    if (el) draft.fields[id] = el.value;
-  });
-  draft.fields['nova-same-address'] = g('nova-same-address')?.checked ?? false;
-  draft.fields['nova-diasUteis']    = g('nova-diasUteis')?.checked ?? true;
-  draft.fields['nova-endEstado']    = g('nova-endEstado')?.value || '';
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
-}
-
-function loadDraft() {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return false;
-    const draft = JSON.parse(raw);
-    if (!draft?.fields) return false;
-    const g = id => document.getElementById(id);
-    DRAFT_TEXT_IDS.forEach(id => {
-      const el = g(id);
-      if (el && draft.fields[id] !== undefined) el.value = draft.fields[id];
-    });
-    const sameAddr = g('nova-same-address');
-    if (sameAddr) { sameAddr.checked = draft.fields['nova-same-address'] || false; toggleSameAddress(sameAddr.checked); }
-    const diasUteis = g('nova-diasUteis');
-    if (diasUteis) diasUteis.checked = draft.fields['nova-diasUteis'] ?? true;
-    const estado = g('nova-endEstado');
-    if (estado && draft.fields['nova-endEstado']) estado.value = draft.fields['nova-endEstado'];
-    if (draft.equips?.length)    { tempEquipList = draft.equips;       refreshEquipList();      }
-    calcPrazoEntrega();
-    calcDescontoTotal();
-    updateEntradaHint(g('nova-entrada')?.value || 'sem');
-    return draft.ts;
-  } catch { return false; }
-}
-
-function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch {}
-}
+function clearDraft() { /* removido */ }
 
 // ═══════════════════════════════════════════════════════════════════
 // NOVA OP - Pedido de Venda completo
@@ -4264,17 +4207,7 @@ function openNovaOP() {
     </div>`;
 
   document.getElementById('overlay').classList.add('open');
-  setTimeout(() => {
-    calcPrazoEntrega();
-    const draftTs = loadDraft();
-    if (draftTs) {
-      const mins = Math.round((Date.now() - draftTs) / 60000);
-      const when = mins < 1 ? 'agora há pouco' : mins < 60 ? `há ${mins} min` : `há ${Math.round(mins/60)}h`;
-      showToast(`Rascunho restaurado (salvo ${when}) - preencha os campos restantes`, 'ok');
-    }
-    document.getElementById('modal')?.addEventListener('input',  saveDraft);
-    document.getElementById('modal')?.addEventListener('change', saveDraft);
-  }, 50);
+  setTimeout(() => { calcPrazoEntrega(); }, 50);
 }
 
 // ─── PUXAR PEDIDO DE VENDA DO PROTHEUS ──────────────────────────────
@@ -4335,7 +4268,6 @@ async function buscarClientePorCodigo(cod, loja) {
     const d = await resp.json();
     if (d && (d.name || d.shortName)) {
       fillClientFromProtheus(d);
-      saveDraft();
     }
   } catch (err) { /* silencioso - dados do cliente ficam manuais */ }
 }

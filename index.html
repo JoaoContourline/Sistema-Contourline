@@ -2085,8 +2085,8 @@ function buildFieldHtml(f) {
     }).join('');
     const btnHtml = op?.pedidoProtheus ? `
       <button type="button" id="btn-puxar-serie" onclick="puxarSerieLote(${op.id})"
-        style="margin-bottom:8px;padding:5px 10px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-        ${icon('search',12,'color:#fff')} Buscar série e lote
+        style="margin-bottom:8px;padding:8px 16px;background:var(--accent);border:none;color:#fff;border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;width:fit-content">
+        ${icon('search',13,'color:#fff')} Buscar série e lote
       </button>` : '';
     return btnHtml + inputsHtml;
   }
@@ -2966,8 +2966,8 @@ function buildInfoSections(op, opId) {
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
       const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
       const nslHtml = nsl ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· ${nsl}</span>` : '';
-      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;margin-top:3px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
-      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:2px"><div>${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>${tesBadge}</div>`;
+      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
+      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;align-items:flex-start;gap:2px"><div>${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>${tesBadge}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');

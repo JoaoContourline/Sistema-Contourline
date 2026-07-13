@@ -3400,7 +3400,10 @@ function openInfoModal(opId) {
 
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
-  document.getElementById('modal').classList.remove('wide', 'split');
+  const _cm = document.getElementById('modal');
+  _cm.classList.remove('wide', 'split');
+  _cm.style.height = '';
+  _cm.style.maxHeight = '';
   activeOpId = null; modalMode = null; tempEquipList = []; tempVendedores = []; tempFiles = {}; tempFilesData = {};
   _pendingAdvance = null; // garante que delay modal não vaza entre opens
 }
@@ -4017,8 +4020,12 @@ function openNovaOP() {
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
   const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
-  document.getElementById('modal').classList.add('wide');
-  document.getElementById('modal').innerHTML = `
+  const _novaM = document.getElementById('modal');
+  _novaM.classList.remove('split');
+  _novaM.classList.add('wide');
+  _novaM.style.height = '';
+  _novaM.style.maxHeight = '';
+  _novaM.innerHTML = `
     <div class="modal-body" style="gap:8px;position:relative;padding-top:32px">
       <button class="close-btn" onclick="closeModal()" style="position:absolute;top:10px;right:10px">${icon('x',14)}</button>
 

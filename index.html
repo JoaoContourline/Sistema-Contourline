@@ -5090,154 +5090,230 @@ function printPedidoVenda(opId) {
   if (!op?.pedidoVenda) { alert('Pedido do Cliente não disponível para esta OP.'); return; }
   const pv = op.pedidoVenda;
 
-  const equipRows = (pv.equipamentos || (op.equipamentos||[]).map(n => ({ name:n, qty:1, valorUnit:'', desconto:'' })))
-    .map(e => {
-      // Código: usa o salvo; se não tiver (ops antigas), tenta achar na lista
-      const code = e.code || (_equipCache?.find(eq => eq.name === e.name)?.code) || '';
-      const vu = e.gratuito ? 'Gratuito' : e.valorUnit ? fmtBRL(e.valorUnit) : '-';
-      const lineT = (!e.gratuito && e.valorUnit) ? Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)) : 0;
-      const vt = e.gratuito ? 'Gratuito' : lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '-';
-      return `<tr>
-        <td style="text-align:center;font-family:'DM Mono',monospace;font-size:10px">${code}</td>
-        <td style="text-align:center;width:40px">${e.qty||1}</td>
-        <td>${e.name}${e.qrcode?`<br><span style="font-family:'DM Mono',monospace;font-size:9px;color:#555">QR: ${e.qrcode}</span>`:''}</td>
-        <td style="text-align:right">${vu}</td>
-        <td style="text-align:right">${vt}</td>
-      </tr>`;
-    }).join('');
+  // PJ vs PF (CNPJ = 14 dígitos)
+  const cpfClean = String(pv.cpf || '').replace(/\D/g, '');
+  const isPJ = cpfClean.length === 14;
 
-  const hasDesconto = pv.valorDesconto && parseFloat(pv.valorDesconto) > 0;
-  const descontoRow = hasDesconto
-    ? `<tr><td colspan="4" style="text-align:right;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Desconto</td><td style="text-align:right;font-weight:700">R$ ${parseFloat(pv.valorDesconto).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`
-    : '';
-  const totalRow = pv.valorLiquido && parseFloat(pv.valorLiquido) > 0
-    ? `<tr class="tr-total"><td colspan="4" style="text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.4px">Valor Total</td><td style="text-align:right">${fmtBRL(pv.valorLiquido)}</td></tr>`
-    : '';
+  // Número do pedido para o formulário
+  const anoAtual = new Date().getFullYear();
+  const pvNum = op.pedidoProtheus
+    ? `${op.pedidoProtheus}/${anoAtual}`
+    : (op.numero || '-');
 
-  const payLines = pv.detalhesPagamento
-    ? pv.detalhesPagamento.split('\n').filter(l=>l.trim()).map(l=>`<div class="pay-line">${l}</div>`).join('')
-    : '';
-  const simLine = pv.simulador && parseFloat(pv.simulador) > 0
-    ? `<div class="pay-line" style="margin-top:4px">Simulador: ${fmtBRL(pv.simulador)}</div>`
-    : '';
-  const entradaLine = pv.entrada && pv.entrada !== 'sem' && pv.valorEntrada && parseFloat(pv.valorEntrada) > 0
-    ? `<div class="pay-line" style="margin-top:4px">Entrada: ${fmtBRL(pv.valorEntrada)}</div>`
-    : '';
+  // Solicitante = primeiro vendedor
+  const solicitante = ([pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean)[0] || pv.analista || '-').toUpperCase();
 
-  const obsDescricao = op.stepData?.aberta?.descricao;
+  // Endereço principal
+  const endereco = [pv.endRua, pv.endNumero ? 'nº ' + pv.endNumero : ''].filter(Boolean).join(', ') || pv.enderecoCliente || '';
+
+  // Logo via URL da origem
+  const logoSrc = window.location.origin + '/Logo-Contourline-Azul-2048x597%20(2).webp';
+
+  // Linhas de produtos
+  const hasBonif = (pv.equipamentos||[]).some(e => e.gratuito);
+  const equipList = pv.equipamentos || (op.equipamentos||[]).map(n => typeof n==='string' ? {name:n,qty:1} : n);
+  const equipRows = equipList.map(e => {
+    const qty = parseInt(e.qty) || 1;
+    const vu = e.valorUnit && parseFloat(e.valorUnit) > 0 ? fmtBRL(e.valorUnit) : (e.gratuito ? 'Gratuito' : '-');
+    const lineT = e.valorUnit && parseFloat(e.valorUnit) > 0
+      ? Math.max(0, qty * parseFloat(e.valorUnit) - (parseFloat(e.desconto) || 0))
+      : 0;
+    const vt = lineT > 0 ? fmtBRL(lineT) : (e.gratuito ? 'Gratuito' : '-');
+    const serieLote = e.numSerie || e.lote || '';
+    const tes = e.tes ? `TES ${e.tes}${e.tesDesc ? ' · ' + e.tesDesc : ''}` : '';
+    return `<tr>
+      <td style="text-align:center">${qty}</td>
+      <td>${e.name}${e.code?' (cód. '+e.code+')':''}${tes?`<br><span style="font-size:8px;color:#555">${tes}</span>`:''}</td>
+      <td style="text-align:right">${vu}</td>
+      <td style="text-align:right">${vt}</td>
+      <td style="text-align:center;font-family:monospace">${serieLote}</td>
+    </tr>`;
+  }).join('');
+
+  // Linhas de desconto e total
+  const totalDesconto = equipList.reduce((s,e) => s + (!e.gratuito ? parseFloat(e.desconto||0) : 0), 0);
+  const descontoVal = totalDesconto > 0 ? totalDesconto : parseFloat(pv.valorDesconto||0);
+  const descontoRow = `<tr style="background:#f5f5f5">
+    <td colspan="3" style="text-align:right;font-weight:bold;font-size:9px;padding:3px 5px">DESCONTO/ ACRÉSCIMO</td>
+    <td style="text-align:right;font-weight:bold;padding:3px 5px;border-left:1px solid #000">R$ ${descontoVal > 0 ? descontoVal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00'}</td>
+    <td style="border-left:1px solid #000"></td>
+  </tr>`;
+  const liqVal = parseFloat(pv.valorLiquido||pv.valorTotal||0);
+  const totalRow = `<tr style="background:#e5e5e5">
+    <td colspan="3" style="text-align:right;font-weight:bold;font-size:9px;padding:3px 5px">VALOR TOTAL</td>
+    <td style="text-align:right;font-weight:bold;font-size:11px;padding:3px 5px;border-left:1px solid #000">${liqVal > 0 ? fmtBRL(liqVal) : 'R$ 0,00'}</td>
+    <td style="border-left:1px solid #000"></td>
+  </tr>`;
+
+  // Observações gerais
   const obsParts = [];
-  if (obsDescricao)       obsParts.push(`Observações: ${obsDescricao}`);
-  if (pv.enderecoEntrega) obsParts.push(`Endereço de entrega: ${pv.enderecoEntrega}`);
+  const obsDescricao = op.stepData?.aberta?.descricao;
+  if (obsDescricao) obsParts.push(obsDescricao);
+  if (pv.enderecoEntrega) obsParts.push(`Endereço de Entrega: ${pv.enderecoEntrega}`);
   if (pv.contatoEntrega)  obsParts.push(`Contato responsável: ${pv.contatoEntrega}`);
   if (pv.prazo) {
-    let prazoStr = `${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
-    if (pv.aContarDe) prazoStr += ` (a contar de ${pv.aContarDe})`;
-    if (pv.dataPrevista) prazoStr += ` - Previsão: ${pv.dataPrevista}`;
-    obsParts.push(`Prazo de entrega: ${prazoStr}`);
+    let ps = `Prazo de entrega: ${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
+    if (pv.aContarDe) ps += ` a contar de ${pv.aContarDe}`;
+    if (pv.dataPrevista) ps += ` — Previsão: ${pv.dataPrevista}`;
+    obsParts.push(ps);
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
-  const obsHtml = obsParts.map(p=>`<div class="obs-line">${p}</div>`).join('');
+  const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${e.tes}${e.tesDesc?' ('+e.tesDesc+')':''}`))];
+  if (tesUniq.length) obsParts.push(`[Colinha]: ${tesUniq.join(', ')}`);
+  const obsText = obsParts.join('\n');
 
-  const w = window.open('', '_blank', 'width=860,height=1100');
+  // Linhas de pagamento
+  let payRows;
+  if (!pv.tipoContrato || liqVal === 0) {
+    payRows = '<tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>';
+  } else {
+    const payDesc = [pv.tipoContrato, pv.detalhesPagamento].filter(Boolean).join(' — ');
+    payRows = `<tr><td colspan="4" style="text-align:left;padding:4px 8px">${payDesc}</td></tr>`;
+  }
+  if (pv.simulador && parseFloat(pv.simulador) > 0) {
+    payRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Valor do simulador: ${fmtBRL(pv.simulador)}</td></tr>`;
+  }
+  if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0) {
+    payRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;
+  }
+
+  const w = window.open('', '_blank', 'width=900,height=1200');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>${op.pedidoProtheus ? 'Pedido de venda ' + op.pedidoProtheus : 'Pedido de Venda'} - OP ${op.numero}</title>
+<title>Pedido de Venda Nº ${pvNum}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff}
-.page{max-width:210mm;margin:0 auto;padding:14mm 16mm}
+body{font-family:Arial,sans-serif;font-size:10px;color:#000;background:#fff}
+.page{max-width:210mm;margin:0 auto;padding:10mm 12mm}
+b,.lbl{font-weight:bold}
 /* header */
-.hdr{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2.5px solid #162C45;padding-bottom:10px;margin-bottom:12px}
-.brand{font-size:19px;font-weight:900;color:#162C45;letter-spacing:-1px}
-.brand-sub{font-size:9px;color:#555;margin-top:3px}
-.doc-title{text-align:right;font-size:17px;font-weight:800;color:#162C45}
-/* meta grid */
-.meta-grid{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
-.meta-grid td{padding:3px 8px;border:1px solid #c8d0dc;vertical-align:top}
-.meta-grid .lbl{font-weight:700;background:#f0f4f8;white-space:nowrap;width:100px}
-/* client block */
-.cli{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px}
-.cli td{padding:4px 8px;border:1px solid #c8d0dc;vertical-align:top}
-.cli .lbl{font-weight:700;white-space:nowrap}
-/* equipment table */
-table.equip{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}
-table.equip th{background:#162C45;color:#fff;font-size:9px;text-transform:uppercase;padding:5px 7px;letter-spacing:.4px}
-table.equip td{border-bottom:.5px solid #e5e8ee;padding:5px 7px;vertical-align:middle}
-table.equip tr:nth-child(even) td{background:#f7f9fc}
-.tr-total td{font-weight:700;border-top:1.5px solid #162C45;background:#eef2fa!important;font-size:12px}
-/* payment */
-.pay-type{font-weight:800;font-size:11px;text-transform:uppercase;margin-bottom:5px;padding:3px 0}
-.pay-line{font-size:11px;line-height:1.8}
+table.hdr{width:100%;border-collapse:collapse;border:1.5px solid #000}
+table.hdr td{border:1px solid #000;padding:5px 8px;vertical-align:middle}
+.hdr-title{text-align:center;font-weight:bold;font-size:11px}
+.hdr-info{font-size:8.5px;text-align:right;white-space:nowrap;line-height:1.6}
+img.logo{max-height:42px;max-width:148px}
+/* order meta */
+table.meta{width:100%;border-collapse:collapse;border:1px solid #000;border-top:0;margin-bottom:0}
+table.meta td{border:1px solid #000;padding:2.5px 6px;vertical-align:middle}
+table.meta .lbl-col{width:160px;background:#f5f5f5}
+/* section divider */
+.sec-hdr{border:1px solid #000;border-top:0;padding:2px 6px;font-weight:bold;font-size:9px;text-transform:uppercase;background:#f5f5f5}
+/* financial data */
+table.fd{width:100%;border-collapse:collapse;border:1px solid #000;border-top:0}
+table.fd td{border:1px solid #000;padding:2.5px 5px;vertical-align:middle;font-size:10px;white-space:normal}
+table.fd .cb{width:20px;text-align:center;font-size:11px}
+/* products */
+table.prod{width:100%;border-collapse:collapse;border:1px solid #000;border-top:0}
+table.prod th{border:1px solid #000;padding:3px 5px;font-size:9px;font-weight:bold;text-align:center;background:#f5f5f5}
+table.prod td{border:1px solid #000;padding:3px 5px;vertical-align:middle}
+.bonif-lbl{border:1px solid #000;border-top:0;padding:2px 8px;font-weight:bold;font-size:9px}
 /* obs */
-.obs-box{background:#f7f9fc;border:1px solid #d8dfe8;border-radius:4px;padding:10px 12px;margin-top:10px}
-.obs-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#162C45;margin-bottom:6px}
-.obs-line{font-size:11px;line-height:1.8}
-/* footer */
-.footer-bar{margin-top:10px;display:flex;justify-content:space-between;border-top:1.5px solid #162C45;padding-top:7px;font-size:12px}
-.footer-bar .val{font-weight:800}
-.sig-block{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:48px}
-.sig{border-bottom:1px solid #333;height:28px;margin-bottom:4px}
-.sig-lbl{font-size:9px;color:#666;text-align:center}
-.no-print{text-align:right;margin-bottom:14px}
-.no-print button{padding:8px 18px;background:#162C45;color:#fff;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:700}
-@media print{@page{margin:12mm;size:A4}.no-print{display:none!important}}
-</style></head><body><div class="page">
+.obs-hdr{border:1px solid #000;border-top:0;padding:2px 6px;font-weight:bold;font-size:9px;text-transform:uppercase;background:#f5f5f5}
+.obs-body{border:1px solid #000;border-top:0;padding:6px 8px;min-height:58px;white-space:pre-wrap;line-height:1.55;font-size:10px}
+/* payment */
+table.pay{width:100%;border-collapse:collapse;border:1px solid #000;border-top:0}
+table.pay th{border:1px solid #000;padding:3px 5px;font-size:9px;font-weight:bold;text-align:center;background:#f5f5f5}
+table.pay td{border:1px solid #000;padding:3px 5px;text-align:center;font-size:10px}
+/* separação */
+table.sep{width:100%;border-collapse:collapse;border:1px solid #000;border-top:0}
+table.sep td{border:1px solid #000;padding:4px 6px;vertical-align:middle;font-size:10px}
+table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;background:#f5f5f5}
+/* form footer */
+.form-footer{border:1px solid #000;border-top:0;padding:2.5px 8px;font-size:8px;display:flex;justify-content:space-between;align-items:center}
+/* print button */
+.no-print{text-align:center;margin-bottom:10px}
+.no-print button{padding:7px 20px;background:#162C45;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;font-weight:bold}
+@media print{@page{margin:8mm;size:A4}.no-print{display:none!important}}
+</style></head><body>
+<div class="page">
 <div class="no-print"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
 
-<div class="hdr">
-  <div>
-    <div class="brand">CONTOURLINE</div>
-    <div class="brand-sub">Equipamentos Médicos e Diagnósticos Ltda<br>CNPJ: ${pv.cnpj}</div>
-  </div>
-  <div class="doc-title">${op.pedidoProtheus ? 'Pedido de venda: ' + op.pedidoProtheus : 'Pedido de Venda'}</div>
-</div>
-
-<table class="meta-grid">
+<!-- CABEÇALHO -->
+<table class="hdr">
   <tr>
-    <td class="lbl">Vendedor(a)</td><td>${[pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join('<br>')||'-'}</td>
-    <td class="lbl">Data</td><td>${pv.data||'-'}</td>
-  </tr>
-  <tr>
-    <td class="lbl">Analista</td><td>${pv.analista||'-'}</td>
-    <td class="lbl">Contrato</td><td>${pv.numContrato||'-'}</td>
+    <td style="width:33%;border-right:1px solid #000">
+      <img src="${logoSrc}" class="logo" onerror="this.outerHTML='<span style=\\'font-weight:900;font-size:15px;color:#162C45;letter-spacing:-1px\\'>contourline</span>'">
+    </td>
+    <td class="hdr-title" style="width:34%;border-right:1px solid #000">
+      FORMUL&Aacute;RIO<br><br><span style="font-size:13px">PEDIDO DE VENDA</span>
+    </td>
+    <td class="hdr-info" style="width:33%">
+      F-AD-015<br>Revis&atilde;o: 02<br>Data: 23/06/2026<br>P&aacute;g. 1 de 1
+    </td>
   </tr>
 </table>
 
-<table class="cli">
+<!-- PEDIDO Nº / DATA / SOLICITANTE -->
+<table class="meta">
+  <tr><td class="lbl lbl-col">PEDIDO DE VENDA N&ordm;:</td><td>${pvNum}</td></tr>
+  <tr><td class="lbl lbl-col">DATA:</td><td>${pv.data||'-'}</td></tr>
+  <tr><td class="lbl lbl-col">SOLICITANTE:</td><td>${solicitante}</td></tr>
+</table>
+
+<!-- DADOS FINANCEIROS -->
+<div class="sec-hdr">DADOS FINANCEIROS:</div>
+<table class="fd">
+  <colgroup><col style="width:22px"><col><col style="width:220px"></colgroup>
+  <!-- EMPRESA (PJ) -->
   <tr>
-    <td colspan="3"><strong>{ X } Nome: ${pv.cliente||'-'}</strong></td>
-    <td style="white-space:nowrap"><span class="lbl">DN: </span>${pv.dn||'-'}</td>
+    <td class="cb">(${isPJ?'X':'&nbsp;'})</td>
+    <td><span class="lbl">EMPRESA:</span> ${isPJ?pv.cliente:''}</td>
+    <td><span class="lbl">CNPJ:</span> ${isPJ?pv.cpf:''}</td>
   </tr>
   <tr>
-    <td><span class="lbl">CPF: </span>${pv.cpf||'-'}</td>
-    <td><span class="lbl">RG: </span>${pv.rg||'-'}</td>
-    <td colspan="2"><span class="lbl">E-mail: </span>${pv.email||'-'}</td>
-  </tr>
-  <tr>
-    <td colspan="4"><span class="lbl">Endereço: </span>${[pv.endRua, pv.endNumero].filter(Boolean).join(', ')||pv.enderecoCliente||'-'}</td>
-  </tr>
-  <tr>
-    <td><span class="lbl">Bairro: </span>${pv.endBairro||'-'}</td>
-    <td><span class="lbl">Cidade: </span>${pv.endCidade||'-'}</td>
-    <td><span class="lbl">CEP: </span>${pv.endCEP||'-'}</td>
     <td></td>
+    <td><span class="lbl">IE:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">CONTRIBUINTE:</span></td>
+    <td><span class="lbl">E-MAIL:</span> ${isPJ?pv.email:''}</td>
   </tr>
   <tr>
-    <td><span class="lbl">Estado: </span>${pv.endEstado||'-'}</td>
-    <td colspan="3"><span class="lbl">Tel.: </span>${pv.tel||'-'}</td>
+    <td></td>
+    <td colspan="2"><span class="lbl">ENDERE&Ccedil;O:</span> ${isPJ?endereco:''}</td>
   </tr>
   <tr>
-    <td><span class="lbl">Profissão: </span>${pv.profissao||'-'}</td>
-    <td colspan="3"><span class="lbl">Nº documento: </span>${pv.numDocumento||'N/A'}</td>
+    <td></td>
+    <td><span class="lbl">BAIRRO:</span> ${isPJ?pv.endBairro:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">CIDADE:</span> ${isPJ?pv.endCidade:''}</td>
+    <td><span class="lbl">CEP:</span> ${isPJ?pv.endCEP:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td colspan="2"><span class="lbl">ESTADO:</span> ${isPJ?pv.endEstado:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">TEL.:</span> ${isPJ?pv.tel:''}</td>
+  </tr>
+  <!-- PF -->
+  <tr>
+    <td class="cb">(${!isPJ?'X':'&nbsp;'})</td>
+    <td colspan="2"><span class="lbl">PF/REPRES. LEGAL:</span> <b>${!isPJ?pv.cliente:''}</b>&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">DN:</span> ${!isPJ?pv.dn:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><span class="lbl">CPF:</span> ${!isPJ?pv.cpf:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">RG:</span> ${!isPJ?pv.rg:''}</td>
+    <td><span class="lbl">E-MAIL:</span> ${!isPJ?pv.email:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td colspan="2"><span class="lbl">ENDERE&Ccedil;O:</span> ${!isPJ?endereco:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td><span class="lbl">BAIRRO:</span> ${!isPJ?pv.endBairro:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">CIDADE:</span> ${!isPJ?pv.endCidade:''}</td>
+    <td><span class="lbl">CEP:</span> ${!isPJ?pv.endCEP:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td colspan="2"><span class="lbl">ESTADO:</span> ${!isPJ?pv.endEstado:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">TEL.:</span> ${!isPJ?pv.tel:''}</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td colspan="2"><span class="lbl">PROFISS&Atilde;O:</span> ${!isPJ?pv.profissao:''}&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">N&ordm; DOCUMENTO:</span> ${!isPJ?pv.numDocumento:''}</td>
   </tr>
 </table>
 
-<table class="equip">
+<!-- PRODUTOS -->
+<table class="prod">
   <thead><tr>
-    <th style="text-align:center;width:80px">Código</th>
-    <th style="text-align:center;width:50px">Quant.</th>
-    <th>Descrição</th>
-    <th style="text-align:right;width:120px">Valor Unitário</th>
-    <th style="text-align:right;width:120px">Valor Total</th>
+    <th style="width:55px">QUANT.</th>
+    <th>DESCRI&Ccedil;&Atilde;O</th>
+    <th style="width:110px">VALOR UNIT&Aacute;RIO</th>
+    <th style="width:110px">VALOR TOTAL</th>
+    <th style="width:115px">N&ordm; de s&eacute;rie /lote</th>
   </tr></thead>
   <tbody>
     ${equipRows}
@@ -5245,21 +5321,44 @@ table.equip tr:nth-child(even) td{background:#f7f9fc}
     ${totalRow}
   </tbody>
 </table>
+${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
 
+<!-- OBSERVAÇÕES GERAIS -->
+<div class="obs-hdr">OBSERVA&Ccedil;&Otilde;ES GERAIS:</div>
+<div class="obs-body">${obsText||' '}</div>
 
-<div style="margin:8px 0 4px">
-  ${pv.tipoContrato ? `<div class="pay-type">${pv.tipoContrato}</div>` : ''}
-  ${payLines}
-  ${simLine}
-  ${entradaLine}
+<!-- PAGAMENTOS -->
+<table class="pay">
+  <thead><tr>
+    <th>Qtda Parcelas</th>
+    <th>Valor da parcela</th>
+    <th>Data de Vencimento</th>
+    <th>Data do &uacute;ltimo<br>vencimento</th>
+  </tr></thead>
+  <tbody>${payRows}</tbody>
+</table>
+
+<!-- SEPARAÇÃO, CONFERÊNCIA E EXPEDIÇÃO -->
+<table class="sep">
+  <tr><td colspan="2" class="sep-hdr-cell">SEPARA&Ccedil;&Atilde;O, CONFER&Ecirc;NCIA E EXPEDI&Ccedil;&Atilde;O DO PRODUTO ACABADO:</td></tr>
+  <tr><td colspan="2"><span class="lbl">PRODUTO LIBERADO:</span>&nbsp;&nbsp;( ) APROVADO&nbsp;&nbsp;&nbsp;&nbsp;( ) REPROVADO</td></tr>
+  <tr><td colspan="2"><span class="lbl">DATA DA EXPEDI&Ccedil;&Atilde;O:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( ) RETIRADA PELO CLIENTE&nbsp;&nbsp;&nbsp;&nbsp;( ) ENVIADO PELA CONTOURLINE</td></tr>
+  <tr>
+    <td style="width:55%"><span class="lbl">DATA PREVISTA DE CHEGADA AO CLIENTE:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+    <td><span class="lbl">N&ordm; DA NOTA FISCAL:</span></td>
+  </tr>
+  <tr>
+    <td><span class="lbl">NOME DO COLABORADOR DA EXPEDI&Ccedil;&Atilde;O:</span></td>
+    <td><span class="lbl">ASSINATURA:</span></td>
+  </tr>
+</table>
+
+<!-- RODAPÉ DO FORMULÁRIO -->
+<div class="form-footer">
+  <span>FORMUL&Aacute;RIO&nbsp;&nbsp;F-AD-015&nbsp;&nbsp;&nbsp;&nbsp;Revis&atilde;o: 02&nbsp;&nbsp;&nbsp;&nbsp;Data: 23/06/2026&nbsp;&nbsp;&nbsp;&nbsp;P&aacute;g. 1 de 1</span>
+  <b>PEDIDO DE VENDA</b>
 </div>
 
-${obsHtml ? `<div class="obs-box"><div class="obs-lbl">Observações</div>${obsHtml}</div>` : ''}
-
-<div class="footer-bar">
-  <div>Valor total da compra: <span class="val">${fmtBRL(pv.valorLiquido||pv.valorTotal)}</span></div>
-  <div>Frete: <strong>${pv.frete||'EMPRESA'}</strong></div>
-</div>
 </div></body></html>`);
   w.document.close();
 }

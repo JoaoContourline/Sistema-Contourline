@@ -4039,14 +4039,10 @@ function openNovaOP() {
   const estadoOptions = ESTADOS_BR.map(e => `<option value="${e}">${e}</option>`).join('');
   const acc = t => `<div class="acc-head" onclick="toggleAccordion(this)"><span>${t}</span><span class="acc-arrow">${icon('chevron-down',14)}</span></div><div class="acc-body">`;
 
-  document.getElementById('modal').classList.remove('wide');
+  document.getElementById('modal').classList.add('wide');
   document.getElementById('modal').innerHTML = `
-    <div class="modal-header">
-      <div><div class="modal-title">Nova OP - Pedido do Cliente</div>
-        <div class="modal-subtitle">Contourline · CNPJ 14.458.149/0001-23 · Frete: EMPRESA</div></div>
-      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
-    </div>
-    <div class="modal-body" style="gap:8px">
+    <div class="modal-body" style="gap:8px;position:relative;padding-top:32px">
+      <button class="close-btn" onclick="closeModal()" style="position:absolute;top:10px;right:10px">${icon('x',14)}</button>
 
       <div class="form-group" style="margin-bottom:2px">
         <label class="form-label">Nº do Pedido de Venda (Protheus)</label>
@@ -4272,8 +4268,7 @@ async function puxarPedido() {
     const p = await resp.json();
     preencherPedido(p);
 
-    // Revela o restante do formulário e expande o modal
-    document.getElementById('modal').classList.add('wide');
+    // Revela o restante do formulário
     const ff = document.getElementById('nova-form-fields');
     const ft = document.getElementById('nova-modal-footer');
     if (ff) ff.style.display = '';

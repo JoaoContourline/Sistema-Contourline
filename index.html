@@ -1169,9 +1169,26 @@ async function loadOps() {
        <div class="empty-desc">${error.message}</div></div>`;
     return;
   }
-  ops = (data || []).map(rowToOp);
+  ops = (data || []).map(rowToOp).filter(Boolean);
   const maxId = ops.reduce((m, o) => Math.max(m, Number(o.id) || 0), 0);
   nextId = maxId + 1;
+
+  // Repair ops stuck with 'PENDENTE' as numero (created before the await fix)
+  const pendentes = ops.filter(o => !o.numero || o.numero === 'PENDENTE');
+  if (pendentes.length > 0) {
+    pendentes.sort((a, b) => a.id - b.id);
+    for (const op of pendentes) {
+      const ano = (op.dataAbertura || '').slice(0, 4) || String(new Date().getFullYear());
+      const opsEsteAno = ops.filter(o => (o.dataAbertura || '').startsWith(ano) && o.numero && o.numero !== 'PENDENTE');
+      const seqNum = opsEsteAno.length + 1;
+      const numero = op.pedidoProtheus ? `${seqNum}/${ano} - PV ${op.pedidoProtheus}` : `${seqNum}/${ano}`;
+      op.numero = numero;
+      const { id: _id, ...repairData } = op;
+      repairData.numero = numero;
+      sb.from('ops').update({ numero, data: repairData }).eq('id', op.id).then(() => {});
+    }
+  }
+
   renderAll();
 }
 
@@ -3387,8 +3404,12 @@ function openInfoModal(opId) {
         ${icon('image',13)} Anexar Fotos
        </button>` : '';
 
-  document.getElementById('modal').classList.add('wide');
-  document.getElementById('modal').innerHTML = `
+  const _im = document.getElementById('modal');
+  _im.classList.remove('split');
+  _im.style.height = '';
+  _im.style.maxHeight = '';
+  _im.classList.add('wide');
+  _im.innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>

@@ -1610,9 +1610,13 @@ function renderEquipItem(e, i) {
   const lineTotal = (!isFree && e.valorUnit) ? Math.max(0, (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) - (parseFloat(e.desconto)||0)) : 0;
   const lt = isFree ? ''
            : lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  const tesLabel = e.tes ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc ? ' · '+e.tesDesc : ''}</span>` : '';
   return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <span class="equip-list-item-name">${e.name}</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <span class="equip-list-item-name">${e.name}</span>
+        ${tesLabel}
+      </div>
       <div class="equip-list-item-qty">
         <button class="equip-qty-btn" onclick="equipQty(${i},-1)">−</button>
         <span class="equip-qty-val">${e.qty}</span>
@@ -2623,7 +2627,8 @@ function buildContextPanel(op) {
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e=>{
       const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
-      return `${e.name}${e.qty>1?' ×'+e.qty:''}${nsl?` <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">· ${nsl}</span>`:''}`;
+      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
+      return `${e.name}${e.qty>1?' ×'+e.qty:''}${tesBadge}${nsl?` <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">· ${nsl}</span>`:''}`;
     }).join('<br>');
     const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
@@ -2961,7 +2966,8 @@ function buildInfoSections(op, opId) {
       const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
       const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
       const nslHtml = nsl ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· ${nsl}</span>` : '';
-      return `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>`;
+      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;margin-top:3px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
+      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:2px"><div>${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>${tesBadge}</div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
@@ -4440,6 +4446,8 @@ function preencherPedido(p) {
       numSerie:  (it.numSerie || '').trim(),
       lote:      (it.lote || '').trim(),
       gratuito:  gratuito,
+      tes:       (it.tes || '').trim(),
+      tesDesc:   (it.tesDesc || '').trim(),
     }));
     refreshEquipList();
   }

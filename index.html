@@ -2067,36 +2067,24 @@ function buildFieldHtml(f) {
       return Array.from({ length: qty }, () => ({ name: obj.name, tracking: 'serie', qty: 1 }));
     });
 
-    // Mescla entradas lote com mesmo nome (ex: 5 linhas do Protheus com qty=1 → 1 campo × 5)
-    const loteAcc = {};
-    const trackItems = [];
-    rawTrackItems.forEach(item => {
-      if (item.tracking === 'lote') {
-        if (loteAcc[item.name]) {
-          loteAcc[item.name].qty += item.qty;
-        } else {
-          const merged = { ...item };
-          loteAcc[item.name] = merged;
-          trackItems.push(merged);
-        }
-      } else {
-        trackItems.push(item);
-      }
-    });
+    // 1 campo por linha do Protheus: lote com qty>1 mostra ×qty; lotes distintos do mesmo produto ficam separados
+    const trackItems = rawTrackItems;
 
     if (!trackItems.length) return `
       <div style="font-size:12px;color:var(--text3);padding:6px 0">
         Nenhum equipamento nesta OP requer número de série ou lote.
       </div>`;
 
-    // Numera duplicatas de série: HIPRO #1, HIPRO #2 — lote mostra ×qty
     const nameCount = {};
     const nameIdx   = {};
     trackItems.forEach(({ name: n }) => { nameCount[n] = (nameCount[n]||0)+1; });
     const inputsHtml = trackItems.map(({ name: nm, tracking, qty }, i) => {
       nameIdx[nm] = (nameIdx[nm]||0)+1;
-      const equipLabel = tracking === 'lote' && qty > 1
-        ? `${nm} × ${qty}`
+      // lote: mostra ×qty quando há mais de 1 unidade na linha; numera se mesmo produto aparece em linhas distintas
+      const equipLabel = tracking === 'lote'
+        ? (nameCount[nm] > 1
+            ? `${nm} #${nameIdx[nm]}${qty > 1 ? ` (× ${qty})` : ''}`
+            : (qty > 1 ? `${nm} × ${qty}` : nm))
         : (nameCount[nm] > 1 ? `${nm} #${nameIdx[nm]}` : nm);
       const fieldLabel = tracking === 'lote' ? 'Lote' : 'Nº de Série';
       return `

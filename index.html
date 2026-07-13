@@ -5098,14 +5098,19 @@ function printPedidoVenda(opId) {
   const cpfClean = String(pv.cpf || '').replace(/\D/g, '');
   const isPJ = cpfClean.length === 14;
 
-  // Número do pedido para o formulário
-  const anoAtual = new Date().getFullYear();
-  const pvNum = op.pedidoProtheus
-    ? `${op.pedidoProtheus}/${anoAtual}`
-    : (op.numero || '-');
+  // Número do pedido (Protheus)
+  const pvNum = op.pedidoProtheus || '-';
 
-  // Solicitante = primeiro vendedor
-  const solicitante = ([pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean)[0] || pv.analista || '-').toUpperCase();
+  // Data de criação da OP (dataAbertura ISO → DD/MM/AAAA)
+  const dataCriacao = (() => {
+    const iso = op.dataAbertura || '';
+    if (!iso) return pv.data || '-';
+    const [y, m, d] = iso.split('-');
+    return d && m && y ? `${d}/${m}/${y}` : pv.data || '-';
+  })();
+
+  // Solicitante = usuário que criou a OP (primeiro registro do histórico)
+  const solicitante = (op.history?.[0]?.actorName || pv.vendedorCanal || pv.analista || '-').toUpperCase();
 
   // Endereço principal
   const endereco = [pv.endRua, pv.endNumero ? 'nº ' + pv.endNumero : ''].filter(Boolean).join(', ') || pv.enderecoCliente || '';
@@ -5119,10 +5124,9 @@ function printPedidoVenda(opId) {
   const equipRows = equipList.map(e => {
     const qty = parseInt(e.qty) || 1;
     const vu = e.valorUnit && parseFloat(e.valorUnit) > 0 ? fmtBRL(e.valorUnit) : (e.gratuito ? 'Gratuito' : '-');
-    const lineT = e.valorUnit && parseFloat(e.valorUnit) > 0
-      ? Math.max(0, qty * parseFloat(e.valorUnit) - (parseFloat(e.desconto) || 0))
-      : 0;
-    const vt = lineT > 0 ? fmtBRL(lineT) : (e.gratuito ? 'Gratuito' : '-');
+    // VALOR TOTAL por linha = bruto (qty × unit), sem descontar item a item
+    const lineGross = e.valorUnit && parseFloat(e.valorUnit) > 0 ? qty * parseFloat(e.valorUnit) : 0;
+    const vt = lineGross > 0 ? fmtBRL(lineGross) : (e.gratuito ? 'Gratuito' : '-');
     const serieLote = e.numSerie || e.lote || '';
     const tes = e.tes ? `TES ${e.tes}${e.tesDesc ? ' · ' + e.tesDesc : ''}` : '';
     return `<tr>
@@ -5134,18 +5138,25 @@ function printPedidoVenda(opId) {
     </tr>`;
   }).join('');
 
-  // Linhas de desconto e total
+  // Total bruto = soma de qty × unit de todos os itens pagos
+  const grossTotal = equipList.reduce((s,e) => {
+    if (e.gratuito) return s;
+    return s + (parseInt(e.qty)||1) * (parseFloat(e.valorUnit)||0);
+  }, 0);
+  // Desconto total = soma dos descontos por item + valorDesconto do pedido
   const totalDesconto = equipList.reduce((s,e) => s + (!e.gratuito ? parseFloat(e.desconto||0) : 0), 0);
   const descontoVal = totalDesconto > 0 ? totalDesconto : parseFloat(pv.valorDesconto||0);
+  // Valor líquido = bruto − desconto
+  const liqVal = grossTotal > 0 ? (grossTotal - descontoVal) : parseFloat(pv.valorLiquido||pv.valorTotal||0);
+
   const descontoRow = `<tr style="background:#f5f5f5">
-    <td colspan="3" style="text-align:right;font-weight:bold;font-size:9px;padding:3px 5px">DESCONTO/ ACRÉSCIMO</td>
-    <td style="text-align:right;font-weight:bold;padding:3px 5px;border-left:1px solid #000">R$ ${descontoVal > 0 ? descontoVal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '0,00'}</td>
+    <td colspan="3" style="text-align:right;font-weight:bold;font-size:9px;padding:3px 5px">DESCONTO/ ACR&Eacute;SCIMO</td>
+    <td style="text-align:right;font-weight:bold;padding:3px 5px;border-left:1px solid #000">${descontoVal > 0 ? '- R$ ' + descontoVal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'R$ 0,00'}</td>
     <td style="border-left:1px solid #000"></td>
   </tr>`;
-  const liqVal = parseFloat(pv.valorLiquido||pv.valorTotal||0);
   const totalRow = `<tr style="background:#e5e5e5">
     <td colspan="3" style="text-align:right;font-weight:bold;font-size:9px;padding:3px 5px">VALOR TOTAL</td>
-    <td style="text-align:right;font-weight:bold;font-size:11px;padding:3px 5px;border-left:1px solid #000">${liqVal > 0 ? fmtBRL(liqVal) : 'R$ 0,00'}</td>
+    <td style="text-align:right;font-weight:bold;font-size:11px;padding:3px 5px;border-left:1px solid #000">${fmtBRL(liqVal)}</td>
     <td style="border-left:1px solid #000"></td>
   </tr>`;
 
@@ -5249,7 +5260,7 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
 <!-- PEDIDO Nº / DATA / SOLICITANTE -->
 <table class="meta">
   <tr><td class="lbl lbl-col">PEDIDO DE VENDA N&ordm;:</td><td>${pvNum}</td></tr>
-  <tr><td class="lbl lbl-col">DATA:</td><td>${pv.data||'-'}</td></tr>
+  <tr><td class="lbl lbl-col">DATA:</td><td>${dataCriacao}</td></tr>
   <tr><td class="lbl lbl-col">SOLICITANTE:</td><td>${solicitante}</td></tr>
 </table>
 

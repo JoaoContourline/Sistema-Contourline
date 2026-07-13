@@ -2650,7 +2650,8 @@ function buildContextPanel(op) {
       const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
       const details = [e.qty>1&&`Qtd: ${e.qty}`, e.numSerie&&`Série: ${e.numSerie}`, e.lote&&`Lote: ${e.lote}`].filter(Boolean);
       return `<div style="padding:3px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;font-weight:500">${e.name}${tesBadge}</div>
+        <div style="font-size:12px;font-weight:500">${e.name}</div>
+        ${tesBadge}
         ${details.map(d=>`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
       </div>`;
     }).join('');
@@ -2990,7 +2991,8 @@ function buildInfoSections(op, opId) {
       const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
       const details = [valor, e.qrcode&&`QR ${e.qrcode}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
       return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:500">${e.name}${e.qty>1?' × '+e.qty:''}${tesBadge}</div>
+        <div style="font-weight:500">${e.name}${e.qty>1?' × '+e.qty:''}</div>
+        ${tesBadge}
         ${details.map(d=>`<div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:1px">${d}</div>`).join('')}
       </div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;

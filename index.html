@@ -209,6 +209,10 @@ main { padding: 24px; }
   font-size: 12px; font-weight: 700; min-width: 24px; height: 24px;
   border-radius: 12px; display: grid; place-items: center; padding: 0 7px;
 }
+.section-header.collapsible { cursor: pointer; user-select: none; }
+.section-header.collapsible:hover { background: var(--surface2); }
+.sec-chevron { color: var(--text3); flex-shrink: 0; transition: transform .2s; }
+.sec-chevron.collapsed { transform: rotate(-90deg); }
 /* legado */
 .section-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 10px; padding: 5px 10px; background: var(--surface2); border-radius: 6px; display: inline-block; }
 
@@ -440,9 +444,8 @@ main { padding: 24px; }
 /* KANBAN */
 .kanban-wrap {
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   min-height: 300px;
-  padding-bottom: 24px;
 }
 .kanban-board {
   display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px;
@@ -1547,6 +1550,34 @@ function parseBRDate(s) {
   return isNaN(dt) ? null : dt;
 }
 
+function getSectionCollapsed(key) {
+  try { return JSON.parse(localStorage.getItem('secCollapsed')||'{}')[key]||false; } catch { return false; }
+}
+function toggleSection(el) {
+  const body    = el.nextElementSibling;
+  const chevron = el.querySelector('.sec-chevron');
+  const key     = el.dataset.skey;
+  const isOpen  = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  chevron?.classList.toggle('collapsed', isOpen);
+  if (key) {
+    try {
+      const s = JSON.parse(localStorage.getItem('secCollapsed')||'{}');
+      if (isOpen) s[key] = true; else delete s[key];
+      localStorage.setItem('secCollapsed', JSON.stringify(s));
+    } catch {}
+  }
+}
+function diasRestantesLabel(dataBR) {
+  const date = parseBRDate(dataBR);
+  if (!date) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.ceil((date - today) / 86400000);
+  if (diff > 0)  return ` (faltam ${diff} dia${diff!==1?'s':''})`;
+  if (diff === 0) return ' (hoje)';
+  return ` (${Math.abs(diff)}d de atraso)`;
+}
+
 function semaforo(op) {
   if (op.status === 'entregue') return { cls:'b-gray', label:'Entregue', icon:'' };
 
@@ -2275,6 +2306,25 @@ function renderQueue(user, el) {
     return;
   }
 
+  // ── SEÇÃO COLAPSÁVEL ─────────────────────────────────────────────
+  function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) {
+    const collapsed = getSectionCollapsed(key);
+    return `<div class="section">
+      <div class="section-header collapsible" onclick="toggleSection(this)" data-skey="${key}">
+        <div class="section-header-icon" style="background:${iconBg}">${iconHtml}</div>
+        <div style="flex:1">
+          <div class="section-header-title">${title}</div>
+          <div class="section-header-desc">${desc}</div>
+        </div>
+        <span class="section-header-count" style="${countStyle}">${count}</span>
+        <span class="sec-chevron${collapsed?' collapsed':''}">${icon('chevron-down',14)}</span>
+      </div>
+      <div class="section-body"${collapsed?' style="display:none"':''}>
+        <div class="card-grid">${cards}</div>
+      </div>
+    </div>`;
+  }
+
   // ── LOGÍSTICA UNIFICADA ──────────────────────────────────────────
   if (user.role === 'logistica') {
     const nfOps      = ops.filter(o => o.status === 'aguard_nf');
@@ -2286,48 +2336,9 @@ function renderQueue(user, el) {
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Nenhuma pendência agora</div><div class="empty-desc">Todas as etapas de logística estão em dia.</div></div>`;
     } else {
-      if (nfOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--blue-bg)">
-              ${icon('file-text',16,'color:var(--accent)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Solicitar Emissão de NF</div>
-              <div class="section-header-desc">Preencha os dados de entrega e envie para o fiscal emitir</div>
-            </div>
-            <span class="section-header-count" style="background:var(--blue-bg);color:var(--accent)">${nfOps.length}</span>
-          </div>
-          <div class="card-grid">${nfOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
-      if (despachoOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--teal-bg)">
-              ${icon('truck',16,'color:var(--teal)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Aguardando Despacho</div>
-              <div class="section-header-desc">NF emitida - confirme a data e hora do despacho</div>
-            </div>
-            <span class="section-header-count" style="background:var(--teal-bg);color:var(--teal)">${despachoOps.length}</span>
-          </div>
-          <div class="card-grid">${despachoOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
-      if (transitoOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--orange-bg)">
-              ${icon('package',16,'color:var(--orange)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Em Trânsito - Confirmar Entrega</div>
-              <div class="section-header-desc">Produto despachado - registre a entrega ao cliente</div>
-            </div>
-            <span class="section-header-count" style="background:var(--orange-bg);color:var(--orange)">${transitoOps.length}</span>
-          </div>
-          <div class="card-grid">${transitoOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
+      if (nfOps.length) html += secBlock('log_nf', icon('file-text',16,'color:var(--accent)'), 'var(--blue-bg)', 'Solicitar Emissão de NF', 'Preencha os dados de entrega e envie para o fiscal emitir', nfOps.length, 'background:var(--blue-bg);color:var(--accent)', nfOps.map((op,i)=>card(op,true,i)).join(''));
+      if (despachoOps.length) html += secBlock('log_despacho', icon('truck',16,'color:var(--teal)'), 'var(--teal-bg)', 'Aguardando Despacho', 'NF emitida - confirme a data e hora do despacho', despachoOps.length, 'background:var(--teal-bg);color:var(--teal)', despachoOps.map((op,i)=>card(op,true,i)).join(''));
+      if (transitoOps.length) html += secBlock('log_transito', icon('package',16,'color:var(--orange)'), 'var(--orange-bg)', 'Em Trânsito - Confirmar Entrega', 'Produto despachado - registre a entrega ao cliente', transitoOps.length, 'background:var(--orange-bg);color:var(--orange)', transitoOps.map((op,i)=>card(op,true,i)).join(''));
     }
     el.innerHTML = html;
     return;
@@ -2407,35 +2418,8 @@ function renderQueue(user, el) {
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação fiscal.</div></div>`;
     } else {
-      if (sfOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--purple-bg)">
-              ${icon('file-text',16,'color:var(--purple)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Simples Faturamento Pendente</div>
-              <div class="section-header-desc">Envie o simples faturamento para liberar a OP para logística</div>
-            </div>
-            <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${sfOps.length}</span>
-          </div>
-          <div class="card-grid">${sfOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
-
-      if (nfOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--purple-bg)">
-              ${icon('file-plus',16,'color:var(--purple)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Notas Fiscais a Emitir</div>
-              <div class="section-header-desc">Preencha os dados - emita a NF e registre o número aqui</div>
-            </div>
-            <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${nfOps.length}</span>
-          </div>
-          <div class="card-grid">${nfOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
+      if (sfOps.length) html += secBlock('fis_sf', icon('file-text',16,'color:var(--purple)'), 'var(--purple-bg)', 'Simples Faturamento Pendente', 'Envie o simples faturamento para liberar a OP para logística', sfOps.length, 'background:var(--purple-bg);color:var(--purple)', sfOps.map((op,i)=>card(op,true,i)).join(''));
+      if (nfOps.length) html += secBlock('fis_nf', icon('file-plus',16,'color:var(--purple)'), 'var(--purple-bg)', 'Notas Fiscais a Emitir', 'Preencha os dados - emita a NF e registre o número aqui', nfOps.length, 'background:var(--purple-bg);color:var(--purple)', nfOps.map((op,i)=>card(op,true,i)).join(''));
     }
     el.innerHTML = html;
     return;
@@ -2461,17 +2445,8 @@ function renderConcluidas(user, el) {
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma concluída ainda</div></div>`;
     } else {
-      const sec = (titulo, desc, count, cards) => `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:var(--purple-bg)">${icon('file-text',16,'color:var(--purple)')}</div>
-            <div style="flex:1"><div class="section-header-title">${titulo}</div><div class="section-header-desc">${desc}</div></div>
-            <span class="section-header-count" style="background:var(--purple-bg);color:var(--purple)">${count}</span>
-          </div>
-          <div class="card-grid">${cards}</div>
-        </div>`;
-      if (sfConcl.length) html += sec('Simples Faturamento', 'Lançados - aguardando a logística solicitar a emissão', sfConcl.length, sfConcl.map((op,i)=>card(op,false,i)).join(''));
-      if (nfConcl.length) html += sec('Notas Fiscais Emitidas', 'NFs já emitidas por você', nfConcl.length, nfConcl.map((op,i)=>card(op,false,i)).join(''));
+      if (sfConcl.length) html += secBlock('fis_sf_concl', icon('file-text',16,'color:var(--purple)'), 'var(--purple-bg)', 'Simples Faturamento', 'Lançados - aguardando a logística solicitar a emissão', sfConcl.length, 'background:var(--purple-bg);color:var(--purple)', sfConcl.map((op,i)=>card(op,false,i)).join(''));
+      if (nfConcl.length) html += secBlock('fis_nf_concl', icon('file-text',16,'color:var(--purple)'), 'var(--purple-bg)', 'Notas Fiscais Emitidas', 'NFs já emitidas por você', nfConcl.length, 'background:var(--purple-bg);color:var(--purple)', nfConcl.map((op,i)=>card(op,false,i)).join(''));
     }
     el.innerHTML = html;
     return;
@@ -2516,7 +2491,11 @@ function renderTodas(el) {
         oninput="filterTodas(this.value)"
         style="max-width:240px;font-size:12px;flex-shrink:0">
     </div>
-    <div class="kanban-wrap"><div class="kanban-board">${cols}</div></div>`;
+    <div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`;
+  requestAnimationFrame(() => {
+    const wrap = document.getElementById('kanban-wrap');
+    if (wrap) wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - 4) + 'px';
+  });
 }
 
 function filterTodas(val) {
@@ -2636,10 +2615,13 @@ function buildContextPanel(op) {
   // Pedido do Cliente
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e=>{
-      const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
       const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
-      return `${e.name}${e.qty>1?' ×'+e.qty:''}${tesBadge}${nsl?` <span style="color:var(--text3);font-family:'DM Mono',monospace;font-size:10px">· ${nsl}</span>`:''}`;
-    }).join('<br>');
+      const details = [e.qty>1&&`Qtd: ${e.qty}`, e.numSerie&&`Série: ${e.numSerie}`, e.lote&&`Lote: ${e.lote}`].filter(Boolean);
+      return `<div style="padding:3px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12px;font-weight:500">${e.name}${tesBadge}</div>
+        ${details.map(d=>`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
+      </div>`;
+    }).join('');
     const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -2659,7 +2641,7 @@ function buildContextPanel(op) {
       cRow('Vendedor(a)', [pv.vendedorCanal, ...((pv.vendedores||[]).slice(1))].filter(Boolean).join('<br>')),
       cRow('Analista', pv.analista),
       cRow('Contrato', pv.numContrato),
-      cRow('Equipamentos', equipLines),
+      equipLines ? `<div class="ctx-row"><span class="ctx-label">Equipamentos</span><div>${equipLines}</div></div>` : '',
       cRow('Cliente', pv.cliente),
       cRow('CPF / CNPJ', pv.cpf),
       cRow('RG', pv.rg),
@@ -2674,7 +2656,7 @@ function buildContextPanel(op) {
       (pv.simulador && parseFloat(pv.simulador) > 0) ? cRow('Simulador', fmtBRL(pv.simulador)) : '',
       pv.enderecoEntrega ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
-      pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '')) : '',
+      pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista + diasRestantesLabel(pv.dataPrevista)) : '',
       cRow('Treinamento', pv.treinamento),
       cRow('Observações', op.stepData?.aberta?.descricao),
     ]));
@@ -2971,13 +2953,14 @@ function buildInfoSections(op, opId) {
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
     const equipLines = (pv.equipamentos||[]).map(e => {
-      const lt = e.gratuito ? ` - <span style="color:var(--green);font-weight:700">Gratuito</span>`
-               : e.valorUnit ? ` - ${fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0)))}` : '';
-      const qr = e.qrcode ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· QR ${e.qrcode}</span>` : '';
-      const nsl = [e.numSerie && 'Série '+e.numSerie, e.lote && 'Lote '+e.lote].filter(Boolean).join(' · ');
-      const nslHtml = nsl ? `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-left:6px">· ${nsl}</span>` : '';
+      const valor = e.gratuito ? '<span style="color:var(--green);font-weight:700">Gratuito</span>'
+                  : e.valorUnit ? fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0))) : '';
       const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
-      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;align-items:flex-start;gap:2px"><div>${e.name}${e.qty>1?' × '+e.qty:''}${lt}${qr}${nslHtml}</div>${tesBadge}</div>`;
+      const details = [valor, e.qrcode&&`QR ${e.qrcode}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
+      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:500">${e.name}${e.qty>1?' × '+e.qty:''}${tesBadge}</div>
+        ${details.map(d=>`<div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:1px">${d}</div>`).join('')}
+      </div>`;
     }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
@@ -3014,7 +2997,7 @@ function buildInfoSections(op, opId) {
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
       ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
-      ${dItem('Previsão de entrega', pv.dataPrevista ? pv.dataPrevista + (pv.prazo ? ` (faltam ${pv.prazo} dias)` : '') : '')}
+      ${dItem('Previsão de entrega', pv.dataPrevista ? pv.dataPrevista + diasRestantesLabel(pv.dataPrevista) : '')}
       ${dItem('Contato', pv.contatoEntrega)}
       ${dItem('Treinamento', pv.treinamento)}
       ${op.stepData?.aberta?.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Observações</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${op.stepData.aberta.descricao}</div></div>` : ''}

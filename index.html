@@ -1666,10 +1666,11 @@ function renderEquipItem(e, i) {
     </div>
     ${isFree ? '' : `<div style="display:flex;gap:5px;align-items:center">
       <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
-      <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
+      <input id="equip-desc-${i}" class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
         type="text" inputmode="decimal"
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
-    </div>`}
+    </div>
+    <div id="equip-desc-warn-${i}" style="display:none;font-size:10px;color:var(--red);font-family:'DM Mono',monospace;padding:2px 0"></div>`}
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
       <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
@@ -1815,10 +1816,42 @@ function equipPrice(idx, val) {
 // Desconto por equipamento (R$ sobre a linha)
 function equipDiscount(idx, val) {
   if (!tempEquipList[idx]) return;
-  const n = parseBRL(val);
-  tempEquipList[idx].desconto = n > 0 ? n.toString() : '';
-  const unit  = parseFloat(tempEquipList[idx].valorUnit) || 0;
-  const lineT = unit ? Math.max(0, (parseInt(tempEquipList[idx].qty)||1) * unit - (n > 0 ? n : 0)) : 0;
+  const item    = tempEquipList[idx];
+  const unit    = parseFloat(item.valorUnit) || 0;
+  const qty     = parseInt(item.qty) || 1;
+  const lineMax = unit * qty; // teto da linha
+
+  let n = Math.max(0, parseBRL(val));
+  let warn = '';
+
+  // Regra 1: desconto do item não pode exceder o total da linha
+  if (lineMax > 0 && n > lineMax) {
+    n = lineMax;
+    warn = `Máx. desta linha: R$ ${lineMax.toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  }
+
+  // Regra 2: soma de todos os descontos não pode exceder o valor total do pedido
+  const totalPedido   = tempEquipList.reduce((s, e) => s + (!e.gratuito ? (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) : 0), 0);
+  const outrosDescs   = tempEquipList.reduce((s, e, i) => i !== idx && !e.gratuito ? s + (parseFloat(e.desconto)||0) : s, 0);
+  const disponivelTotal = Math.max(0, totalPedido - outrosDescs);
+  if (n > disponivelTotal) {
+    n = disponivelTotal;
+    warn = `Soma dos descontos não pode exceder o total do pedido (R$ ${totalPedido.toLocaleString('pt-BR',{minimumFractionDigits:2})})`;
+  }
+
+  item.desconto = n > 0 ? n.toString() : '';
+
+  // Corrige o input se o valor foi truncado
+  const inp = document.getElementById(`equip-desc-${idx}`);
+  if (inp && Math.abs(parseBRL(inp.value) - n) > 0.001) {
+    inp.value = n > 0 ? n.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+  }
+
+  // Aviso visual
+  const warnEl = document.getElementById(`equip-desc-warn-${idx}`);
+  if (warnEl) { warnEl.textContent = warn; warnEl.style.display = warn ? '' : 'none'; }
+
+  const lineT = lineMax ? Math.max(0, lineMax - n) : 0;
   const el = document.getElementById('equip-total-' + idx);
   if (el) el.textContent = lineT > 0 ? 'R$ ' + lineT.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
   updateEquipListTotal();

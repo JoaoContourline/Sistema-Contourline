@@ -2041,7 +2041,7 @@ function buildFieldHtml(f) {
 
     // Filtra apenas itens que controlam lote ou série
     // Prioridade: 1) campo tracking salvo no item, 2) lookup no _equipCache, 3) legado → série
-    const trackItems = rawList.flatMap(e => {
+    const rawTrackItems = rawList.flatMap(e => {
       const obj = typeof e === 'object' ? e : { name: e };
       if (obj.serial === false) return []; // retrocompat campo antigo
 
@@ -2061,12 +2061,27 @@ function buildFieldHtml(f) {
 
       if (tracking === null) return []; // Trail='N' → sem série/lote
       const qty = obj.qty || 1;
-      // Lote: 1 campo cobre todas as unidades (mesmo lote para todas)
-      // Série: 1 campo por unidade (cada unidade tem série própria)
       if ((tracking || 'serie') === 'lote') {
         return [{ name: obj.name, tracking: 'lote', qty }];
       }
       return Array.from({ length: qty }, () => ({ name: obj.name, tracking: 'serie', qty: 1 }));
+    });
+
+    // Mescla entradas lote com mesmo nome (ex: 5 linhas do Protheus com qty=1 → 1 campo × 5)
+    const loteAcc = {};
+    const trackItems = [];
+    rawTrackItems.forEach(item => {
+      if (item.tracking === 'lote') {
+        if (loteAcc[item.name]) {
+          loteAcc[item.name].qty += item.qty;
+        } else {
+          const merged = { ...item };
+          loteAcc[item.name] = merged;
+          trackItems.push(merged);
+        }
+      } else {
+        trackItems.push(item);
+      }
     });
 
     if (!trackItems.length) return `

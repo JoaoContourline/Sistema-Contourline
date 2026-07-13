@@ -2644,7 +2644,7 @@ function buildContextPanel(op) {
       <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
       ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
     </div>
-    <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${[op.numContrato||op.contrato||'',op.vendedorCanal||op.vendedorName,daysSince(op.dataAbertura)+'d'].filter(Boolean).join(' · ')}</div>
+    <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${op.vendedorCanal||op.vendedorName||''}</div>
     ${op.obs?`<div style="font-size:11px;color:var(--text2)">${op.obs}</div>`:''}
   </div>`);
 
@@ -3372,8 +3372,7 @@ function openInfoModal(opId) {
         ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">
-        <span>${op.vendedorCanal||op.vendedorName||'-'}</span><span>${op.numContrato||op.contrato||''}</span>
-        <span>${daysSince(op.dataAbertura)}d</span>
+        <span>${op.vendedorCanal||op.vendedorName||'-'}</span>
       </div>
       <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
     </div>`;
@@ -5051,8 +5050,13 @@ async function submitNovaOP() {
   // Atualiza com ID e numero reais
   const newId  = Number(rows[0].id);
   const pedidoProtheus = (g('nova-numPedido')?.value || '').trim();
-  const baseNum = newId + '/' + new Date().getFullYear();
-  const numero  = pedidoProtheus ? `${baseNum} - Pedido de venda ${pedidoProtheus}` : baseNum;
+
+  // Numeração sequencial por ano (1/2026, 2/2026, … 1/2027, …)
+  const anoAtual = new Date().getFullYear();
+  const opsEsteAno = ops.filter(o => (o.dataAbertura || '').startsWith(String(anoAtual)));
+  const seqNum = opsEsteAno.length + 1;
+  const baseNum = `${seqNum}/${anoAtual}`;
+  const numero  = pedidoProtheus ? `${baseNum} - PV ${pedidoProtheus}` : baseNum;
   opData.id     = newId;
   opData.numero = numero;
   opData.pedidoProtheus = pedidoProtheus;

@@ -104,11 +104,12 @@ header {
 .role-btn.active { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.22); color: #fff; }
 
 /* TABS */
-.tabs { padding: 0 100px 0 24px; border-bottom: 1px solid var(--border); display: flex; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; }
+.tabs { padding: 0 100px 0 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 42px; min-height: 42px; max-height: 42px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; }
 .tab-btn {
-  padding: 12px 16px; border: none; background: transparent;
+  padding: 0 16px; height: 100%; border: none; background: transparent;
   color: var(--text3); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
   cursor: pointer; position: relative; transition: color .15s; display: flex; align-items: center; gap: 7px;
+  flex-shrink: 0;
 }
 .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: transparent; border-radius: 2px 2px 0 0; transition: background .15s; }
 .tab-btn.active { color: var(--text); }

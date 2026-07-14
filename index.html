@@ -118,7 +118,7 @@ header {
 .tab-btn.active .tab-count { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* MAIN */
-main { padding: 24px; }
+main { padding: 24px; transform-origin: top center; transition: transform 0.18s ease; }
 .step-header { margin-bottom: 20px; }
 .step-title { font-size: 18px; font-weight: 700; }
 .step-desc { font-size: 12px; color: var(--text3); margin-top: 3px; }
@@ -1520,21 +1520,13 @@ let _cardZoom = parseFloat(localStorage.getItem('cardZoom') || '1');
 const _ZOOM_STEP = 0.1, _ZOOM_MIN = 0.5, _ZOOM_MAX = 1.5;
 function _applyZoom() {
   const main = document.getElementById('main');
-  if (main) main.style.zoom = _cardZoom;
+  if (main) main.style.transform = `scale(${_cardZoom})`;
   localStorage.setItem('cardZoom', _cardZoom);
   const lbl = document.getElementById('zoom-level');
   if (lbl) lbl.textContent = Math.round(_cardZoom * 100) + '%';
 }
-function _zoomPop(dir) {
-  const main = document.getElementById('main');
-  if (!main) return;
-  main.animate(
-    [{ transform: `scale(${dir > 0 ? 1.015 : 0.985})` }, { transform: 'scale(1)' }],
-    { duration: 180, easing: 'ease-out' }
-  );
-}
-function zoomOut() { if (_cardZoom > _ZOOM_MIN) { _cardZoom = Math.round(Math.max(_ZOOM_MIN, _cardZoom - _ZOOM_STEP) * 10) / 10; _applyZoom(); _zoomPop(-1); } }
-function zoomIn()  { if (_cardZoom < _ZOOM_MAX) { _cardZoom = Math.round(Math.min(_ZOOM_MAX, _cardZoom + _ZOOM_STEP) * 10) / 10; _applyZoom(); _zoomPop(+1); } }
+function zoomOut() { if (_cardZoom > _ZOOM_MIN) { _cardZoom = Math.round(Math.max(_ZOOM_MIN, _cardZoom - _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
+function zoomIn()  { if (_cardZoom < _ZOOM_MAX) { _cardZoom = Math.round(Math.min(_ZOOM_MAX, _cardZoom + _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
 
 function showApp() {
   document.getElementById('loadingScreen').style.display = 'none';

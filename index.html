@@ -659,28 +659,31 @@ main { padding: 24px; }
   <button class="tab-btn active" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
+  <div style="flex:1"></div>
+  <button id="btn-filter-toggle" onclick="toggleFilterBar()" title="Filtros" style="display:flex;align-items:center;gap:5px;padding:0 12px;border:none;background:transparent;cursor:pointer;color:var(--text3);transition:color .15s;position:relative;height:100%">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+    <span id="fl-active-dot" style="display:none;position:absolute;top:10px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--accent)"></span>
+  </button>
 </div>
 
-<div id="filter-bar" style="padding:7px 24px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-  <div style="display:flex;align-items:center;gap:5px;color:var(--text3);flex-shrink:0">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-    <span style="font-size:11px;font-weight:600;letter-spacing:.03em">Filtros</span>
+<div id="filter-bar" style="overflow:hidden;max-height:0;transition:max-height .22s ease;border-bottom:1px solid var(--border);background:var(--surface)">
+  <div style="padding:8px 24px;display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+    <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
+    <input id="fl-pv"   type="text"  placeholder="Nº PV"            oninput="applyFilters()"  style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:110px;outline:none">
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+      <span style="font-size:11px;color:var(--text3);white-space:nowrap">Criação:</span>
+      <input id="fl-from" type="date" onchange="applyFilters()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+      <span style="font-size:11px;color:var(--text3)">até</span>
+      <input id="fl-to"   type="date" onchange="applyFilters()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
+    </div>
+    <select id="fl-sem" onchange="applyFilters()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none;cursor:pointer">
+      <option value="">Qualquer prazo</option>
+      <option value="verde">No prazo</option>
+      <option value="amarelo">Próximo ao prazo</option>
+      <option value="vermelho">Atrasado</option>
+    </select>
+    <button id="fl-clear" onclick="clearFilters()" style="display:none;height:28px;padding:0 10px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text2);cursor:pointer">Limpar</button>
   </div>
-  <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
-  <input id="fl-pv"   type="text"  placeholder="Nº PV"            oninput="applyFilters()"  style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:110px;outline:none">
-  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-    <span style="font-size:11px;color:var(--text3);white-space:nowrap">Criação:</span>
-    <input id="fl-from" type="date" onchange="applyFilters()" title="De" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
-    <span style="font-size:11px;color:var(--text3)">até</span>
-    <input id="fl-to"   type="date" onchange="applyFilters()" title="Até" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
-  </div>
-  <select id="fl-sem" onchange="applyFilters()" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none;cursor:pointer">
-    <option value="">Qualquer prazo</option>
-    <option value="verde">No prazo</option>
-    <option value="amarelo">Próximo ao prazo</option>
-    <option value="vermelho">Atrasado</option>
-  </select>
-  <button id="fl-clear" onclick="clearFilters()" style="display:none;height:28px;padding:0 10px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text2);cursor:pointer">Limpar</button>
 </div>
 
 <main id="main"></main>
@@ -1494,6 +1497,8 @@ async function checkSession() {
 // ═══════════════════════════════════════════════════════════════════
 // QUEUE RESOLUTION ALGORITHM
 // ═══════════════════════════════════════════════════════════════════
+
+function _hasActiveFilter() { return Object.values(_filters).some(Boolean); }
 
 function _opsFiltered() {
   const { q, pv, dateFrom, dateTo, sem } = _filters;
@@ -2424,13 +2429,15 @@ function renderQueue(user, el) {
 
   // ── COMERCIAL - pendentes = em andamento ─────────────────────────
   if (user.role === 'vendedor') {
-    const pendentes = ops.filter(o => o.status !== 'entregue');
+    const pendentes = _opsFiltered().filter(o => o.status !== 'entregue');
     let html = `<div class="step-header"><div class="step-title">Minhas OPs - Pendentes</div>
       <div class="step-desc">OPs ainda em andamento. Acompanhe o progresso ou clique para ver detalhes.</div></div>`;
     if (!ops.length) {
       html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP cadastrada</div><div class="empty-desc">Clique em "+ Nova OP" para criar a primeira.</div></div>`;
     } else if (!pendentes.length) {
-      html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo entregue!</div><div class="empty-desc">Todas as OPs foram concluídas e entregues ao cliente.</div></div>`;
+      html += _hasActiveFilter()
+        ? `<div class="empty"><div class="empty-icon">${icon('filter',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
+        : `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo entregue!</div><div class="empty-desc">Todas as OPs foram concluídas e entregues ao cliente.</div></div>`;
     } else {
       html += `<div class="card-grid">${pendentes.map((op,i) => card(op,false,i)).join('')}</div>`;
     }
@@ -2440,9 +2447,10 @@ function renderQueue(user, el) {
 
   // ── LOGÍSTICA UNIFICADA ──────────────────────────────────────────
   if (user.role === 'logistica') {
-    const nfOps      = ops.filter(o => o.status === 'aguard_nf');
-    const despachoOps= ops.filter(o => o.status === 'aguard_despacho');
-    const transitoOps= ops.filter(o => o.status === 'transito');
+    const base = _opsFiltered();
+    const nfOps      = base.filter(o => o.status === 'aguard_nf');
+    const despachoOps= base.filter(o => o.status === 'aguard_despacho');
+    const transitoOps= base.filter(o => o.status === 'transito');
     const total = nfOps.length + despachoOps.length + transitoOps.length;
     let html = `<div class="step-header"><div class="step-title">Logística - Pendentes</div>
       <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Solicitação NF, despacho e entregas</div></div>`;
@@ -2459,9 +2467,10 @@ function renderQueue(user, el) {
 
   // ── FINANCEIRO (seções: Validação + Bloqueadas) ──────────────────
   if (user.role === 'financeiro') {
-    const validacaoOps = ops.filter(o => o.status === 'aguard_financeiro' && finNeeded(o) && !finDone(o));
-    const bloqueadaOps = ops.filter(o => o.status === 'bloqueada');
-    const boletoOps    = ops.filter(o => o.boletoTask?.status === 'pendente');
+    const base = _opsFiltered();
+    const validacaoOps = base.filter(o => o.status === 'aguard_financeiro' && finNeeded(o) && !finDone(o));
+    const bloqueadaOps = base.filter(o => o.status === 'bloqueada');
+    const boletoOps    = base.filter(o => o.boletoTask?.status === 'pendente');
     const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;
 
     let html = `<div class="step-header"><div class="step-title">Financeiro - Pendentes</div>
@@ -2521,8 +2530,9 @@ function renderQueue(user, el) {
 
   // ── FISCAL (seções: Simples Faturamento + Notas Fiscais) ────────
   if (user.role === 'fiscal') {
-    const sfOps = ops.filter(o => o.status === 'aguard_financeiro' && !sfDone(o));
-    const nfOps = ops.filter(o => o.status === 'aguard_emissao');
+    const base = _opsFiltered();
+    const sfOps = base.filter(o => o.status === 'aguard_financeiro' && !sfDone(o));
+    const nfOps = base.filter(o => o.status === 'aguard_emissao');
     const total = sfOps.length + nfOps.length;
 
     let html = `<div class="step-header"><div class="step-title">Fiscal - Pendentes</div>
@@ -2551,8 +2561,9 @@ function renderQueue(user, el) {
 function renderConcluidas(user, el) {
   // Fiscal: separa "Simples Faturamento" (lançado, ainda não emitido) de "NF emitida"
   if (user.role === 'fiscal') {
-    const sfConcl = ops.filter(o => sfDone(o) && (o.status === 'aguard_financeiro' || o.status === 'aguard_nf'));
-    const nfConcl = ops.filter(o => o.stepData?.aguard_emissao?.numeroNF);
+    const base = _opsFiltered();
+    const sfConcl = base.filter(o => sfDone(o) && (o.status === 'aguard_financeiro' || o.status === 'aguard_nf'));
+    const nfConcl = base.filter(o => o.stepData?.aguard_emissao?.numeroNF);
     const total = sfConcl.length + nfConcl.length;
     let html = `<div class="step-header"><div class="step-title">Concluídas por Mim</div><div class="step-desc">Simples faturamento lançados e notas fiscais emitidas</div></div>`;
     if (!total) {
@@ -2594,16 +2605,28 @@ function renderTodas(el) {
       </div>
     </div>`;
   }).join('');
+  const hasResults = Object.values(groups).some(g => g.length > 0);
   el.innerHTML = `
     <div class="step-header" style="margin-bottom:12px">
       <div class="step-title">Todas as OPs</div>
       <div class="step-desc">${abertas} em aberto · ${total-abertas} entregues</div>
     </div>
-    <div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`;
+    ${!hasResults && _hasActiveFilter()
+      ? `<div class="empty"><div class="empty-icon">${icon('filter',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
+      : `<div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`}`;
   requestAnimationFrame(() => {
     const wrap = document.getElementById('kanban-wrap');
     if (wrap) wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - 4) + 'px';
   });
+}
+
+let _filterBarOpen = false;
+function toggleFilterBar() {
+  _filterBarOpen = !_filterBarOpen;
+  const bar = document.getElementById('filter-bar');
+  const btn = document.getElementById('btn-filter-toggle');
+  if (bar) bar.style.maxHeight = _filterBarOpen ? '60px' : '0';
+  if (btn) btn.style.color = _filterBarOpen ? 'var(--accent)' : '';
 }
 
 function applyFilters() {
@@ -2612,9 +2635,11 @@ function applyFilters() {
   _filters.dateFrom = document.getElementById('fl-from')?.value || '';
   _filters.dateTo   = document.getElementById('fl-to')?.value   || '';
   _filters.sem      = document.getElementById('fl-sem')?.value  || '';
-  const hasFilter = Object.values(_filters).some(Boolean);
-  const btn = document.getElementById('fl-clear');
-  if (btn) btn.style.display = hasFilter ? '' : 'none';
+  const hasFilter = _hasActiveFilter();
+  const clrBtn = document.getElementById('fl-clear');
+  if (clrBtn) clrBtn.style.display = hasFilter ? '' : 'none';
+  const dot = document.getElementById('fl-active-dot');
+  if (dot) dot.style.display = hasFilter ? '' : 'none';
   renderAll();
 }
 
@@ -2622,7 +2647,8 @@ function clearFilters() {
   _filters = { q: '', pv: '', dateFrom: '', dateTo: '', sem: '' };
   ['fl-q','fl-pv','fl-from','fl-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const sel = document.getElementById('fl-sem'); if (sel) sel.selectedIndex = 0;
-  const btn = document.getElementById('fl-clear'); if (btn) btn.style.display = 'none';
+  const clrBtn = document.getElementById('fl-clear'); if (clrBtn) clrBtn.style.display = 'none';
+  const dot = document.getElementById('fl-active-dot'); if (dot) dot.style.display = 'none';
   renderAll();
 }
 

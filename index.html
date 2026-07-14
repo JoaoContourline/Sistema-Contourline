@@ -656,7 +656,7 @@ main { padding: 24px; }
 </header>
 
 <div class="tabs">
-  <button id="btn-filter-toggle" onclick="toggleFilterBar()" title="Filtros" style="display:flex;align-items:center;padding:0 12px 0 0;border:none;background:transparent;cursor:pointer;color:var(--text3);transition:color .15s;position:relative;height:100%;flex-shrink:0">
+  <button id="btn-filter-toggle" onclick="toggleFilterBar()" title="Filtros" style="display:flex;align-items:center;padding:12px 12px 12px 0;border:none;background:transparent;cursor:pointer;color:var(--text3);transition:color .15s;position:relative;flex-shrink:0">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
     <span id="fl-active-dot" style="display:none;position:absolute;top:10px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent)"></span>
   </button>
@@ -718,6 +718,8 @@ function icon(name, size = 16, style = '') {
     'map-pin':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
     'clock':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
     'external-link':  `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+    'filter':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
+    'filter-x':       `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/><line x1="22" y1="2" x2="2" y2="22"/></svg>`,
   };
   return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
 }
@@ -2431,7 +2433,7 @@ function renderQueue(user, el) {
       html += `<div class="empty"><div class="empty-icon">${icon('clipboard-list',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP cadastrada</div><div class="empty-desc">Clique em "+ Nova OP" para criar a primeira.</div></div>`;
     } else if (!pendentes.length) {
       html += _hasActiveFilter()
-        ? `<div class="empty"><div class="empty-icon">${icon('filter',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
+        ? `<div class="empty"><div class="empty-icon">${icon('filter-x',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
         : `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo entregue!</div><div class="empty-desc">Todas as OPs foram concluídas e entregues ao cliente.</div></div>`;
     } else {
       html += `<div class="card-grid">${pendentes.map((op,i) => card(op,false,i)).join('')}</div>`;
@@ -2607,7 +2609,7 @@ function renderTodas(el) {
       <div class="step-desc">${abertas} em aberto · ${total-abertas} entregues</div>
     </div>
     ${!hasResults && _hasActiveFilter()
-      ? `<div class="empty"><div class="empty-icon">${icon('filter',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
+      ? `<div class="empty"><div class="empty-icon">${icon('filter-x',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
       : `<div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`}`;
   requestAnimationFrame(() => {
     const wrap = document.getElementById('kanban-wrap');

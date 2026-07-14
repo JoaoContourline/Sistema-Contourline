@@ -104,7 +104,7 @@ header {
 .role-btn.active { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.22); color: #fff; }
 
 /* TABS */
-.tabs { padding: 0 100px 0 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 42px; min-height: 42px; max-height: 42px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; }
+.tabs { padding: 0 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 42px; min-height: 42px; max-height: 42px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; }
 .tab-btn {
   padding: 0 16px; height: 100%; border: none; background: transparent;
   color: var(--text3); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
@@ -118,7 +118,7 @@ header {
 .tab-btn.active .tab-count { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* MAIN */
-main { padding: 24px; transform-origin: top left; transition: transform 0.18s ease; }
+main { padding: 24px; }
 .step-header { margin-bottom: 20px; }
 .step-title { font-size: 18px; font-weight: 700; }
 .step-desc { font-size: 12px; color: var(--text3); margin-top: 3px; }
@@ -720,12 +720,6 @@ main { padding: 24px; transform-origin: top left; transition: transform 0.18s ea
       </select>
       <button id="fl-clear" onclick="clearFilters()" style="display:none;height:26px;padding:0 10px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text2);cursor:pointer;white-space:nowrap">Limpar</button>
     </div>
-  </div>
-  <!-- Zoom fixo no canto direito, independente do filter-bar -->
-  <div style="position:absolute;right:14px;top:0;bottom:0;display:flex;align-items:center;gap:1px">
-    <button onclick="zoomOut()" title="Zoom −" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px 0 0 5px;background:var(--surface2);color:var(--text2);font-size:14px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center">−</button>
-    <span id="zoom-level" style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:0 5px;height:24px;display:flex;align-items:center;min-width:36px;justify-content:center;font-family:'DM Mono',monospace">100%</span>
-    <button onclick="zoomIn()"  title="Zoom +" style="width:24px;height:24px;border:1px solid var(--border);border-radius:0 5px 5px 0;background:var(--surface2);color:var(--text2);font-size:14px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center">+</button>
   </div>
 </div>
 
@@ -1516,17 +1510,6 @@ sb.auth.onAuthStateChange((event) => {
   }
 });
 
-let _cardZoom = parseFloat(localStorage.getItem('cardZoom') || '1');
-const _ZOOM_STEP = 0.1, _ZOOM_MIN = 0.5, _ZOOM_MAX = 1.5;
-function _applyZoom() {
-  const main = document.getElementById('main');
-  if (main) main.style.transform = `scale(${_cardZoom})`;
-  localStorage.setItem('cardZoom', _cardZoom);
-  const lbl = document.getElementById('zoom-level');
-  if (lbl) lbl.textContent = Math.round(_cardZoom * 100) + '%';
-}
-function zoomOut() { if (_cardZoom > _ZOOM_MIN) { _cardZoom = Math.round(Math.max(_ZOOM_MIN, _cardZoom - _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
-function zoomIn()  { if (_cardZoom < _ZOOM_MAX) { _cardZoom = Math.round(Math.min(_ZOOM_MAX, _cardZoom + _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
 
 function showApp() {
   document.getElementById('loadingScreen').style.display = 'none';
@@ -1536,7 +1519,6 @@ function showApp() {
   loadOps().then(() => startRealtime());
   loadEquipItems();
   requestNotifPermission();
-  _applyZoom();
 }
 
 async function checkSession() {
@@ -5598,7 +5580,6 @@ function setTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMain(); renderCounts();
-  _applyZoom();
 }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 

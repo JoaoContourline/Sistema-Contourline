@@ -123,7 +123,7 @@ main { padding: 24px; }
 .step-desc { font-size: 12px; color: var(--text3); margin-top: 3px; }
 
 /* CARD GRID */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 
 /* CARD */
 .card {
@@ -448,11 +448,10 @@ main { padding: 24px; }
   min-height: 300px;
 }
 .kanban-board {
-  display: flex; gap: 10px; align-items: flex-start; padding: 2px 1px;
-  /* min-width garante scroll horizontal em telas estreitas (6 cols × 240px + gaps) */
-  min-width: calc(6 * 240px + 5 * 10px);
+  display: flex; gap: 8px; align-items: flex-start; padding: 2px 1px;
+  min-width: calc(6 * 210px + 5 * 8px);
 }
-.kanban-col { flex: 1 0 240px; max-width: 380px; min-width: 200px; display: flex; flex-direction: column; }
+.kanban-col { flex: 1 0 210px; max-width: 320px; min-width: 180px; display: flex; flex-direction: column; }
 .kanban-col-head {
   padding: 8px 11px 7px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
@@ -576,6 +575,46 @@ main { padding: 24px; }
 }
 .logout-btn:hover { background: rgba(255,255,255,.18); color: #fff; border-color: rgba(255,255,255,.3); }
 
+/* ═══════════════════════════════════════════════════
+   RESPONSIVIDADE
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .kanban-col { flex: 1 0 190px; }
+  main { padding: 16px; }
+}
+@media (max-width: 680px) {
+  header { padding: 0 12px; height: 50px; }
+  .logo-icon { width: 28px; height: 28px; }
+  .logo-text { font-size: 12px; }
+  .logo-sub { display: none; }
+  .view-switcher { gap: 2px; }
+  .view-btn { padding: 4px 8px; font-size: 11px; }
+  .user-widget { gap: 6px; }
+  .user-widget-name { display: none; }
+  .tabs { padding: 0 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab-btn { padding: 12px 10px; font-size: 12px; white-space: nowrap; }
+  main { padding: 12px; }
+  .step-title { font-size: 15px; }
+  .card-grid { grid-template-columns: 1fr; gap: 10px; }
+  .kanban-col { flex: 1 0 200px; }
+  .form-row { grid-template-columns: 1fr !important; }
+  .modal-overlay { padding: 6px; align-items: flex-end; }
+  .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 92vh; }
+  .modal.wide { max-width: 100%; }
+  .modal.split { flex-direction: column !important; }
+  .modal.split > * { width: 100% !important; max-width: 100% !important; }
+  .login-card { border-radius: 14px; padding: 22px 18px; }
+  .login-card-header { padding: 0 0 18px; }
+  .section-header { padding: 10px 12px; }
+  .card-grid .card { animation: none; }
+}
+@media (max-width: 420px) {
+  .kanban-col { flex: 1 0 180px; }
+  main { padding: 8px; }
+  .modal-overlay { padding: 0; }
+  .modal { border-radius: 16px 16px 0 0; }
+  header { padding: 0 10px; }
+}
 </style>
 </head>
 <body>
@@ -663,6 +702,12 @@ main { padding: 24px; }
   <button class="tab-btn active" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:center;gap:1px;padding:0 4px;flex-shrink:0">
+    <button onclick="zoomOut()" title="Zoom −" style="width:26px;height:26px;border:1px solid var(--border);border-radius:6px 0 0 6px;background:var(--surface2);color:var(--text2);font-size:15px;line-height:1;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center">−</button>
+    <span id="zoom-level" style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:0 6px;height:26px;display:flex;align-items:center;min-width:38px;justify-content:center;font-family:'DM Mono',monospace">100%</span>
+    <button onclick="zoomIn()"  title="Zoom +" style="width:26px;height:26px;border:1px solid var(--border);border-radius:0 6px 6px 0;background:var(--surface2);color:var(--text2);font-size:15px;line-height:1;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center">+</button>
+  </div>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:7px;padding:0 16px;white-space:nowrap;border-left:1px solid var(--border);margin-left:4px">
       <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:140px;outline:none">
@@ -1468,6 +1513,18 @@ sb.auth.onAuthStateChange((event) => {
   }
 });
 
+let _cardZoom = parseFloat(localStorage.getItem('cardZoom') || '1');
+const _ZOOM_STEP = 0.1, _ZOOM_MIN = 0.5, _ZOOM_MAX = 1.5;
+function _applyZoom() {
+  const main = document.getElementById('main');
+  if (main) main.style.zoom = _cardZoom;
+  localStorage.setItem('cardZoom', _cardZoom);
+  const lbl = document.getElementById('zoom-level');
+  if (lbl) lbl.textContent = Math.round(_cardZoom * 100) + '%';
+}
+function zoomOut() { if (_cardZoom > _ZOOM_MIN) { _cardZoom = Math.round(Math.max(_ZOOM_MIN, _cardZoom - _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
+function zoomIn()  { if (_cardZoom < _ZOOM_MAX) { _cardZoom = Math.round(Math.min(_ZOOM_MAX, _cardZoom + _ZOOM_STEP) * 10) / 10; _applyZoom(); } }
+
 function showApp() {
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'none';
@@ -1476,6 +1533,7 @@ function showApp() {
   loadOps().then(() => startRealtime());
   loadEquipItems();
   requestNotifPermission();
+  _applyZoom();
 }
 
 async function checkSession() {
@@ -5537,6 +5595,7 @@ function setTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMain(); renderCounts();
+  _applyZoom();
 }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
 

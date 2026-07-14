@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fluxo de Vendas - Contourline</title>
+<title>Fluxo de Vendas</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -634,7 +634,6 @@ main { padding: 24px; }
     <div class="logo-divider"></div>
     <div class="logo-text-group">
       <div class="logo-text">Fluxo de Vendas</div>
-      <div class="logo-sub">Contourline</div>
     </div>
   </div>
   <div class="header-center" id="headerCenter"></div>
@@ -1185,7 +1184,8 @@ async function loadOps() {
       op.numero = numero;
       const { id: _id, ...repairData } = op;
       repairData.numero = numero;
-      sb.from('ops').update({ numero, data: repairData }).eq('id', op.id).then(() => {});
+      sb.from('ops').update({ numero, data: repairData }).eq('id', op.id)
+        .then(({ error }) => { if (error) console.error('[repair] falha ao corrigir numero da OP', op.id, error); });
     }
   }
 
@@ -1265,8 +1265,10 @@ function requestNotifPermission() {
 }
 
 // Realtime - sincroniza mudanças de outros usuários
+let _realtimeChannel = null;
 function startRealtime() {
-  sb.channel('ops-realtime')
+  if (_realtimeChannel) { sb.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+  _realtimeChannel = sb.channel('ops-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'ops' }, payload => {
       if (payload.eventType === 'INSERT') {
         const newOp = rowToOp(payload.new);
@@ -1305,8 +1307,8 @@ function startRealtime() {
       renderAll();
     })
     .subscribe(status => {
-      if (status === 'CHANNEL_ERROR') {
-        console.warn('[Realtime] erro no canal - reconectando em 5s');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.warn('[Realtime] canal perdido (' + status + ') - reconectando em 5s');
         setTimeout(startRealtime, 5000);
       }
     });
@@ -3244,6 +3246,7 @@ function buildInfoSections(op, opId) {
 }
 function openInfoModal(opId) {
   const op    = ops.find(o => o.id === opId);
+  if (!op) { console.warn('openInfoModal: OP', opId, 'não encontrada'); return; }
   const badge = stepBadge(op.status);
   const sem   = semaforo(op);
   const pv    = op.pedidoVenda;
@@ -5104,10 +5107,14 @@ async function submitNovaOP() {
   const newId  = Number(rows[0].id);
   const pedidoProtheus = (g('nova-numPedido')?.value || '').trim();
 
-  // Numeração sequencial por ano (1/2026, 2/2026, … 1/2027, …)
+  // Numeração sequencial por ano — lê o banco (não o array local) para evitar race condition
   const anoAtual = new Date().getFullYear();
-  const opsEsteAno = ops.filter(o => (o.dataAbertura || '').startsWith(String(anoAtual)));
-  const seqNum = opsEsteAno.length + 1;
+  const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `${anoAtual}/%`).not('numero','is',null);
+  const _maxSeq = (_numRows || []).reduce((mx, r) => {
+    const m = String(r.numero || '').match(/^(\d+)\//);
+    return m ? Math.max(mx, parseInt(m[1], 10)) : mx;
+  }, 0);
+  const seqNum = _maxSeq + 1;
   const baseNum = `${seqNum}/${anoAtual}`;
   const numero  = pedidoProtheus ? `${baseNum} - PV ${pedidoProtheus}` : baseNum;
   opData.id     = newId;
@@ -5250,6 +5257,7 @@ function printPedidoVenda(opId) {
   }
 
   const w = window.open('', '_blank', 'width=900,height=1200');
+  if (!w) { showToast('Popup bloqueado pelo navegador. Permita popups para este site e tente novamente.', 'err'); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <title>Pedido de Venda Nº ${pvNum}</title>
 <style>

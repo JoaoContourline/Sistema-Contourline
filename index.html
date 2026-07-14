@@ -468,6 +468,34 @@ main { padding: 24px; }
 .kanban-col-body .card { animation: none; }
 .kanban-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 14px 6px; }
 
+/* Kanban mode: layout travado no viewport, barra h-scroll sempre visível na base */
+body.kanban-mode { overflow: hidden; }
+body.kanban-mode main {
+  height: calc(100vh - 58px - 42px);
+  padding: 24px 24px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body.kanban-mode .kanban-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+}
+body.kanban-mode .kanban-board {
+  height: 100%;
+  align-items: stretch;
+}
+body.kanban-mode .kanban-col { height: 100%; }
+body.kanban-mode .kanban-col-body {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
 /* ── LOGIN SCREEN ──────────────────────────────────────────────── */
 #loginScreen {
   position: fixed; inset: 0; z-index: 9999;
@@ -2654,10 +2682,6 @@ function renderTodas(el) {
     ${!hasResults && _hasActiveFilter()
       ? `<div class="empty"><div class="empty-icon">${icon('filter-x',32,'color:var(--text3)')}</div><div class="empty-title">Sem resultados</div><div class="empty-desc">Nenhuma OP encontrada com os filtros aplicados.</div></div>`
       : `<div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`}`;
-  requestAnimationFrame(() => {
-    const wrap = document.getElementById('kanban-wrap');
-    if (wrap) wrap.style.height = (window.innerHeight - wrap.getBoundingClientRect().top - 4) + 'px';
-  });
 }
 
 let _filterBarOpen = false;
@@ -5579,6 +5603,7 @@ function setTab(tab, btn) {
   currentTab = tab;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  document.body.classList.toggle('kanban-mode', tab === 'todas');
   renderMain(); renderCounts();
 }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });

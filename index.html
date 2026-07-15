@@ -338,6 +338,7 @@ main { padding: 24px; }
 .form-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
 
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes rastPulse { 0%,100%{box-shadow:0 0 0 0 rgba(38,114,184,.35)} 50%{box-shadow:0 0 0 5px rgba(38,114,184,0)} }
 @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .badge.b-blue .badge-dot, .badge.b-yellow .badge-dot, .badge.b-orange .badge-dot, .badge.b-teal .badge-dot { animation: pulse 2s infinite; }
 @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
@@ -737,6 +738,7 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn active" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
+  <button class="tab-btn" id="btn-tab-rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:7px;padding:0 16px;white-space:nowrap;border-left:1px solid var(--border);margin-left:4px">
       <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:140px;outline:none">
@@ -794,6 +796,7 @@ function icon(name, size = 16, style = '') {
     'external-link':  `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
     'filter':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
     'filter-x':       `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055"/><path d="m16 6 5 5"/><path d="m21 6-5 5"/></svg>`,
+    'refresh-cw':     `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
   };
   return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
 }
@@ -1122,7 +1125,7 @@ const STEPS = {
       { key: 'cepEntrega',      label: 'CEP de Entrega',                 type: 'cep-lookup', targetKey: 'enderecoEntrega' },
       { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
       { key: 'numSerie',        label: 'Número(s) de Série',             type: 'ns-equipamentos' },
-      { key: 'tecnico',         label: 'Motorista / Transportadora *',   type: 'text',     required: true },
+      { key: 'envio',           label: 'Motorista / Transportadora *',   type: 'envio',    required: true },
       { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
       { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
       { key: 'descricao',       label: 'Descrição',                      type: 'textarea' },
@@ -1135,6 +1138,7 @@ const STEPS = {
     actionLabel: 'Confirmar Emissão da Nota Fiscal',
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
+      { key: 'chaveNfe',    label: 'Chave da NFe (44 díg.) — necessária p/ rastreio automático', type: 'text' },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
       { key: 'arquivoNF',   label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
       { key: 'descricao',   label: 'Observações',             type: 'textarea',
@@ -1668,6 +1672,15 @@ function advanceOP(opId, formData) {
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
+
+  // Ao entrar em trânsito (logística confirmou o despacho da NF), dispara o
+  // 1º rastreio automático quando a transportadora tem integração + chave NFe.
+  if (next === 'transito'
+      && op.stepData?.aguard_nf?.envioTipo === 'transportadora'
+      && RASTREAVEIS.has(op.stepData?.aguard_nf?.transportadora)
+      && (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '').length >= 44) {
+    atualizarRastreio(op.id, true);
+  }
 }
 
 function rejectOP(opId, formData) {
@@ -2372,6 +2385,35 @@ function buildFieldHtml(f) {
       </label>
     </div>`;
 
+  if (f.type === 'envio') {
+    // Pré-preenche se a OP já tiver dados de envio (ex.: reabertura)
+    const seed  = ops.find(o => o.id === activeOpId)?.stepData?.aguard_nf || {};
+    const tipo  = seed.envioTipo || '';
+    const mot   = (seed.motorista || (seed.envioTipo !== 'transportadora' ? seed.tecnico : '') || '').replace(/"/g,'&quot;');
+    const transp= seed.transportadora || '';
+    const opts  = Object.entries(TRANSPORTADORAS).map(([id,label]) =>
+      `<option value="${id}" ${transp===id?'selected':''}>${label}${RASTREAVEIS.has(id)?' · rastreio automático':''}</option>`).join('');
+    return `
+    <div class="form-group">
+      <label class="form-label">${f.label}</label>
+      <div style="display:flex;gap:16px;margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--text)">
+          <input type="radio" name="envioTipo" value="motorista" onchange="toggleEnvio('motorista')" ${tipo==='motorista'?'checked':''}> Motorista
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--text)">
+          <input type="radio" name="envioTipo" value="transportadora" onchange="toggleEnvio('transportadora')" ${tipo==='transportadora'?'checked':''}> Transportadora
+        </label>
+      </div>
+      <input class="form-input" id="f-envio_motorista" placeholder="Nome do motorista" value="${mot}"
+        style="display:${tipo==='motorista'?'block':'none'}">
+      <select class="form-input" id="f-envio_transportadora" style="display:${tipo==='transportadora'?'block':'none'}">
+        <option value="">Selecione a transportadora…</option>
+        ${opts}
+      </select>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora com integração ativa o rastreio automático das cargas.</div>
+    </div>`;
+  }
+
   return `
     <div class="form-group">
       <label class="form-label">${f.label}</label>
@@ -2379,6 +2421,266 @@ function buildFieldHtml(f) {
         ? `<textarea class="form-textarea" id="f-${f.key}" rows="3"></textarea>`
         : `<input class="form-input" id="f-${f.key}" type="${f.type}">`}
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RASTREAMENTO DE CARGAS (Torre de Controle) — setor logística
+// ═══════════════════════════════════════════════════════════════════
+
+const TRANSPORTADORAS = { azul: 'Azul Cargo', jamef: 'Jamef', correios: 'Correios', rotta: 'Rotta Master', loggica: 'Loggica' };
+const RASTREAVEIS     = new Set(['azul']); // com integração de API hoje (demais entram ao ter API)
+
+const RAST_STAGES = ['Coletado', 'Em transferência', 'Saiu para entrega', 'Entregue'];
+
+// Alterna os inputs do campo Motorista/Transportadora
+function toggleEnvio(tipo) {
+  const mot = document.getElementById('f-envio_motorista');
+  const tra = document.getElementById('f-envio_transportadora');
+  if (mot) mot.style.display = tipo === 'motorista'     ? 'block' : 'none';
+  if (tra) tra.style.display = tipo === 'transportadora'? 'block' : 'none';
+}
+
+// Deduz o estágio (0-3) a partir do texto do último evento
+function inferStage(r) {
+  if (!r) return -1;
+  if (r.entregue) return 3;
+  const s = (r.statusLabel || '').toLowerCase();
+  if (/saiu para entrega|em rota|rota de entrega|em entrega|out for delivery/.test(s)) return 2;
+  if (/transfer|tr[aâ]nsito|chegou|encaminhad|receb.*unidade|in transit/.test(s))      return 1;
+  return 0;
+}
+
+// OPs que aparecem na aba: enviadas por transportadora, em trânsito ou entregues há ≤7 dias
+function rastreioOps() {
+  return ops.filter(o => {
+    const nf = o.stepData?.aguard_nf;
+    if (nf?.envioTipo !== 'transportadora') return false;
+    if (o.status === 'transito') return true;
+    if (o.status === 'entregue') {
+      const dEnt = o.stepData?.transito?.dataEntrega || (o.rastreio?.dataEntrega || '').slice(0, 10);
+      return dEnt ? daysSince(new Date(dEnt)) <= 7 : false;
+    }
+    return false;
+  });
+}
+
+function rastFmtTs(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return String(ts);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+// View-model por OP para a aba
+function rastreioVM(op) {
+  const nf     = op.stepData?.aguard_nf || {};
+  const transp = nf.transportadora;
+  const rastreavel = RASTREAVEIS.has(transp);
+  const r = op.rastreio;
+
+  let stage, statusLabel, local = '', previsao = null, entregue = false, insucesso = false;
+  if (op.status === 'entregue') { entregue = true; stage = 3; statusLabel = r?.statusLabel || 'Entregue'; local = r?.local || ''; previsao = r?.previsao || null; }
+  else if (r) { stage = inferStage(r); statusLabel = r.statusLabel; local = r.local; previsao = r.previsao; insucesso = r.insucesso; entregue = r.entregue; }
+  else { stage = -1; statusLabel = rastreavel ? 'Aguardando 1ª atualização' : 'Sem integração de rastreio'; }
+
+  const prevDate = previsao ? new Date(previsao) : (op.pedidoVenda?.dataPrevista ? parseBRDate(op.pedidoVenda.dataPrevista) : null);
+  const atrasada = !entregue && prevDate && (new Date() > prevDate);
+  const group = entregue ? 'entregue' : (insucesso || atrasada) ? 'atencao' : stage >= 2 ? 'saiu' : 'transito';
+
+  return { op, transp, rastreavel, stage, statusLabel, local, previsao, prevDate, entregue, insucesso, atrasada, group, r };
+}
+
+// Consulta a API e atualiza uma OP; auto-avança p/ Entregue quando a transportadora confirma
+async function atualizarRastreio(opId, silent) {
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  const transp   = op.stepData?.aguard_nf?.transportadora;
+  const chaveNfe = (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '');
+  if (!RASTREAVEIS.has(transp)) { if (!silent) showToast('Transportadora sem integração de rastreio', 'err'); return; }
+  if (!chaveNfe || chaveNfe.length < 44) { if (!silent) showToast('Chave da NFe (44 díg.) não informada na emissão', 'err'); return; }
+
+  op._rastreioLoading = true; op._rastreioErro = null;
+  if (currentTab === 'rastreio') renderMain();
+  try {
+    const resp = await fetch('/api/rastreio', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transportadora: transp, chaveNfe }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Falha ao consultar rastreio');
+    op.rastreio = data;
+    if (data.entregue && op.status === 'transito') {
+      autoEntregar(op, data); // persiste + renderAll
+    } else {
+      dbSaveOp(op);
+    }
+    if (!silent) showToast('Rastreio atualizado', 'ok');
+  } catch (e) {
+    op._rastreioErro = e.message;
+    if (!silent) showToast(e.message, 'err');
+  } finally {
+    op._rastreioLoading = false;
+    if (currentTab === 'rastreio') renderMain();
+    renderCounts();
+  }
+}
+
+function autoEntregar(op, data) {
+  const dataEntrega = (data.dataEntrega || '').slice(0, 10);
+  advanceOP(op.id, {
+    dataEntrega,
+    descricao: `Entrega confirmada automaticamente via ${TRANSPORTADORAS[data.transportadora] || 'transportadora'} (rastreio).`,
+    rastreioPod: data.pod || '',
+    fotos: [],
+  });
+  showToast(`OP ${op.numero || op.id}: entrega confirmada pela ${TRANSPORTADORAS[data.transportadora] || 'transportadora'}`, 'ok');
+}
+
+async function atualizarTodosRastreios() {
+  const list = rastreioOps().filter(o => RASTREAVEIS.has(o.stepData?.aguard_nf?.transportadora) && o.status === 'transito');
+  if (!list.length) { showToast('Nenhuma carga rastreável em trânsito', 'ok'); return; }
+  showToast(`Atualizando ${list.length} carga(s)…`, 'ok');
+  for (const o of list) await atualizarRastreio(o.id, true);
+  if (currentTab === 'rastreio') renderMain();
+  showToast('Rastreios atualizados', 'ok');
+}
+
+// ── Componentes visuais ──────────────────────────────────────────────
+function rastStepperHtml(vm) {
+  const dots = RAST_STAGES.map((label, i) => {
+    const done   = vm.stage >= i && vm.stage >= 0;
+    const active = vm.stage === i && !vm.entregue;
+    const color  = vm.insucesso && i === vm.stage ? 'var(--red)' : done ? 'var(--accent)' : 'var(--border2)';
+    const pulse  = active ? `box-shadow:0 0 0 4px rgba(38,114,184,.18);animation:rastPulse 1.6s ease-in-out infinite` : '';
+    const line   = i < RAST_STAGES.length - 1
+      ? `<div style="flex:1;height:2px;background:${vm.stage > i ? 'var(--accent)' : 'var(--border2)'}"></div>` : '';
+    return `<div style="display:flex;align-items:center;${i < RAST_STAGES.length - 1 ? 'flex:1' : ''}">
+        <div title="${label}" style="width:11px;height:11px;border-radius:50%;flex-shrink:0;background:${color};${pulse}"></div>${line}
+      </div>`;
+  }).join('');
+  return `<div style="display:flex;align-items:center;margin:10px 0 4px">${dots}</div>`;
+}
+
+function rastPrevBadge(vm) {
+  if (vm.entregue) return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 8px;border-radius:20px">${icon('check',10,'color:var(--green)')} Entregue</span>`;
+  if (vm.atrasada)  return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 8px;border-radius:20px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada</span>`;
+  if (vm.previsao || vm.op.pedidoVenda?.dataPrevista) {
+    const txt = vm.previsao ? rastFmtTs(vm.previsao).split(' ')[0] : vm.op.pedidoVenda.dataPrevista;
+    return `<span style="font-size:10px;color:var(--text3)">prev. ${txt}</span>`;
+  }
+  return '';
+}
+
+function rastCardHtml(vm) {
+  const op = vm.op;
+  const cliente = op.cliente || op.pedidoVenda?.cliente || '—';
+  const codigo  = op.rastreio?.awb ? `AWB ${op.rastreio.awb}` : (op.stepData?.aguard_emissao?.chaveNfe ? `NF …${String(op.stepData.aguard_emissao.chaveNfe).slice(-6)}` : '');
+  const live    = !vm.entregue && vm.r && !vm._stale ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:rastPulse 1.6s ease-in-out infinite"></span>ao vivo</span>` : '';
+  const loadBtn = vm._rastreioLoading || op._rastreioLoading
+    ? `<span style="font-size:11px;color:var(--text3)">atualizando…</span>`
+    : (vm.rastreavel ? `<button onclick="atualizarRastreio(${op.id})" title="Atualizar" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:4px">${icon('refresh-cw',11)} Atualizar</button>` : '');
+  const tlBtn = vm.r ? `<button onclick="verTimeline(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);cursor:pointer">Ver histórico</button>` : '';
+  const openBtn = `<button onclick="openInfoModal(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);cursor:pointer">Abrir OP</button>`;
+  const errHtml = op._rastreioErro ? `<div style="font-size:11px;color:var(--red);margin-top:6px">${op._rastreioErro}</div>` : '';
+  const localHtml = vm.local ? `<span style="display:inline-flex;align-items:center;gap:3px">${icon('map-pin',11,'color:var(--text3)')} ${vm.local}</span>` : '';
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:2px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="font-weight:700;color:var(--text);font-size:13px">OP ${op.numero || op.id} <span style="color:var(--text3);font-weight:400">· ${cliente}</span></div>
+      ${live}
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${TRANSPORTADORAS[vm.transp] || '—'}${codigo ? ' · ' + codigo : ''}</div>
+    ${rastStepperHtml(vm)}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div style="font-size:12px;color:var(--text);font-weight:600">${vm.statusLabel}</div>
+      ${rastPrevBadge(vm)}
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">${localHtml}</div>
+    ${errHtml}
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${loadBtn}${tlBtn}${openBtn}</div>
+  </div>`;
+}
+
+function renderRastreio(el) {
+  const vms = rastreioOps().map(rastreioVM);
+  const groups = {
+    atencao:  { title: 'Precisa de atenção', desc: 'Atrasadas ou com falha de entrega', color: 'var(--red)',    items: [] },
+    saiu:     { title: 'Saiu para entrega',  desc: 'A caminho do cliente',              color: 'var(--accent)', items: [] },
+    transito: { title: 'Em trânsito',        desc: 'Coletadas / em transferência',      color: 'var(--text2)',  items: [] },
+    entregue: { title: 'Entregues (7 dias)', desc: 'Concluídas recentemente',           color: 'var(--green)',  items: [] },
+  };
+  vms.forEach(vm => groups[vm.group].items.push(vm));
+
+  const nTransito = vms.filter(v => !v.entregue).length;
+  const nSaiu     = groups.saiu.items.length;
+  const nAtencao  = groups.atencao.items.length;
+
+  const header = `<div class="step-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('truck',18,'color:var(--accent)')} Rastreamento de Cargas</div>
+        <div class="step-desc">${nTransito} em trânsito · ${nSaiu} saiu p/ entrega · <span style="color:${nAtencao ? 'var(--red)' : 'inherit'};font-weight:${nAtencao ? 700 : 400}">${nAtencao} precisa de atenção</span></div>
+      </div>
+      <button onclick="atualizarTodosRastreios()" style="background:var(--accent);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${icon('refresh-cw',13,'color:#fff')} Atualizar todas</button>
+    </div>`;
+
+  if (!vms.length) {
+    el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('truck',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma carga em transportadora</div><div class="empty-desc">Cargas despachadas por transportadora (Azul, etc.) aparecem aqui para acompanhamento em tempo real.</div></div>`;
+    return;
+  }
+
+  const blocks = Object.values(groups).filter(g => g.items.length).map(g => `
+    <div class="section" style="margin-top:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="width:9px;height:9px;border-radius:50%;background:${g.color}"></span>
+        <div style="font-size:12px;font-weight:700;color:var(--text);letter-spacing:.2px">${g.title.toUpperCase()}</div>
+        <span class="tab-count">${g.items.length}</span>
+        <span style="font-size:11px;color:var(--text3)">${g.desc}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${g.items.map(rastCardHtml).join('')}</div>
+    </div>`).join('');
+
+  el.innerHTML = header + blocks;
+}
+
+// Modal com a linha do tempo completa de uma OP
+function verTimeline(opId) {
+  const op = ops.find(o => o.id === opId);
+  const r  = op?.rastreio;
+  if (!r) return;
+  let modal = document.getElementById('rastreio-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'rastreio-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+    document.body.appendChild(modal);
+  }
+  const eventos = [...(r.eventos || [])].reverse(); // mais recente primeiro
+  const linha = eventos.map((ev, i) => {
+    const dotColor = i === 0 ? 'var(--accent)' : 'var(--border2)';
+    const pod = ev.urlPod ? ` · <a href="#" onclick="event.preventDefault();showLightbox('${ev.urlPod}','Comprovante de entrega')" style="color:var(--accent)">comprovante</a>` : '';
+    const ins = ev.urlInsucesso ? ` · <a href="#" onclick="event.preventDefault();showLightbox('${ev.urlInsucesso}','Tentativa de entrega')" style="color:var(--red)">tentativa</a>` : '';
+    return `<div style="display:flex;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div style="width:10px;height:10px;border-radius:50%;background:${dotColor};margin-top:4px"></div>
+          ${i < eventos.length - 1 ? `<div style="flex:1;width:2px;background:var(--border2)"></div>` : ''}
+        </div>
+        <div style="padding-bottom:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${ev.descricao || '—'}</div>
+          <div style="font-size:11px;color:var(--text3)">${rastFmtTs(ev.ts)}${ev.local ? ' · ' + ev.local : ''}${pod}${ins}</div>
+        </div>
+      </div>`;
+  }).join('') || `<div style="font-size:12px;color:var(--text3)">Sem eventos registrados ainda.</div>`;
+
+  modal.innerHTML = `<div style="background:var(--surface);border-radius:14px;max-width:440px;width:100%;max-height:82vh;overflow:auto;padding:20px 22px;box-shadow:0 12px 48px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-weight:700;color:var(--text);font-size:14px">Rastreio · OP ${op.numero || op.id}</div>
+        <button onclick="document.getElementById('rastreio-modal').style.display='none'" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:14px">${TRANSPORTADORAS[r.transportadora] || ''}${r.awb ? ' · AWB ' + r.awb : ''}${r.destino ? ' · ' + r.destino : ''}${r.fetchedAt ? ' · atualizado ' + rastFmtTs(r.fetchedAt) : ''}</div>
+      ${linha}
+    </div>`;
+  modal.style.display = 'flex';
 }
 
 async function handleFile(input) {
@@ -2463,6 +2765,16 @@ function renderCounts() {
   document.getElementById('cnt-fila').textContent        = getQueue(view).length;
   document.getElementById('cnt-concluidas').textContent  = getCompleted(view).length;
   document.getElementById('cnt-todas').textContent       = _opsFiltered().filter(o=>o.status!=='aberta'&&o.status!=='bloqueada').length;
+
+  // Aba Rastreamento: só para logística e gestor
+  const rastBtn = document.getElementById('btn-tab-rastreio');
+  if (rastBtn) {
+    const canRastreio = view?.role === 'logistica' || view?.role === 'gestor';
+    rastBtn.style.display = canRastreio ? '' : 'none';
+    document.getElementById('cnt-rastreio').textContent = canRastreio ? rastreioOps().length : 0;
+    // Se estava na aba e perdeu acesso, volta pra fila
+    if (!canRastreio && currentTab === 'rastreio') currentTab = 'fila';
+  }
 }
 
 function renderMain() {
@@ -2470,6 +2782,7 @@ function renderMain() {
   const el   = document.getElementById('main');
   if      (currentTab === 'fila')       renderQueue(view, el);
   else if (currentTab === 'concluidas') renderConcluidas(view, el);
+  else if (currentTab === 'rastreio')   renderRastreio(el);
   else                                  renderTodas(el);
 }
 
@@ -3040,6 +3353,10 @@ function openActionModal(opId, mode) {
         <input class="form-input" id="f-numeroNF" value="${emData.numeroNF||''}">
       </div>
       <div class="form-group">
+        <label class="form-label">Chave da NFe (44 díg.) — necessária p/ rastreio automático</label>
+        <input class="form-input" id="f-chaveNfe" value="${emData.chaveNfe||''}">
+      </div>
+      <div class="form-group">
         <label class="form-label">Data de Emissão *</label>
         <input class="form-input" id="f-dataEmissao" type="date" value="${emData.dataEmissao||''}">
       </div>
@@ -3313,6 +3630,7 @@ function buildInfoSections(op, opId) {
     const d = sd.aguard_emissao;
     let nfeHtml = `<div class="detail-grid">
       ${dItem('Número NF', d.numeroNF)}
+      ${d.chaveNfe ? dItem('Chave NFe', d.chaveNfe) : ''}
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
       ${dItem('Observações', d.descricao)}
     </div>`;
@@ -3322,6 +3640,24 @@ function buildInfoSections(op, opId) {
       : [];
     if (nfFiles.length) nfeHtml += `<div style="margin-top:8px">${fileLinksHtml(nfFiles)}</div>`;
     sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
+  }
+
+  // ── RASTREAMENTO (envio por transportadora) ──────────────────────
+  if (sd.aguard_nf?.envioTipo === 'transportadora') {
+    const vm = rastreioVM(op);
+    let rHtml = `<div class="detail-grid">
+      ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '—')}
+      ${op.rastreio?.awb ? dItem('AWB', op.rastreio.awb) : ''}
+      ${dItem('Situação', vm.statusLabel)}
+      ${vm.local ? dItem('Local atual', vm.local) : ''}
+    </div>`;
+    const btnCss = 'background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer';
+    const acts = [];
+    if (vm.rastreavel) acts.push(`<button style="${btnCss}" onclick="atualizarRastreio(${op.id})">${op._rastreioLoading ? 'atualizando…' : 'Atualizar rastreio'}</button>`);
+    if (op.rastreio)   acts.push(`<button style="${btnCss}" onclick="verTimeline(${op.id})">Ver histórico</button>`);
+    if (acts.length) rHtml += `<div style="display:flex;gap:6px;margin-top:8px">${acts.join('')}</div>`;
+    else if (!vm.rastreavel) rHtml += `<div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora ainda sem integração de rastreio.</div>`;
+    sections.push(infoAcc('Rastreamento', 'truck', rHtml));
   }
 
   // ── SIMPLES FATURAMENTO (fiscal, side-channel) ────────────────────
@@ -4062,6 +4398,7 @@ function submitModal() {
     const addr  = document.getElementById('f-reNF_enderecoEntrega')?.value?.trim();
     const tec   = document.getElementById('f-reNF_tecnico')?.value?.trim();
     const numNF = document.getElementById('f-numeroNF')?.value?.trim();
+    const chvNF = document.getElementById('f-chaveNfe')?.value?.trim();
     const dtNF  = document.getElementById('f-dataEmissao')?.value;
     const descNF= document.getElementById('f-descricao')?.value?.trim();
     if (!addr)  { err('f-reNF_enderecoEntrega'); return; }
@@ -4070,6 +4407,7 @@ function submitModal() {
     if (!dtNF)  { err('f-dataEmissao');           return; }
     if (!descNF){ err('f-descricao');             return; }
     op.stepData.aguard_nf = {
+      ...(op.stepData.aguard_nf || {}), // preserva envioTipo/transportadora/motorista
       enderecoEntrega: addr,
       tecnico: tec,
       volumes: document.getElementById('f-reNF_volumes')?.value || '',
@@ -4082,7 +4420,7 @@ function submitModal() {
     const prevArr   = prevNF ? (Array.isArray(prevNF) ? prevNF : [prevNF]) : [];
     // Se anexou novo arquivo, substitui; caso contrário mantém o anterior
     const fileNF    = rawFileNF ? [rawFileNF] : prevArr;
-    advanceOP(activeOpId, { numeroNF: numNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
+    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }
 
@@ -4126,6 +4464,26 @@ function submitModal() {
       }
       formData.numSeries       = series;
       formData.trackingTypes   = types;
+      continue;
+    }
+    if (f.type === 'envio') {
+      const tipo = document.querySelector('input[name="envioTipo"]:checked')?.value;
+      if (!tipo) { showToast('Escolha Motorista ou Transportadora', 'err'); return; }
+      if (tipo === 'motorista') {
+        const nome = document.getElementById('f-envio_motorista')?.value?.trim();
+        if (!nome) { const e=document.getElementById('f-envio_motorista'); e.style.borderColor='var(--red)'; e.focus(); return; }
+        formData.envioTipo = 'motorista';
+        formData.motorista = nome;
+        formData.transportadora = '';
+        formData.tecnico = nome; // compat: campo antigo usado em telas de detalhe
+      } else {
+        const t = document.getElementById('f-envio_transportadora')?.value;
+        if (!t) { const e=document.getElementById('f-envio_transportadora'); e.style.borderColor='var(--red)'; e.focus(); return; }
+        formData.envioTipo = 'transportadora';
+        formData.transportadora = t;
+        formData.motorista = '';
+        formData.tecnico = TRANSPORTADORAS[t] || t; // compat
+      }
       continue;
     }
     const el  = document.getElementById('f-' + f.key);

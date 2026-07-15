@@ -3643,24 +3643,6 @@ function buildInfoSections(op, opId) {
     sections.push(infoAcc('Nota Fiscal', 'file-text', nfeHtml));
   }
 
-  // ── RASTREAMENTO (envio por transportadora) ──────────────────────
-  if (sd.aguard_nf?.envioTipo === 'transportadora') {
-    const vm = rastreioVM(op);
-    let rHtml = `<div class="detail-grid">
-      ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '—')}
-      ${op.rastreio?.awb ? dItem('AWB', op.rastreio.awb) : ''}
-      ${dItem('Situação', vm.statusLabel)}
-      ${vm.local ? dItem('Local atual', vm.local) : ''}
-    </div>`;
-    const btnCss = 'background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer';
-    const acts = [];
-    if (vm.rastreavel) acts.push(`<button style="${btnCss}" onclick="atualizarRastreio(${op.id})">${op._rastreioLoading ? 'atualizando…' : 'Atualizar rastreio'}</button>`);
-    if (op.rastreio)   acts.push(`<button style="${btnCss}" onclick="verTimeline(${op.id})">Ver histórico</button>`);
-    if (acts.length) rHtml += `<div style="display:flex;gap:6px;margin-top:8px">${acts.join('')}</div>`;
-    else if (!vm.rastreavel) rHtml += `<div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora ainda sem integração de rastreio.</div>`;
-    sections.push(infoAcc('Rastreamento', 'truck', rHtml));
-  }
-
   // ── SIMPLES FATURAMENTO (fiscal, side-channel) ────────────────────
   if (sd.aguard_financeiro?.aprovado && !sd.simples_faturamento) {
     sections.push(`<div style="background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
@@ -3718,6 +3700,24 @@ function buildInfoSections(op, opId) {
       </div>`;
     }
     sections.push(infoAcc('Confirmação de Entrega', 'package', confHtml, op.status === 'entregue'));
+  }
+
+  // ── RASTREAMENTO (envio por transportadora) — penúltima, antes do Histórico
+  if (sd.aguard_nf?.envioTipo === 'transportadora') {
+    const vm = rastreioVM(op);
+    let rHtml = `<div class="detail-grid">
+      ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '—')}
+      ${op.rastreio?.awb ? dItem('AWB', op.rastreio.awb) : ''}
+      ${dItem('Situação', vm.statusLabel)}
+      ${vm.local ? dItem('Local atual', vm.local) : ''}
+    </div>`;
+    const btnCss = 'background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer';
+    const acts = [];
+    if (vm.rastreavel) acts.push(`<button style="${btnCss}" onclick="atualizarRastreio(${op.id})">${op._rastreioLoading ? 'atualizando…' : 'Atualizar rastreio'}</button>`);
+    if (op.rastreio)   acts.push(`<button style="${btnCss}" onclick="verTimeline(${op.id})">Ver histórico</button>`);
+    if (acts.length) rHtml += `<div style="display:flex;gap:6px;margin-top:8px">${acts.join('')}</div>`;
+    else if (!vm.rastreavel) rHtml += `<div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora ainda sem integração de rastreio.</div>`;
+    sections.push(infoAcc('Rastreamento', 'truck', rHtml));
   }
 
   // ── HISTÓRICO ────────────────────────────────────────────────────

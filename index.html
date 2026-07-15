@@ -104,9 +104,10 @@ header {
 .role-btn.active { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.22); color: #fff; }
 
 /* TABS */
-.tabs { padding: 0 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 42px; min-height: 42px; max-height: 42px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; }
+.tabs { padding: 0 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; height: 42px; min-height: 42px; max-height: 42px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.04); position: relative; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
 .tab-btn {
-  padding: 0 16px; height: 100%; border: none; background: transparent;
+  padding: 0 12px; height: 100%; border: none; background: transparent;
   color: var(--text3); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
   cursor: pointer; position: relative; transition: color .15s; display: flex; align-items: center; gap: 7px;
   flex-shrink: 0;
@@ -739,10 +740,10 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
   <button class="tab-btn" id="btn-tab-rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
-  <div id="filter-bar" style="position:absolute;top:100%;right:12px;z-index:40;display:none;align-items:center;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-width:calc(100vw - 24px)">
-    <div style="display:flex;align-items:center;gap:7px;padding:10px 14px;flex-wrap:wrap">
-      <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:140px;outline:none">
-      <input id="fl-pv"   type="text"  placeholder="Nº PV"            oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:100px;outline:none">
+  <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
+      <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:116px;outline:none">
+      <input id="fl-pv"   type="text"  placeholder="Nº PV"            oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:78px;outline:none">
       <input id="fl-from" type="date"  onchange="applyFilters()" title="Criação: de"  style="height:26px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
       <span style="font-size:11px;color:var(--text3)">até</span>
       <input id="fl-to"   type="date"  onchange="applyFilters()" title="Criação: até" style="height:26px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
@@ -3006,7 +3007,7 @@ function toggleFilterBar() {
   _filterBarOpen = !_filterBarOpen;
   const bar = document.getElementById('filter-bar');
   const btn = document.getElementById('btn-filter-toggle');
-  if (bar) bar.style.display = _filterBarOpen ? 'flex' : 'none';
+  if (bar) bar.style.maxWidth = _filterBarOpen ? '760px' : '0';
   if (btn) btn.style.color = _filterBarOpen ? 'var(--accent)' : '';
 }
 

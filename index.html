@@ -1847,16 +1847,43 @@ function renderEquipItem(e, i) {
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
     </div>
     <div id="equip-desc-warn-${i}" style="display:none;font-size:10px;color:var(--red);font-family:'DM Mono',monospace;padding:2px 0"></div>`}
+    ${qrInputsHtml(e, i)}
+  </div>`;
+}
+
+// ── QR por UNIDADE ───────────────────────────────────────────────────
+// Cada máquina física tem seu próprio adesivo, e o QR é o ID único no Sistema
+// QR — logo, uma linha × 3 precisa de 3 códigos, não de 1.
+
+/** Quantos QRs a linha precisa: 1 por unidade em série; lote não tem QR próprio. */
+function qrQtdDaLinha(e) {
+  const tracking = ('tracking' in e) ? e.tracking : 'serie';
+  if (tracking === null) return 0;              // item que não controla série/lote
+  if (tracking === 'lote') return 1;            // lote: 1 código para a linha toda
+  return parseInt(e.qty) || 1;
+}
+
+/** Lista de QRs da linha, normalizada e preenchida até a quantidade. */
+function qrListaDaLinha(e, qtd) {
+  const n = (qtd === undefined) ? qrQtdDaLinha(e) : qtd;
+  const arr = Array.isArray(e.qrcodes) ? [...e.qrcodes] : (e.qrcode ? [e.qrcode] : []);
+  while (arr.length < n) arr.push('');
+  return arr.slice(0, n);
+}
+
+function qrInputsHtml(e, i) {
+  const n = qrQtdDaLinha(e);
+  if (!n) return '';
+  return qrListaDaLinha(e, n).map((val, k) => `
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
-      <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code</span>
+      <span style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code${n > 1 ? ' ' + (k+1) : ''}</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
         type="text" ${e.qrLocked?'readonly':''}
-        value="${e.qrcode ? String(e.qrcode).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},this.value)">
-      ${e.qrLocked !== undefined ? (e.qrLocked
+        value="${val ? String(val).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},${k},this.value)">
+      ${k === 0 && e.qrLocked !== undefined ? (e.qrLocked
         ? `<button type="button" class="fl-btn" title="Editar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('pencil',13)}</button>`
         : `<button type="button" class="fl-btn fl-ok" title="Confirmar QR" onclick="toggleQrLock(${i})" style="flex-shrink:0">${icon('check',14)}</button>`) : ''}
-    </div>
-  </div>`;
+    </div>`).join('');
 }
 function toggleQrLock(idx) {
   if (!tempEquipList[idx]) return;
@@ -2033,9 +2060,13 @@ function equipDiscount(idx, val) {
   updateEquipListTotal();
 }
 
-function equipQrcode(idx, val) {
-  if (!tempEquipList[idx]) return;
-  tempEquipList[idx].qrcode = (val || '').trim();
+function equipQrcode(idx, k, val) {
+  const e = tempEquipList[idx];
+  if (!e) return;
+  const arr = qrListaDaLinha(e);
+  arr[k] = (val || '').trim();
+  e.qrcodes = arr;
+  e.qrcode  = arr[0] || ''; // compat: telas antigas leem só e.qrcode
 }
 
 function updateEquipListTotal() {
@@ -2477,29 +2508,44 @@ function qrMontarPayload(op) {
     responsavel_equipamento: pv.contatoEntrega || '',
   };
 
+  // 1 cadastro por MÁQUINA física — o qr_code é o ID único do Sistema QR.
   const itens = [], avisos = [];
   raw.forEach((e, idx) => {
     const tracking = ('tracking' in e) ? e.tracking : 'serie';
     if ((tracking || 'serie') !== 'serie') return; // consumível de lote não é equipamento
-    const qr = (e.qrcode || '').trim();
-    if (!qr) { avisos.push(`${e.name}: sem QR na OP`); return; }
-    const serie = ((seriais.get(idx) || [])[0] || e.numSerie || '').trim();
-    if (!serie) { avisos.push(`${e.name}: sem nº de série`); return; }
-    const qty = parseInt(e.qty) || 1;
-    if (qty > 1) avisos.push(`${e.name}: ${qty} unidades para 1 QR — só a 1ª foi cadastrada`);
+    const qty   = parseInt(e.qty) || 1;
+    const qrs   = qrListaDaLinha(e, qty);
+    const sers  = seriais.get(idx) || [];
 
-    itens.push({
-      qr_code: qr, numero_serie: serie, modelo: e.name || '', data_expedicao: dataExp,
-      empresa,
-      pedido_producao: {
-        numero: op.pedidoProtheus || op.numero || '', data: pv.data || '',
-        vendedor: pv.analista || pv.vendedorCanal || '', quantidade: String(qty),
-        produto: e.name || '', valor_produto: e.valorUnit || '',
-        observacao: `OP ${op.numero || op.id}`,
-      },
-      contato_negociacao: { nome: pv.contatoEntrega || '', telefone: pv.tel || '', email: pv.email || '' },
-    });
+    for (let k = 0; k < qty; k++) {
+      const rotulo = qty > 1 ? `${e.name} #${k + 1}` : e.name;
+      const qr     = (qrs[k] || '').trim();
+      const serie  = (sers[k] || (k === 0 ? e.numSerie : '') || '').trim();
+      if (!qr)    { avisos.push(`${rotulo}: sem QR na OP`);      continue; }
+      if (!serie) { avisos.push(`${rotulo}: sem nº de série`);   continue; }
+
+      itens.push({
+        qr_code: qr, numero_serie: serie, modelo: e.name || '', data_expedicao: dataExp,
+        empresa,
+        pedido_producao: {
+          numero: op.pedidoProtheus || op.numero || '', data: pv.data || '',
+          vendedor: pv.analista || pv.vendedorCanal || '', quantidade: '1',
+          produto: e.name || '', valor_produto: e.valorUnit || '',
+          observacao: `OP ${op.numero || op.id}`,
+        },
+        contato_negociacao: { nome: pv.contatoEntrega || '', telefone: pv.tel || '', email: pv.email || '' },
+      });
+    }
   });
+
+  // QR duplicado dentro da própria OP viraria 1 registro só (o QR é a chave).
+  const vistos = new Set();
+  itens.forEach(it => {
+    const chave = it.qr_code.replace(/\s+/g, '').toUpperCase();
+    if (vistos.has(chave)) avisos.push(`QR ${it.qr_code} repetido na OP — cada máquina precisa do seu`);
+    vistos.add(chave);
+  });
+
   return { itens, avisos };
 }
 
@@ -3595,7 +3641,8 @@ function buildInfoSections(op, opId) {
       const valor = e.gratuito ? '<span style="color:var(--green);font-weight:700">Gratuito</span>'
                   : e.valorUnit ? fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0))) : '';
       const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
-      const details = [valor, e.qrcode&&`QR ${e.qrcode}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
+      const _qrs = qrListaDaLinha(e).filter(Boolean); // 1 QR por máquina
+      const details = [valor, _qrs.length&&`QR ${_qrs.join(', ')}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
       return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
         <div style="font-weight:500">${e.name}${e.qty>1?' × '+e.qty:''}</div>
         ${tesBadge}
@@ -5088,6 +5135,9 @@ function preencherPedido(p) {
       valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
       desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
       qrcode:    (it.qrcode || '').trim(),
+      // Protheus traz 1 QR por linha (C6_XQRCODE). Se a linha tiver mais de uma
+      // máquina, os demais adesivos são digitados na abertura da OP.
+      qrcodes:   (it.qrcode || '').trim() ? [(it.qrcode || '').trim()] : [],
       qrLocked:  (it.qrcode || '').trim() ? true : undefined,
       numSerie:  (it.numSerie || '').trim(),
       lote:      (it.lote || '').trim(),

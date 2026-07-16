@@ -49,9 +49,18 @@ function fetchPedido(base, auth, pedido) {
 const val  = f => (f && f.valor !== undefined && f.valor !== null) ? f.valor : '';
 const desc = f => (f && f.descricao) ? f.descricao : '';
 
-// Data Protheus AAAAMMDD → ISO AAAA-MM-DD (para <input type="date">)
+// Data Protheus → ISO AAAA-MM-DD (para <input type="date">)
+// Aceita AAAAMMDD, AAAA-MM-DD e DD/MM/AAAA. Sem tratar o formato BR, "13/07/2026"
+// virava "1307-20-26" — data inválida que o <input type="date"> descarta em
+// silêncio, deixando o campo com a data de hoje.
 function toISO(d) {
-  const s = String(d || '').replace(/\D/g, '');
+  const raw = String(d || '').trim();
+  if (!raw) return '';
+  const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);       // DD/MM/AAAA
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);        // já ISO
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const s = raw.replace(/\D/g, '');                          // AAAAMMDD
   return s.length === 8 ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : '';
 }
 // Data Protheus AAAAMMDD → DD/MM/AAAA (para texto)

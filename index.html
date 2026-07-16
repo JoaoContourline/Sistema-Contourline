@@ -1674,6 +1674,10 @@ function advanceOP(opId, formData) {
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
   renderAll();
 
+  // Ao entrar em trânsito (logística aprovou a emissão/despacho da NF), cadastra
+  // as máquinas no Sistema QR. Não bloqueia: falha só avisa (ver qrCadastro).
+  if (next === 'transito') cadastrarEquipamentosQR(op);
+
   // Ao entrar em trânsito (logística confirmou o despacho da NF), dispara o
   // 1º rastreio automático quando a transportadora tem integração + chave NFe.
   if (next === 'transito'
@@ -2422,6 +2426,112 @@ function buildFieldHtml(f) {
         ? `<textarea class="form-textarea" id="f-${f.key}" rows="3"></textarea>`
         : `<input class="form-input" id="f-${f.key}" type="${f.type}">`}
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CADASTRO NO SISTEMA QR (Body Health) — dispara no despacho
+// ═══════════════════════════════════════════════════════════════════
+// O QR vem do adesivo colado na máquina, capturado na abertura da OP
+// (pedidoVenda.equipamentos[].qrcode ← C6_XQRCODE do Protheus).
+// Só MÁQUINAS vão: a API exige numero_serie, que consumível de lote não tem.
+
+/** Pareia os nº de série do passo Dados Transporte com as linhas de equipamento.
+ *  Espelha a expansão do campo 'ns-equipamentos' (1 input por unidade em série,
+ *  1 por linha em lote) — a ordem dos inputs é a ordem de numSeries. */
+function qrSeriaisPorLinha(op) {
+  const raw       = op.pedidoVenda?.equipamentos || [];
+  const numSeries = op.stepData?.aguard_nf?.numSeries || [];
+  const porLinha  = new Map();
+  let i = 0;
+  raw.forEach((e, idx) => {
+    const tracking = ('tracking' in e) ? e.tracking : 'serie';
+    if (tracking === null || e.serial === false) return; // não controla série/lote
+    const qty = parseInt(e.qty) || 1;
+    const n   = (tracking || 'serie') === 'lote' ? 1 : qty;
+    const arr = [];
+    for (let k = 0; k < n; k++) { arr.push((numSeries[i] || '').trim()); i++; }
+    porLinha.set(idx, arr);
+  });
+  return porLinha;
+}
+
+function qrMontarPayload(op) {
+  const pv      = op.pedidoVenda || {};
+  const raw     = pv.equipamentos || [];
+  const seriais = qrSeriaisPorLinha(op);
+  const dataExp = op.stepData?.aguard_despacho?.dataDespacho || new Date().toISOString().split('T')[0];
+
+  // "empresa" na API do QR = o CLIENTE dono da máquina.
+  // Atenção: pv.empresa/pv.cnpj são da Contourline (emitente), NÃO do cliente.
+  const empresa = {
+    razao_social: pv.cliente || op.cliente || '',
+    cpf_cnpj:     pv.cpf || '',
+    telefone:     pv.tel || '',
+    email:        pv.email || '',
+    cep:          pv.endCEP || '',
+    logradouro:   pv.endRua || '',
+    numero:       pv.endNumero || '',
+    bairro:       pv.endBairro || '',
+    cidade:       pv.endCidade || '',
+    estado:       pv.endEstado || '',
+    responsavel_equipamento: pv.contatoEntrega || '',
+  };
+
+  const itens = [], avisos = [];
+  raw.forEach((e, idx) => {
+    const tracking = ('tracking' in e) ? e.tracking : 'serie';
+    if ((tracking || 'serie') !== 'serie') return; // consumível de lote não é equipamento
+    const qr = (e.qrcode || '').trim();
+    if (!qr) { avisos.push(`${e.name}: sem QR na OP`); return; }
+    const serie = ((seriais.get(idx) || [])[0] || e.numSerie || '').trim();
+    if (!serie) { avisos.push(`${e.name}: sem nº de série`); return; }
+    const qty = parseInt(e.qty) || 1;
+    if (qty > 1) avisos.push(`${e.name}: ${qty} unidades para 1 QR — só a 1ª foi cadastrada`);
+
+    itens.push({
+      qr_code: qr, numero_serie: serie, modelo: e.name || '', data_expedicao: dataExp,
+      empresa,
+      pedido_producao: {
+        numero: op.pedidoProtheus || op.numero || '', data: pv.data || '',
+        vendedor: pv.analista || pv.vendedorCanal || '', quantidade: String(qty),
+        produto: e.name || '', valor_produto: e.valorUnit || '',
+        observacao: `OP ${op.numero || op.id}`,
+      },
+      contato_negociacao: { nome: pv.contatoEntrega || '', telefone: pv.tel || '', email: pv.email || '' },
+    });
+  });
+  return { itens, avisos };
+}
+
+/** Cadastra as máquinas da OP no Sistema QR. NÃO bloqueia o despacho: se falhar,
+ *  avisa e registra o erro na OP para recadastro posterior. */
+async function cadastrarEquipamentosQR(op) {
+  const { itens, avisos } = qrMontarPayload(op);
+  if (!itens.length) {
+    if (avisos.length) showToast('Sistema QR não cadastrou: ' + avisos.join(' · '), 'err');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/qrcode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ equipamentos: itens }),
+    });
+    const data = await resp.json();
+    if (!resp.ok && !data.resultados) throw new Error(data.error || 'Falha no cadastro');
+    const erros = (data.resultados || []).filter(r => !r.success);
+    op.qrCadastro = {
+      ts: nowTs(), gravados: data.gravados || 0,
+      erros: erros.map(e => `${e.qr_code || '?'}: ${e.erro}`), avisos,
+    };
+    dbSaveOp(op);
+    if (erros.length) showToast(`Sistema QR: ${data.gravados} ok, ${erros.length} com erro`, 'err');
+    else showToast(`Sistema QR: ${data.gravados} equipamento(s) cadastrado(s)`, 'ok');
+  } catch (e) {
+    op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [e.message], avisos };
+    dbSaveOp(op);
+    showToast('Sistema QR falhou: ' + e.message + ' — o despacho seguiu normalmente', 'err');
+  }
+  if (currentTab === 'rastreio') renderMain();
 }
 
 // ═══════════════════════════════════════════════════════════════════

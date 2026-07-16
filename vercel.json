@@ -8,6 +8,7 @@
     { "source": "/api/protheus-all",  "destination": "/api/protheus-all"  },
     { "source": "/api/protheus",      "destination": "/api/protheus"      },
     { "source": "/api/rastreio",      "destination": "/api/rastreio"      },
+    { "source": "/api/qrcode",        "destination": "/api/qrcode"        },
     { "source": "/api/login",         "destination": "/api/login"         },
     { "source": "/api/verify",        "destination": "/api/verify"        },
     { "source": "/(.*)",              "destination": "/index.html"        }

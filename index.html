@@ -1237,7 +1237,10 @@ const HIST_ACTION = {
   aberta:           'OP Criada',
   aguard_financeiro:'Pagamento Aprovado',
   bloqueada:        'OP Desbloqueada',
-  aguard_nf:        'NF Emitida',
+  // A logística SOLICITA a emissão aqui; quem emite é o fiscal na etapa
+  // seguinte. Dizia "NF Emitida" — o histórico afirmava que a NF foi emitida
+  // pelo setor errado e antes de existir.
+  aguard_nf:        'Dados de Transporte Enviados - Emissão Solicitada',
   aguard_emissao:   'Emissão da NF Confirmada',
   aguard_despacho:  'OP Despachada',
   transito:         'Entrega ao Cliente Confirmada',
@@ -1349,8 +1352,14 @@ function setSaveIndicator(state) {
  * a carregamos (op._loadedAt vs updated_at, mantido pelo trigger do banco).
  */
 function dbSaveOp(op, _semTrava) {
+  // Campos de controle local NÃO podem ir para o jsonb. _rastreioLoading era
+  // gravado como true (o save acontece antes do finally que o limpa) e voltava
+  // do banco para todos: botão preso em "atualizando…" em todo reload.
   const payload = { ...op };
-  delete payload._loadedAt; // controle local — não polui o jsonb
+  delete payload._loadedAt;
+  delete payload._rastreioLoading;
+  delete payload._rastreioErro;
+  delete payload._qrEnviando;
 
   const json = JSON.stringify(payload);
   const kb   = (json.length / 1024).toFixed(0);
@@ -2646,6 +2655,20 @@ function qrMontarPayload(op) {
 /** Cadastra as máquinas da OP no Sistema QR. NÃO bloqueia o despacho: se falhar,
  *  avisa e registra o erro na OP para recadastro posterior. */
 async function cadastrarEquipamentosQR(op) {
+  // Idempotência: dois usuários despachando a mesma OP quase juntos disparavam
+  // dois POSTs (o 2º só descobre o conflito no dbSaveOp, depois do envio).
+  // O endpoint faz upsert por qr_code, então não duplica registro — mas um PUT
+  // a mais é ruído desnecessário no sistema do parceiro.
+  if (op._qrEnviando) return;
+  op._qrEnviando = true;
+  try {
+    await _cadastrarEquipamentosQR(op);
+  } finally {
+    op._qrEnviando = false;
+  }
+}
+
+async function _cadastrarEquipamentosQR(op) {
   const { itens, avisos, ignorados } = qrMontarPayload(op);
   if (!itens.length) {
     // Nunca sair calado: antes, uma OP só de lote passava sem dizer nada e
@@ -2676,6 +2699,10 @@ async function cadastrarEquipamentosQR(op) {
     dbSaveOp(op);
     if (erros.length) showToast(`Sistema QR: ${data.gravados} ok, ${erros.length} com erro`, 'err');
     else showToast(`Sistema QR: ${data.gravados} equipamento(s) cadastrado(s)`, 'ok');
+    // Máquina pulada por falta de QR/série NÃO pode sumir só porque outra deu
+    // certo: antes o toast verde dizia "2 cadastrados" e a 3ª ficava fora do
+    // Sistema QR sem ninguém saber.
+    if (avisos.length) showToast('Sistema QR — ficaram de fora: ' + avisos.join(' · '), 'err');
   } catch (e) {
     op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [e.message], avisos, ignorados };
     dbSaveOp(op);
@@ -4618,8 +4645,11 @@ function confirmDelay() {
   const reason = document.getElementById('delay-reason-input')?.value?.trim();
   if (!reason) { showToast('Informe o motivo do atraso', 'err'); return; }
   if (!_pendingAdvance) { showToast('Sessão expirada - tente novamente', 'err'); closeModal(); return; }
-  // Proteção duplo clique: zera _pendingAdvance antes de processar
-  const { opId, formData } = pending;
+  // Proteção duplo clique: zera _pendingAdvance antes de processar.
+  // (Era `pending`, variável inexistente → ReferenceError em TODA entrega
+  //  atrasada: a OP ficava presa em trânsito e o clique não fazia nada.)
+  const { opId, formData } = _pendingAdvance;
+  _pendingAdvance = null;
   formData.motivoAtraso = reason;
   formData.descricao = (formData.descricao ? formData.descricao + '\n' : '') + '[Atraso] ' + reason;
   // Registra no histórico como ação extra
@@ -4717,12 +4747,23 @@ function submitModal() {
     if (f.type === 'cep-lookup') continue; // CEP é auxiliar, não salva
     if (f.type === 'ns-equipamentos') {
       const series = [], types = [];
-      let i = 0;
+      let i = 0, vazio = null;
       while (document.getElementById(`f-numSerie_${i}`)) {
         const el = document.getElementById(`f-numSerie_${i}`);
-        series.push(el.value.trim());
+        const v  = el.value.trim();
+        // Série em branco fazia a máquina ser descartada lá no despacho e nunca
+        // entrar no Sistema QR — o equipamento saía sem rastreabilidade.
+        if (!v && !vazio) vazio = el;
+        series.push(v);
         types.push(el.dataset.tracking || 'serie');
         i++;
+      }
+      if (vazio) {
+        vazio.style.borderColor = 'var(--red)';
+        vazio.style.boxShadow = '0 0 0 3px rgba(220,38,38,.12)';
+        vazio.focus();
+        showToast('Preencha o Nº de Série / Lote de todos os equipamentos — sem ele a máquina não é cadastrada no Sistema QR', 'err');
+        return;
       }
       formData.numSeries       = series;
       formData.trackingTypes   = types;

@@ -2509,10 +2509,15 @@ function qrMontarPayload(op) {
   };
 
   // 1 cadastro por MÁQUINA física — o qr_code é o ID único do Sistema QR.
-  const itens = [], avisos = [];
+  // avisos    = algo deu errado, precisa de atenção
+  // ignorados = pulado de propósito (normal, não é erro)
+  const itens = [], avisos = [], ignorados = [];
   raw.forEach((e, idx) => {
     const tracking = ('tracking' in e) ? e.tracking : 'serie';
-    if ((tracking || 'serie') !== 'serie') return; // consumível de lote não é equipamento
+    // Só máquinas com nº de série individual entram: a API exige numero_serie.
+    // Consumível de lote (ponta, filme) não tem série, garantia nem revisão própria.
+    if (tracking === null)   { ignorados.push(`${e.name} (não controla série)`); return; }
+    if (tracking === 'lote') { ignorados.push(`${e.name} (lote)`); return; }
     const qty   = parseInt(e.qty) || 1;
     const qrs   = qrListaDaLinha(e, qty);
     const sers  = seriais.get(idx) || [];
@@ -2546,15 +2551,25 @@ function qrMontarPayload(op) {
     vistos.add(chave);
   });
 
-  return { itens, avisos };
+  return { itens, avisos, ignorados };
 }
 
 /** Cadastra as máquinas da OP no Sistema QR. NÃO bloqueia o despacho: se falhar,
  *  avisa e registra o erro na OP para recadastro posterior. */
 async function cadastrarEquipamentosQR(op) {
-  const { itens, avisos } = qrMontarPayload(op);
+  const { itens, avisos, ignorados } = qrMontarPayload(op);
   if (!itens.length) {
-    if (avisos.length) showToast('Sistema QR não cadastrou: ' + avisos.join(' · '), 'err');
+    // Nunca sair calado: antes, uma OP só de lote passava sem dizer nada e
+    // parecia que a integração tinha falhado.
+    if (avisos.length) {
+      showToast('Sistema QR não cadastrou: ' + avisos.join(' · '), 'err');
+      op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [], avisos, ignorados };
+      dbSaveOp(op);
+    } else if (ignorados.length) {
+      showToast(`Sistema QR: nada a cadastrar — ${ignorados.join(', ')}`, 'ok');
+    } else {
+      showToast('Sistema QR: nenhum equipamento nesta OP', 'ok');
+    }
     return;
   }
   try {
@@ -2567,13 +2582,13 @@ async function cadastrarEquipamentosQR(op) {
     const erros = (data.resultados || []).filter(r => !r.success);
     op.qrCadastro = {
       ts: nowTs(), gravados: data.gravados || 0,
-      erros: erros.map(e => `${e.qr_code || '?'}: ${e.erro}`), avisos,
+      erros: erros.map(e => `${e.qr_code || '?'}: ${e.erro}`), avisos, ignorados,
     };
     dbSaveOp(op);
     if (erros.length) showToast(`Sistema QR: ${data.gravados} ok, ${erros.length} com erro`, 'err');
     else showToast(`Sistema QR: ${data.gravados} equipamento(s) cadastrado(s)`, 'ok');
   } catch (e) {
-    op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [e.message], avisos };
+    op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [e.message], avisos, ignorados };
     dbSaveOp(op);
     showToast('Sistema QR falhou: ' + e.message + ' — o despacho seguiu normalmente', 'err');
   }
@@ -5783,7 +5798,9 @@ async function submitNovaOP() {
 
   // Numeração sequencial por ano — lê o banco (não o array local) para evitar race condition
   const anoAtual = new Date().getFullYear();
-  const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `${anoAtual}/%`).not('numero','is',null);
+  // O número tem o formato "12/2026" (ou "12/2026 - PV 000029") — a sequência vem
+  // ANTES da barra. Filtrar por "2026/%" nunca casava e toda OP nascia como 1/2026.
+  const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null);
   const _maxSeq = (_numRows || []).reduce((mx, r) => {
     const m = String(r.numero || '').match(/^(\d+)\//);
     return m ? Math.max(mx, parseInt(m[1], 10)) : mx;

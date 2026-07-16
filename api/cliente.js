@@ -10,6 +10,7 @@
 //   PEDIDOS_PASS  — senha do Protheus   (fallback: PROTHEUS_PASS)
 
 import https from 'node:https';
+import { requireAuth, cors } from './_auth.js';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
 
@@ -44,11 +45,9 @@ function fetchByCode(base, auth, code) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET')     return res.status(405).json({ error: 'Method not allowed' });
+  if (cors(req, res, 'GET, OPTIONS')) return;
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!await requireAuth(req, res)) return; // devolve dado pessoal de cliente — exige sessão
 
   const code = String(req.query.code || '').trim();
   const loja = String(req.query.loja || '').trim();

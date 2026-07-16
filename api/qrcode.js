@@ -13,6 +13,8 @@
 // Segurança: o login acontece AQUI, no servidor. As credenciais nunca vão ao
 // browser — o front chama /api/qrcode e esta função cuida do resto.
 
+import { requireAuth, cors } from './_auth.js';
+
 const QR_BASE = 'https://www.bodyhealthbrasil.com/sistema-qr';
 
 // O access_token expira em ~1h. Cacheado no escopo do módulo (reaproveitado
@@ -126,11 +128,11 @@ async function upsertEquipamento(item) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
+  if (cors(req, res, 'POST, OPTIONS')) return;
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Escreve no sistema do parceiro com a identidade da Contourline: sem sessão,
+  // qualquer um sobrescrevia equipamento real (eu mesmo provei isso hoje).
+  if (!await requireAuth(req, res)) return;
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }

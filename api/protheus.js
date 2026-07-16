@@ -5,6 +5,7 @@
 // Tempo total ≈ duração de 1 página (~5-6s), independente de quantas páginas.
 
 import https from 'https';
+import { requireAuth, cors } from './_auth.js';
 
 const agent   = new https.Agent({ rejectUnauthorized: false });
 const N_FIRST = 12;   // primeiras páginas (clientes antigos)
@@ -57,11 +58,9 @@ async function getMeta(sbUrl, sbKey) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET')    return res.status(405).json({ error: 'Method not allowed' });
+  if (cors(req, res, 'GET, OPTIONS')) return;
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!await requireAuth(req, res)) return; // busca cliente por CPF/CNPJ
 
   const { cpfCnpj } = req.query;
   if (!cpfCnpj) return res.status(400).json({ error: 'Parâmetro cpfCnpj é obrigatório' });

@@ -12,6 +12,8 @@
 //   SENHA_AZUL             — senha de acesso (recebida no e-mail de cadastro)
 //   RASTREIO_AZUL_AMBIENTE — 'prod' | 'homolog' (default: 'homolog')
 
+import { requireAuth, cors } from './_auth.js';
+
 const AZUL_BASE = {
   homolog: 'https://hmg.onlineapp.com.br/EDIv2_API_INTEGRACAO_Toolkit',
   prod:    'https://ediapi.onlineapp.com.br/toolkit',
@@ -123,11 +125,9 @@ const CARRIERS = {
 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
+  if (cors(req, res, 'POST, OPTIONS')) return;
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!await requireAuth(req, res)) return; // consome a conta da Contourline na Azul
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }

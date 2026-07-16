@@ -1,16 +1,11 @@
 {
   "rewrites": [
-    { "source": "/api/retail-items",       "destination": "/api/retail-items"       },
-    { "source": "/api/pedido-venda",      "destination": "/api/pedido-venda"      },
-    { "source": "/api/cliente",           "destination": "/api/cliente"           },
-    { "source": "/api/protheus-discover", "destination": "/api/protheus-discover" },
-    { "source": "/api/protheus-sync",    "destination": "/api/protheus-sync"    },
-    { "source": "/api/protheus-all",  "destination": "/api/protheus-all"  },
+    { "source": "/api/retail-items",  "destination": "/api/retail-items"  },
+    { "source": "/api/pedido-venda",  "destination": "/api/pedido-venda"  },
+    { "source": "/api/cliente",       "destination": "/api/cliente"       },
     { "source": "/api/protheus",      "destination": "/api/protheus"      },
     { "source": "/api/rastreio",      "destination": "/api/rastreio"      },
     { "source": "/api/qrcode",        "destination": "/api/qrcode"        },
-    { "source": "/api/login",         "destination": "/api/login"         },
-    { "source": "/api/verify",        "destination": "/api/verify"        },
     { "source": "/(.*)",              "destination": "/index.html"        }
   ]
 }

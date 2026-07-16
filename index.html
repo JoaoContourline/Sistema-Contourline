@@ -1035,7 +1035,7 @@ async function loadEquipItems() {
   if (_equipCache || _equipLoading) return;
   _equipLoading = true;
   try {
-    const res = await fetch('/api/retail-items?v=5');
+    const res = await apiFetch('/api/retail-items?v=5');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const d = await res.json();
     if (Array.isArray(d.items) && d.items.length) {
@@ -1260,16 +1260,38 @@ const SUPABASE_URL = 'https://hmzxqoktfzheqjjnhlam.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtenhxb2t0ZnpoZXFqam5obGFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODE4NDUsImV4cCI6MjA5NTQ1Nzg0NX0.5Ll5dRBgZ3X6a_TtMQvKXVj3IExTkaVufoh-KQQXtzI';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/**
+ * fetch para as rotas /api/* com o token da sessão.
+ * As funções serverless (Protheus, Azul, Sistema QR) rodam com credenciais da
+ * empresa; sem este header elas respondem 401. Use SEMPRE isto em vez de fetch
+ * cru ao chamar /api — senão a rota quebra em produção.
+ */
+async function apiFetch(url, opts = {}) {
+  let token = '';
+  try {
+    const { data } = await sb.auth.getSession();
+    token = data?.session?.access_token || '';
+  } catch { /* sem sessão → a rota devolve 401 e o chamador trata */ }
+  return fetch(url, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 function rowToOp(row) {
   if (!row || !row.data || !row.data.status || !row.data.cliente) return null;
-  return { ...row.data, id: Number(row.id) };
+  // _loadedAt = carimbo da linha quando lemos; usado pela trava otimista do dbSaveOp
+  return { ...row.data, id: Number(row.id), _loadedAt: row.updated_at || null };
 }
 
 async function loadOps() {
   document.getElementById('main').innerHTML =
     `<div class="empty"><div class="empty-icon">${icon('loader-circle',32,'color:var(--accent)')}</div>
      <div class="empty-title">Carregando OPs…</div></div>`;
-  const { data, error } = await sb.from('ops').select('id,data').order('id', { ascending: false });
+  const { data, error } = await sb.from('ops').select('id,data,updated_at').order('id', { ascending: false });
   if (error) {
     console.error('Erro ao carregar OPs:', error);
     document.getElementById('main').innerHTML =
@@ -1317,27 +1339,64 @@ function setSaveIndicator(state) {
   }
 }
 
-function dbSaveOp(op) {
-  const json = JSON.stringify(op);
+/**
+ * Persiste a OP com trava otimista.
+ *
+ * O update grava o objeto `data` INTEIRO. Sem trava era last-write-wins: o
+ * Fiscal abria a OP às 10:00, o Financeiro anexava um comprovante às 10:01, o
+ * Fiscal salvava às 10:02 com o snapshot velho e o comprovante sumia — com a
+ * tela dizendo "Salvo". Agora o update só passa se a linha não mudou desde que
+ * a carregamos (op._loadedAt vs updated_at, mantido pelo trigger do banco).
+ */
+function dbSaveOp(op, _semTrava) {
+  const payload = { ...op };
+  delete payload._loadedAt; // controle local — não polui o jsonb
+
+  const json = JSON.stringify(payload);
   const kb   = (json.length / 1024).toFixed(0);
   if (json.length > 5 * 1024 * 1024) {
     console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB - considere reduzir arquivos anexados`);
   }
+
   setSaveIndicator('saving');
-  sb.from('ops')
-    .update({ numero: op.numero, cliente: op.cliente, status: op.status, data: op })
-    .eq('id', op.id)
-    .then(({ error }) => {
-      if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); return; }
-      setSaveIndicator('ok');
-      const idx = ops.findIndex(o => o.id === op.id);
-      if (idx >= 0) {
-        const curTs   = ops[idx].history?.at(-1)?.ts || '';
-        const savedTs = op.history?.at(-1)?.ts || '';
-        if (savedTs >= curTs) ops[idx] = op;
+  let q = sb.from('ops')
+    .update({ numero: op.numero, cliente: op.cliente, status: op.status, data: payload })
+    .eq('id', op.id);
+  const comTrava = !!op._loadedAt && !_semTrava;
+  if (comTrava) q = q.eq('updated_at', op._loadedAt);
+
+  q.select('id,updated_at').then(async ({ data, error }) => {
+    if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); return; }
+
+    if (comTrava && (!data || !data.length)) {
+      // 0 linhas: ou alguém salvou antes de nós, ou o updated_at não casou por
+      // formato. Confere no banco antes de assustar o usuário.
+      const { data: atual } = await sb.from('ops').select('id,updated_at').eq('id', op.id).single();
+      if (atual && atual.updated_at === op._loadedAt) {
+        // A linha NÃO mudou → o .eq() falhou por formato, não é conflito real.
+        console.warn('[dbSaveOp] trava otimista não casou por formato — salvando sem trava');
+        return dbSaveOp(op, true);
       }
-      renderAll();
-    });
+      setSaveIndicator('err');
+      showToast('Esta OP foi alterada por outra pessoa enquanto você editava. Recarregue antes de salvar de novo.', 'err');
+      if (atual) {
+        const { data: row } = await sb.from('ops').select('id,data,updated_at').eq('id', op.id).single();
+        const fresh = row && rowToOp(row);
+        if (fresh) { const i = ops.findIndex(o => o.id === fresh.id); if (i >= 0) ops[i] = fresh; renderAll(); }
+      }
+      return;
+    }
+
+    op._loadedAt = data?.[0]?.updated_at || op._loadedAt; // próxima gravação usa o novo carimbo
+    setSaveIndicator('ok');
+    const idx = ops.findIndex(o => o.id === op.id);
+    if (idx >= 0) {
+      const curTs   = ops[idx].history?.at(-1)?.ts || '';
+      const savedTs = op.history?.at(-1)?.ts || '';
+      if (savedTs >= curTs) ops[idx] = op;
+    }
+    renderAll();
+  });
 }
 
 // ─── NOTIFICAÇÕES + SOM ─────────────────────────────────────────────
@@ -1406,7 +1465,7 @@ function startRealtime() {
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
         } else {
           // payload sem data (REPLICA IDENTITY não está FULL) - re-busca do servidor
-          sb.from('ops').select('id,data').eq('id', payload.new.id).single()
+          sb.from('ops').select('id,data,updated_at').eq('id', payload.new.id).single()
             .then(({ data: row }) => { if (row) { const u = rowToOp(row); if (u) { const i = ops.findIndex(o=>o.id===u.id); if(i>=0) ops[i]=u; else ops.unshift(u); renderAll(); } } });
           return;
         }
@@ -1446,7 +1505,10 @@ async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
   const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
-  const sectorId = profile?.sector_id || user.user_metadata?.sector_id;
+  // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
+  // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
+  // qualquer usuário se declarar 'gestor'.
+  const sectorId = profile?.sector_id;
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
   _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
@@ -1479,9 +1541,10 @@ async function doLogin() {
     return;
   }
 
-  // 2. Busca setor + nome no profiles (fallback: user_metadata do Auth)
+  // 2. Busca setor + nome no profiles. Sem fallback para user_metadata: aquele
+  // campo é auto-editável pelo dono da conta e permitia virar 'gestor' sozinho.
   const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
-  const sectorId = profile?.sector_id || user.user_metadata?.sector_id;
+  const sectorId = profile?.sector_id;
   if (!sectorId || !SECTORS.find(s => s.id === sectorId)) {
     errEl.textContent = 'Setor não configurado. Contate o administrador.';
     await sb.auth.signOut();
@@ -2164,11 +2227,34 @@ function brlFmtNum(n) {
 
 async function uploadToStorage(file) {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `uploads/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
+  // Nome imprevisível: o bucket é público hoje, então o caminho é o que impede
+  // adivinhação. Date.now() sozinho seria previsível — daí os 10 chars sorteados.
+  const rand = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
+  const path = `uploads/${Date.now()}_${rand}_${safe}`;
   const { error } = await sb.storage.from('op-files').upload(path, file, { upsert: false });
   if (error) throw error;
   const { data } = sb.storage.from('op-files').getPublicUrl(path);
-  return { name: file.name, size: file.size, url: data.publicUrl };
+  // `path` é gravado junto para permitir migrar o bucket para privado depois
+  // (signed URLs precisam do caminho; a URL pública não serve). Ver storagePath().
+  return { name: file.name, size: file.size, url: data.publicUrl, path };
+}
+
+/** Caminho do arquivo no bucket — do campo `path` (novos) ou extraído da URL
+ *  pública (anexos antigos). Base para migrar o bucket para privado. */
+function storagePath(f) {
+  if (!f) return null;
+  if (f.path) return f.path;
+  const m = String(f.url || '').match(/\/storage\/v1\/object\/public\/op-files\/(.+)$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** URL assinada (temporária) para um anexo. Funciona com o bucket público OU
+ *  privado — é o que torna possível virar a chave sem quebrar os links. */
+async function signedUrl(f, segundos = 3600) {
+  const path = storagePath(f);
+  if (!path) return f?.url || f?.dataUrl || '';
+  const { data, error } = await sb.storage.from('op-files').createSignedUrl(path, segundos);
+  return (!error && data?.signedUrl) ? data.signedUrl : (f.url || '');
 }
 
 // Mantido para compatibilidade com OPs antigas que ainda têm base64
@@ -2576,7 +2662,7 @@ async function cadastrarEquipamentosQR(op) {
     return;
   }
   try {
-    const resp = await fetch('/api/qrcode', {
+    const resp = await apiFetch('/api/qrcode', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ equipamentos: itens }),
     });
@@ -2677,7 +2763,7 @@ async function atualizarRastreio(opId, silent) {
   op._rastreioLoading = true; op._rastreioErro = null;
   if (currentTab === 'rastreio') renderMain();
   try {
-    const resp = await fetch('/api/rastreio', {
+    const resp = await apiFetch('/api/rastreio', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transportadora: transp, chaveNfe }),
     });
@@ -4990,7 +5076,7 @@ async function puxarPedido() {
   setStatus('pedido-status', 'Buscando pedido no Protheus…', 'loading');
 
   try {
-    const resp = await fetch('/api/pedido-venda?pedido=' + encodeURIComponent(num),
+    const resp = await apiFetch('/api/pedido-venda?pedido=' + encodeURIComponent(num),
       { signal: AbortSignal.timeout(25000) });
     if (!resp.ok) {
       const e = await resp.json().catch(() => ({}));
@@ -5020,7 +5106,7 @@ async function buscarClientePorCodigo(cod, loja) {
   try {
     const url = '/api/cliente?code=' + encodeURIComponent(cod)
               + (loja ? '&loja=' + encodeURIComponent(loja) : '');
-    const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    const resp = await apiFetch(url, { signal: AbortSignal.timeout(20000) });
     if (!resp.ok) return;
     const d = await resp.json();
     if (d && (d.name || d.shortName)) {
@@ -5037,7 +5123,7 @@ async function puxarSerieLote(opId) {
   const btn = document.getElementById('btn-puxar-serie');
   if (btn) { btn.disabled = true; btn.style.opacity = '.6'; }
   try {
-    const resp = await fetch('/api/pedido-venda?pedido=' + encodeURIComponent(num), { signal: AbortSignal.timeout(25000) });
+    const resp = await apiFetch('/api/pedido-venda?pedido=' + encodeURIComponent(num), { signal: AbortSignal.timeout(25000) });
     if (!resp.ok) { showToast('Não foi possível buscar o pedido', 'err'); return; }
     const p = await resp.json();
 
@@ -5464,15 +5550,13 @@ function fillClientFromProtheus(d) {
 }
 
 async function upsertProtheusCache(digits, dados) {
+  // Via cliente do Supabase (usa o JWT da sessão). Antes ia com a anon key crua,
+  // o que exigia manter a tabela aberta para o role 'anon' — ou seja, a base de
+  // clientes (CPF/CNPJ, endereço) ficava legível por qualquer um na internet.
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/protheus_clientes`, {
-      method: 'POST',
-      headers: {
-        apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify([{ cpf_digits: digits, nome: (dados.name||dados.shortName||'').trim(), dados }]),
-    });
+    await sb.from('protheus_clientes')
+      .upsert([{ cpf_digits: digits, nome: (dados.name || dados.shortName || '').trim(), dados }],
+              { onConflict: 'cpf_digits' });
   } catch {}
 }
 
@@ -5483,12 +5567,10 @@ async function lookupProtheusClient(rawVal) {
 
   // ── 1. Supabase cache (instantâneo) ─────────────────────────────
   try {
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/protheus_clientes?cpf_digits=eq.${digits}&select=dados`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    );
-    if (resp.ok) {
-      const rows = await resp.json();
+    // Cliente do Supabase = JWT da sessão (antes: anon key crua, ver upsertProtheusCache)
+    const { data: rows, error } = await sb
+      .from('protheus_clientes').select('dados').eq('cpf_digits', digits).limit(1);
+    if (!error) {
       if (Array.isArray(rows) && rows.length > 0) {
         const d = rows[0].dados;
         fillClientFromProtheus(d);
@@ -5502,7 +5584,7 @@ async function lookupProtheusClient(rawVal) {
   // ── 2. Fallback: busca ao vivo na API do Protheus ────────────────
   setStatus('cnpj-status', 'Não encontrado no cache - buscando na API…', 'loading');
   try {
-    const resp = await fetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(25000) });
+    const resp = await apiFetch('/api/protheus?cpfCnpj=' + digits, { signal: AbortSignal.timeout(25000) });
     if (resp.ok) {
       const data = await resp.json();
       const items = data.items || [];

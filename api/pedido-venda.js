@@ -12,6 +12,7 @@
 //   PEDIDOS_PASS  — senha do Protheus   (fallback: PROTHEUS_PASS)
 
 import https from 'node:https';
+import { requireAuth, cors } from './_auth.js';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
 
@@ -75,11 +76,9 @@ function brToISO(d) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET')     return res.status(405).json({ error: 'Method not allowed' });
+  if (cors(req, res, 'GET, OPTIONS')) return;
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  if (!await requireAuth(req, res)) return; // expõe CPF/RG/endereço e a política comercial
 
   const pedido = String(req.query.pedido || '').trim();
   if (!pedido) return res.status(400).json({ error: 'Parâmetro "pedido" é obrigatório' });

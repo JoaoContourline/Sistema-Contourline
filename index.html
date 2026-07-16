@@ -1855,12 +1855,23 @@ function renderEquipItem(e, i) {
 // Cada máquina física tem seu próprio adesivo, e o QR é o ID único no Sistema
 // QR — logo, uma linha × 3 precisa de 3 códigos, não de 1.
 
-/** Quantos QRs a linha precisa: 1 por unidade em série; lote não tem QR próprio. */
+/** Como o item é controlado: 'serie' | 'lote' | null (não controla).
+ *  Fonte única da verdade — mesma regra do campo de Nº de Série: usa o valor
+ *  salvo no item e, se não houver, consulta o catálogo (_equipCache). */
+function equipTracking(e) {
+  if (!e || e.serial === false) return null;            // retrocompat campo antigo
+  if ('tracking' in e) return e.tracking;
+  const cached = _equipCache?.find(c => c.name === e.name || (e.code && c.code === e.code));
+  return cached ? cached.tracking : null;
+}
+
+/** Quantos campos de QR a linha mostra.
+ *  Série: 1 por unidade (cada máquina tem seu adesivo).
+ *  Lote:  1 só — o código que veio do Protheus vale para a linha toda. */
 function qrQtdDaLinha(e) {
-  const tracking = ('tracking' in e) ? e.tracking : 'serie';
-  if (tracking === null) return 0;              // item que não controla série/lote
-  if (tracking === 'lote') return 1;            // lote: 1 código para a linha toda
-  return parseInt(e.qty) || 1;
+  const tracking = equipTracking(e);
+  if (tracking === 'serie') return parseInt(e.qty) || 1;
+  return 1; // lote ou desconhecido: um único campo
 }
 
 /** Lista de QRs da linha, normalizada e preenchida até a quantidade. */
@@ -2314,23 +2325,10 @@ function buildFieldHtml(f) {
     // Prioridade: 1) campo tracking salvo no item, 2) lookup no _equipCache, 3) legado → série
     const rawTrackItems = rawList.flatMap(e => {
       const obj = typeof e === 'object' ? e : { name: e };
-      if (obj.serial === false) return []; // retrocompat campo antigo
-
-      let tracking;
-      if ('tracking' in obj) {
-        tracking = obj.tracking; // valor salvo na OP (null / 'lote' / 'serie')
-      } else {
-        // Sem campo salvo: tenta cache da API, depois mapa estático
-        const cached = _equipCache?.find(c => c.name === obj.name || (obj.code && c.code === obj.code));
-        if (cached) {
-          tracking = cached.tracking;
-        } else {
-          // Cache não carregado → sem controle definido (não mostra campo)
-          tracking = null;
-        }
-      }
-
-      if (tracking === null) return []; // Trail='N' → sem série/lote
+      // Mesmo resolvedor usado pelos campos de QR — se divergir, o QR e a série
+      // deixam de casar e o cadastro no Sistema QR sai errado.
+      const tracking = equipTracking(obj);
+      if (tracking === null) return []; // Trail='N' / cache não carregado → sem série/lote
       const qty = obj.qty || 1;
       if ((tracking || 'serie') === 'lote') {
         return [{ name: obj.name, tracking: 'lote', qty }];
@@ -2475,10 +2473,10 @@ function qrSeriaisPorLinha(op) {
   const porLinha  = new Map();
   let i = 0;
   raw.forEach((e, idx) => {
-    const tracking = ('tracking' in e) ? e.tracking : 'serie';
-    if (tracking === null || e.serial === false) return; // não controla série/lote
+    const tracking = equipTracking(e);
+    if (tracking === null) return; // não controla série/lote → não gera input
     const qty = parseInt(e.qty) || 1;
-    const n   = (tracking || 'serie') === 'lote' ? 1 : qty;
+    const n   = tracking === 'lote' ? 1 : qty;
     const arr = [];
     for (let k = 0; k < n; k++) { arr.push((numSeries[i] || '').trim()); i++; }
     porLinha.set(idx, arr);
@@ -2513,7 +2511,7 @@ function qrMontarPayload(op) {
   // ignorados = pulado de propósito (normal, não é erro)
   const itens = [], avisos = [], ignorados = [];
   raw.forEach((e, idx) => {
-    const tracking = ('tracking' in e) ? e.tracking : 'serie';
+    const tracking = equipTracking(e);
     // Só máquinas com nº de série individual entram: a API exige numero_serie.
     // Consumível de lote (ponta, filme) não tem série, garantia nem revisão própria.
     if (tracking === null)   { ignorados.push(`${e.name} (não controla série)`); return; }
@@ -2533,8 +2531,13 @@ function qrMontarPayload(op) {
         qr_code: qr, numero_serie: serie, modelo: e.name || '', data_expedicao: dataExp,
         empresa,
         pedido_producao: {
-          numero: op.pedidoProtheus || op.numero || '', data: pv.data || '',
-          vendedor: pv.analista || pv.vendedorCanal || '', quantidade: '1',
+          numero: op.pedidoProtheus || op.numero || '',
+          // Data de abertura da OP (não a emissão do pedido de venda).
+          data: op.dataAbertura || '',
+          // Vendedor 1 = pv.vendedorCanal (vendedores[0]). O analista é outra
+          // pessoa — antes ia "Ana Paula" (analista) no lugar do vendedor.
+          vendedor: pv.vendedorCanal || (pv.vendedores || [])[0] || '',
+          quantidade: '1',
           produto: e.name || '', valor_produto: e.valorUnit || '',
           observacao: `OP ${op.numero || op.id}`,
         },

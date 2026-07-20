@@ -1134,6 +1134,8 @@ const STEPS = {
       { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
       { key: 'numSerie',        label: 'Número(s) de Série',             type: 'ns-equipamentos' },
       { key: 'envio',           label: 'Motorista / Transportadora *',   type: 'envio',    required: true },
+      { key: 'carro',           label: 'Nome do carro',                  type: 'text' },
+      { key: 'placa',           label: 'Placa',                          type: 'text' },
       { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
       { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
       { key: 'descricao',       label: 'Descrição',                      type: 'textarea' },
@@ -4125,6 +4127,7 @@ function buildContextPanel(op) {
     parts.push(sec('Solicitação de NF (Logística)', [
       cRow('Endereço de entrega', d.enderecoEntrega),
       cRow('Técnico / Transportadora', d.tecnico),
+      (d.carro||d.placa) ? cRow('Carro / Placa', [d.carro, d.placa].filter(Boolean).join(' · ')) : '',
       (d.volumes||d.peso) ? cRow('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : '',
       cRow('Observações', d.descricao),
     ]));
@@ -4526,6 +4529,7 @@ function buildInfoSections(op, opId) {
     let entHtml = `<div class="detail-grid">
       ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>` : ''}
       ${dItem('Motorista / Transportadora', d.tecnico)}
+      ${(d.carro||d.placa) ? dItem('Carro / Placa', [d.carro, d.placa].filter(Boolean).join(' · ')) : ''}
       ${d.volumes||d.peso ? dItem('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
       ${nsRows}
       ${dItem('Observações', d.descricao)}
@@ -5356,18 +5360,13 @@ function submitModal() {
       peso:    document.getElementById('f-reNF_peso')?.value    || '',
       descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
     };
-    // Re-emissão gera uma NF NOVA → exige o novo PDF (senão a OP seguiria com o
-    // arquivo da nota cancelada).
+    // A nota costuma continuar a MESMA (a correção sai por carta de correção),
+    // então o novo arquivo é opcional: se não anexar, mantém o PDF atual.
     const rawFileNF = tempFilesData['arquivoNF'] || null;
-    if (!rawFileNF) { showToast('Anexe o PDF da NF re-emitida', 'err'); return; }
-    // Arquiva a NF anterior (número/chave/arquivo da nota cancelada) antes de
-    // sobrescrever — o advanceOP substitui stepData.aguard_emissao por completo.
-    if (op.stepData.aguard_emissao) {
-      op.stepData.aguard_emissao_hist = [...(op.stepData.aguard_emissao_hist || []), {
-        ...op.stepData.aguard_emissao, canceladaEm: nowTs(), motivo: op.stepData.aguard_despacho_reject?.motivoReemissao || '',
-      }];
-    }
-    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: [rawFileNF], descricao: descNF });
+    const prevNF    = op.stepData.aguard_emissao?.arquivoNF;
+    const prevArr   = prevNF ? (Array.isArray(prevNF) ? prevNF : [prevNF]) : [];
+    const fileNF    = rawFileNF ? [rawFileNF] : prevArr;
+    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }
 

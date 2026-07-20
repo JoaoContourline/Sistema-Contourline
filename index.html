@@ -3608,12 +3608,19 @@ function renderConstrutorRota() {
   const jaNaRota = new Set((r.paradas||[]).filter(p=>p.tipo==='entregar').map(p=>Number(p.opId)));
   const pool = logisticaOps().filter(o => !emRota.has(Number(o.id)) && !jaNaRota.has(Number(o.id)));
 
+  const grip = `<span class="parada-grip" title="Arraste para reordenar" style="cursor:grab;flex-shrink:0;display:flex;flex-direction:column;gap:3px;padding-top:3px;color:var(--text3)">
+      <span style="width:14px;height:2px;background:currentColor;border-radius:1px"></span>
+      <span style="width:14px;height:2px;background:currentColor;border-radius:1px"></span></span>`;
   const paradasHtml = (r.paradas||[]).map((p,i) => {
     const corpo = p.tipo==='entregar'
       ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}<div style="color:var(--text3);font-size:10px">OP ${p.opNum||p.opId} · ${p.cliente||''}${p.endereco?' · '+p.endereco:''}</div>`
       : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}`;
-    return `<div style="border-top:1px solid var(--border);padding:8px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:12px">
-      <div style="min-width:0">${corpo}</div>
+    return `<div draggable="true" data-pidx="${i}"
+      ondragstart="paradaDragStart(${i},event)" ondragend="paradaDragEnd(event)"
+      ondragover="paradaDragOver(${i},event)" ondrop="paradaDrop(${i},event)"
+      style="border-top:1px solid var(--border);padding:8px 0;display:flex;align-items:flex-start;gap:8px;font-size:12px">
+      ${grip}
+      <div style="min-width:0;flex:1">${corpo}</div>
       <button onclick="removerParada(${i})" title="Remover" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;flex-shrink:0">×</button>
     </div>`;
   }).join('') || `<div style="font-size:12px;color:var(--text3);padding:8px 0">Nenhuma parada. Adicione entregas do lado direito ou uma coleta.</div>`;
@@ -3726,6 +3733,34 @@ function confirmarColeta() {
 function removerParada(i) {
   if (!_rotaEditando) return;
   _rotaEditando.paradas.splice(i, 1);
+  renderConstrutorRota();
+}
+
+// ── Reordenar paradas por arrastar ───────────────────────────────────
+let _paradaDrag = null;
+function paradaDragStart(i, ev) {
+  _paradaDrag = i;
+  if (ev?.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+  ev?.currentTarget?.style && (ev.currentTarget.style.opacity = '.4');
+}
+function paradaDragEnd(ev) {
+  if (ev?.currentTarget?.style) ev.currentTarget.style.opacity = '';
+  document.querySelectorAll('[data-pidx]').forEach(el => el.style.borderTop = '');
+}
+function paradaDragOver(i, ev) {
+  ev.preventDefault();                        // necessário para permitir o drop
+  if (ev?.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+  const el = ev.currentTarget;                // realça a linha alvo
+  if (el && _paradaDrag !== null && _paradaDrag !== i) el.style.borderTop = '2px solid var(--accent)';
+}
+function paradaDrop(i, ev) {
+  ev?.preventDefault();
+  const from = _paradaDrag; _paradaDrag = null;
+  if (from === null || !_rotaEditando) return;
+  const arr = _rotaEditando.paradas;
+  if (from === i || from < 0 || from >= arr.length) { renderConstrutorRota(); return; }
+  const [it] = arr.splice(from, 1);
+  arr.splice(i, 0, it);
   renderConstrutorRota();
 }
 async function salvarRotaEditando() {

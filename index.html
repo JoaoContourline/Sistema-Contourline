@@ -131,7 +131,7 @@ main { padding: 24px; }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  border-radius: var(--radius-lg); padding: 16px;
+  border-radius: var(--radius-lg); padding: 12px 13px;
   cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
   animation: cardIn .25s ease both;
 }
@@ -144,7 +144,7 @@ main { padding: 24px; }
 .card.entregue { border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.025); }
 .card.entregue:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(22,163,74,.1); }
 
-.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
 .card-flags { display: flex; gap: 3px; flex-wrap: wrap; }
 .flag { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; font-family: 'DM Mono', monospace; }
@@ -152,11 +152,11 @@ main { padding: 24px; }
 .flag-div   { background: rgba(220,38,38,.1);  color: var(--red);    border: 1px solid rgba(220,38,38,.25); }
 .flag-multi { background: rgba(124,58,237,.1); color: var(--purple); border: 1px solid rgba(124,58,237,.25); }
 
-.card-client { font-size: 14px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
-.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
-.equip-chip { display: inline-block; padding: 2px 8px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); }
+.card-client { font-size: 13px; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
+.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text2); }
 
-.card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 
 /* BADGE */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .2px; }
@@ -174,17 +174,17 @@ main { padding: 24px; }
 .sema { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: 'DM Mono', monospace; }
 
 /* PIPELINE BAR */
-.pipe-bar { display: flex; gap: 3px; margin-bottom: 10px; }
+.pipe-bar { display: flex; gap: 3px; margin-bottom: 6px; }
 .pipe-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); }
 .pipe-dot.done    { background: var(--green); }
 .pipe-dot.current { background: var(--accent); }
 .pipe-dot.blocked { background: var(--red); }
 
 /* CARD LAST EVENT */
-.card-last-event { margin-top: 8px; font-size: 11px; color: var(--text3); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
+.card-last-event { margin-top: 6px; font-size: 10px; color: var(--text3); line-height: 1.35; border-top: 1px solid var(--border); padding-top: 6px; }
 
 /* CARD FOOTER */
-.card-footer { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.card-footer { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .btn-action { width: 100%; padding: 9px; border-radius: var(--radius); background: var(--accent); border: none; color: #fff; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-action:hover { background: var(--accent2); }
 .btn-action.danger { background: transparent; border: 1px solid rgba(220,38,38,.25); color: var(--red); }
@@ -738,11 +738,11 @@ body.kanban-mode .kanban-col-body {
       <span id="fl-active-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--accent);border:1.5px solid var(--surface)"></span>
     </span>
   </button>
-  <button class="tab-btn active" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
-  <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
-  <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
-  <button class="tab-btn" id="btn-tab-rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
-  <button class="tab-btn" id="btn-tab-logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
+  <button class="tab-btn active" data-tab="fila" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
+  <button class="tab-btn"        data-tab="concluidas" onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
+  <button class="tab-btn"        data-tab="todas" onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
+  <button class="tab-btn" id="btn-tab-rastreio" data-tab="rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
+  <button class="tab-btn" id="btn-tab-logistica" data-tab="logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
       <input id="fl-q"    type="text"  placeholder="Nº OP, cliente ou série" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
@@ -3343,6 +3343,15 @@ function renderCounts() {
   if (cntC) { cntC.textContent = nCanc; cntC.style.display = nCanc ? '' : 'none'; }
   // Se ligou o modo mas não há mais cancelados, desliga sozinho
   if (verCancelados && !nCanc) { verCancelados = false; aplicarEstiloCancelados(); }
+
+  syncActiveTab(); // mantém o botão destacado igual ao conteúdo (currentTab)
+}
+
+// Destaca o botão de aba correspondente ao currentTab. Sem isto, ao trocar de
+// setor (gestor) o currentTab volta pra 'fila' mas o botão "Entregas" continuava
+// destacado — aba Entregas acesa mostrando o conteúdo de Pendentes.
+function syncActiveTab() {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === currentTab));
 }
 
 function renderMain() {
@@ -3856,7 +3865,7 @@ function renderCancelados(el) {
     </div>`;
   }).join('');
 
-  el.innerHTML = header + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">${cards}</div>`;
+  el.innerHTML = header + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px">${cards}</div>`;
 }
 
 /** Abre o modal pedindo o motivo do cancelamento. */
@@ -4181,10 +4190,10 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   const skippedFin = op.history.some(h => h.note?.includes('Validação financeira pulada'));
   const lastEvt    = op.history[op.history.length-1];
 
-  // Equipment chips
-  const equipList = op.equipamentos?.length
-    ? op.equipamentos.map(e=>`<span class="equip-chip">${e}</span>`).join('')
-    : `<span class="equip-chip">${op.equipamento||'-'}</span>`;
+  // Equipment chips — mostra no máx. 3 para o card não crescer; o resto vira "+N"
+  const equipArr  = op.equipamentos?.length ? op.equipamentos : [op.equipamento||'-'];
+  const equipList = equipArr.slice(0,3).map(e=>`<span class="equip-chip">${e}</span>`).join('')
+    + (equipArr.length > 3 ? `<span class="equip-chip">+${equipArr.length-3}</span>` : '');
 
   let footer = '';
   if (needsSF) {
@@ -4220,7 +4229,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     </div>
     <div class="pipe-bar">${dots}</div>
     ${isEntregue && !op.stepData?.transito?.fotos?.length ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);font-style:italic;margin-top:2px">${icon('image',10,'color:var(--text3)')} sem foto de entrega</div>` : ''}
-    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,90)}</div>` : ''}
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,64)}</div>` : ''}
     ${footer}
   </div>`;
 }

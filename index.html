@@ -1134,8 +1134,6 @@ const STEPS = {
       { key: 'enderecoEntrega', label: 'Endereço de Entrega Completo *', type: 'textarea', required: true },
       { key: 'numSerie',        label: 'Número(s) de Série',             type: 'ns-equipamentos' },
       { key: 'envio',           label: 'Motorista / Transportadora *',   type: 'envio',    required: true },
-      { key: 'carro',           label: 'Nome do carro',                  type: 'text' },
-      { key: 'placa',           label: 'Placa',                          type: 'text' },
       { key: 'volumes',         label: 'Nº de Volumes *',                type: 'number',   required: true },
       { key: 'peso',            label: 'Peso Total (kg) *',              type: 'number',   required: true },
       { key: 'descricao',       label: 'Descrição',                      type: 'textarea' },
@@ -1764,11 +1762,6 @@ function advanceOP(opId, formData) {
   const user     = getUser();
   const view     = getActiveView();
   op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
-
-  // Quando fiscal conclui a NF, cria tarefa paralela de envio de boleto para o financeiro
-  if (op.status === 'aguard_emissao' && !op.boletoTask) {
-    op.boletoTask = { status: 'pendente', arquivos: [], tsAberto: nowTs() };
-  }
 
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
@@ -2692,6 +2685,8 @@ function buildFieldHtml(f) {
     const tipo  = seed.envioTipo || '';
     const mot   = (seed.motorista || (seed.envioTipo !== 'transportadora' ? seed.tecnico : '') || '').replace(/"/g,'&quot;');
     const transp= seed.transportadora || '';
+    const carro = (seed.carro || '').replace(/"/g,'&quot;');
+    const placa = (seed.placa || '').replace(/"/g,'&quot;');
     const opts  = Object.entries(TRANSPORTADORAS).map(([id,label]) =>
       `<option value="${id}" ${transp===id?'selected':''}>${label}${RASTREIO_ATIVO && RASTREAVEIS.has(id)?' · rastreio automático':''}</option>`).join('');
     return `
@@ -2707,6 +2702,10 @@ function buildFieldHtml(f) {
       </div>
       <input class="form-input" id="f-envio_motorista" placeholder="Nome do motorista" value="${mot}"
         style="display:${tipo==='motorista'?'block':'none'}">
+      <div id="f-envio_carroplaca" style="display:${tipo==='motorista'?'grid':'none'};grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <input class="form-input" id="f-envio_carro" placeholder="Nome do carro *" value="${carro}">
+        <input class="form-input" id="f-envio_placa" placeholder="Placa *" value="${placa}">
+      </div>
       <select class="form-input" id="f-envio_transportadora" style="display:${tipo==='transportadora'?'block':'none'}">
         <option value="">Selecione a transportadora…</option>
         ${opts}
@@ -2901,7 +2900,9 @@ const RAST_STAGES = ['Coletado', 'Em transferência', 'Saiu para entrega', 'Entr
 function toggleEnvio(tipo) {
   const mot = document.getElementById('f-envio_motorista');
   const tra = document.getElementById('f-envio_transportadora');
+  const cp  = document.getElementById('f-envio_carroplaca'); // carro/placa só p/ motorista
   if (mot) mot.style.display = tipo === 'motorista'     ? 'block' : 'none';
+  if (cp)  cp.style.display  = tipo === 'motorista'     ? 'grid'  : 'none';
   if (tra) tra.style.display = tipo === 'transportadora'? 'block' : 'none';
 }
 
@@ -3778,11 +3779,10 @@ function renderQueue(user, el) {
     const base = _opsFiltered();
     const validacaoOps = base.filter(o => o.status === 'aguard_financeiro' && finNeeded(o) && !finDone(o));
     const bloqueadaOps = base.filter(o => o.status === 'bloqueada');
-    const boletoOps    = base.filter(o => o.boletoTask?.status === 'pendente');
-    const total = validacaoOps.length + bloqueadaOps.length + boletoOps.length;
+    const total = validacaoOps.length + bloqueadaOps.length;
 
     let html = `<div class="step-header"><div class="step-title">Financeiro - Pendentes</div>
-      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Validação de pagamentos, bloqueados e envio de boletos</div></div>`;
+      <div class="step-desc">${total} OP${total!==1?'s':''} pendente${total!==1?'s':''} - Validação de pagamentos e bloqueados</div></div>`;
 
     if (!total) {
       html += `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--green)')}</div><div class="empty-title">Tudo em dia!</div><div class="empty-desc">Nenhuma OP aguardando ação financeira.</div></div>`;
@@ -3815,21 +3815,6 @@ function renderQueue(user, el) {
             <span class="section-header-count" style="background:var(--red-bg);color:var(--red)">${bloqueadaOps.length}</span>
           </div>
           <div class="card-grid">${bloqueadaOps.map((op,i) => card(op,true,i)).join('')}</div>
-        </div>`;
-
-      if (boletoOps.length) html += `
-        <div class="section">
-          <div class="section-header">
-            <div class="section-header-icon" style="background:rgba(38,114,184,.1)">
-              ${icon('send',16,'color:var(--accent)')}
-            </div>
-            <div style="flex:1">
-              <div class="section-header-title">Envio de Boleto ao Cliente</div>
-              <div class="section-header-desc">NF emitida - aguardando envio do boleto ao cliente</div>
-            </div>
-            <span class="section-header-count" style="background:rgba(38,114,184,.1);color:var(--accent)">${boletoOps.length}</span>
-          </div>
-          <div class="card-grid">${boletoOps.map(op => boletoTaskCard(op)).join('')}</div>
         </div>`;
     }
     el.innerHTML = html;
@@ -4483,35 +4468,14 @@ function buildInfoSections(op, opId) {
   }
 
   // ── FINANCEIRO ───────────────────────────────────────────────────
-  if (sd.aguard_financeiro || sd.aguard_financeiro_reject || op.boletoTask) {
+  if (sd.aguard_financeiro || sd.aguard_financeiro_reject) {
     const df = sd.aguard_financeiro || {};
     const dr = sd.aguard_financeiro_reject || {};
-    const bt = op.boletoTask;
-    let finHtml = '';
-
-    if (sd.aguard_financeiro || sd.aguard_financeiro_reject) {
-      finHtml += `<div class="detail-grid">
+    let finHtml = `<div class="detail-grid">
         ${dItem('Confirmação', df.descricao)}
         ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
       </div>`;
-      if (df.anexo?.length) finHtml += `<div style="margin-top:8px">${fileLinksHtml(df.anexo)}</div>`;
-    }
-
-    if (bt) {
-      const boletoStatus = bt.status === 'concluida'
-        ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check',10,'color:var(--green)')} Enviado</span>`
-        : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--yellow);background:var(--yellow-bg);border:1px solid rgba(202,138,4,.25);padding:1px 7px;border-radius:20px">Pendente</span>`;
-      finHtml += `<div style="margin-top:${finHtml?'12':'0'}px;padding-top:${finHtml?'10':'0'}px;${finHtml?'border-top:1px solid var(--border)':''}">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
-          <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px">Envio de Boleto</div>
-          ${boletoStatus}
-        </div>
-        ${bt.email ? `<div style="font-size:11px;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:5px">${icon('mail',11,'color:var(--text3)')} ${bt.email}</div>` : ''}
-        ${bt.tsEnvio ? `<div style="font-size:10px;color:var(--text3);margin-bottom:6px">${bt.tsEnvio}</div>` : ''}
-        ${bt.arquivos?.length ? fileLinksHtml(bt.arquivos) : ''}
-      </div>`;
-    }
-
+    if (df.anexo?.length) finHtml += `<div style="margin-top:8px">${fileLinksHtml(df.anexo)}</div>`;
     sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
   }
 
@@ -4820,8 +4784,6 @@ function openInfoModal(opId) {
   const activeView = getActiveView();
   const canAnexarFotos  = activeView?.role === 'logistica'  && !!sd.transito;
 
-  const anexarBoletoBtn = '';
-
   const anexarFotosBtn = canAnexarFotos
     ? `<button class="btn-action" onclick="openAnexarFotos(${opId})" style="display:inline-flex;align-items:center;gap:6px">
         ${icon('image',13)} Anexar Fotos
@@ -4848,7 +4810,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer">${cancelarBtn}${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${cancelarBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }
@@ -4861,51 +4823,6 @@ function closeModal() {
   _cm.style.maxHeight = '';
   activeOpId = null; modalMode = null; tempEquipList = []; tempVendedores = []; tempFiles = {}; tempFilesData = {};
   _pendingAdvance = null; // garante que delay modal não vaza entre opens
-}
-
-// ─── ANEXAR BOLETO AVULSO (financeiro, qualquer hora) ───────────────
-function openAnexarBoleto(opId) {
-  tempFiles     = {};
-  tempFilesData = {};
-  activeOpId    = opId;
-
-  const op  = ops.find(o => o.id === opId);
-  const cur = (op?.stepData?.aguard_financeiro?.boleto || []).length;
-
-  document.getElementById('modal').classList.remove('wide', 'split');
-  document.getElementById('modal').innerHTML = `
-    <div class="modal-header">
-      <div><div class="modal-title">Anexar Boleto</div>
-           <div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
-      <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
-    </div>
-    <div class="modal-body">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
-        ${cur > 0 ? `Já ${cur} boleto${cur>1?'s':''} anexado${cur>1?'s':''}. Novos arquivos serão adicionados.` : 'Nenhum boleto anexado ainda.'}
-      </div>
-      ${buildFieldHtml({ key:'boleto_avulso', label:'Boleto(s)', type:'multi-file', accept:'.pdf,.png,.jpg,.jpeg' })}
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" onclick="saveAnexarBoleto(${opId})">${icon('paperclip',13)} Salvar Boleto</button>
-    </div>`;
-
-  document.getElementById('overlay').classList.add('open');
-}
-
-function saveAnexarBoleto(opId) {
-  const op      = ops.find(o => o.id === opId);
-  const novos   = tempFilesData['boleto_avulso'] || [];
-  if (!novos.length) { showToast('Selecione ao menos um arquivo', 'err'); return; }
-
-  if (!op.stepData) op.stepData = {};
-  if (!op.stepData.aguard_financeiro) op.stepData.aguard_financeiro = {};
-  const existentes = op.stepData.aguard_financeiro.boleto || [];
-  op.stepData.aguard_financeiro.boleto = [...existentes, ...novos];
-
-  dbSaveOp(op);
-  showToast(`${novos.length} comprovante${novos.length>1?'s':''} anexado${novos.length>1?'s':''}!`, 'ok');
-  openInfoModal(opId); // volta para o painel de info com os arquivos atualizados
 }
 
 // ─── ANEXAR FOTOS AVULSAS (logística, qualquer hora após transito) ──
@@ -5070,195 +4987,6 @@ function saveSimplesFaturamento(opId) {
   dbSaveOp(op);
   showToast('Simples faturamento salvo! Aguardando aprovação do financeiro.', 'ok');
   openInfoModal(opId);
-}
-
-// ─── TAREFA PARALELA: ENVIO DE BOLETO AO CLIENTE ────────────────────
-function boletoTaskCard(op) {
-  const nf        = op.stepData?.aguard_emissao?.numeroNF || '-';
-  const nfDate    = op.stepData?.aguard_emissao?.dataEmissao || '';
-  const sem       = semaforo(op);
-  const equipList = op.equipamentos?.length
-    ? op.equipamentos.map(e => `<span class="equip-chip">${e}</span>`).join('')
-    : `<span class="equip-chip">${op.equipamento || '-'}</span>`;
-  const lastEvt   = op.history?.[op.history.length - 1];
-  const opNum     = op.numero && op.numero !== 'PENDENTE' ? op.numero : '#' + op.id;
-
-  return `
-  <div class="card actionable" onclick="openBoletoTask(${op.id})">
-    <div class="card-top">
-      <div>
-        <div class="card-op">OP ${opNum}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura) + (op.vendedorCanal||op.vendedorName ? ' · ' + (op.vendedorCanal||op.vendedorName) : '')}</div>
-      </div>
-    </div>
-    <div class="card-client">${op.cliente}</div>
-    <div class="equip-chips">${equipList}</div>
-    <div class="card-meta">
-      <span class="sema ${sem.cls}">${sem.label}</span>
-    </div>
-    <div style="margin-top:6px;font-size:11px;display:flex;align-items:center;gap:5px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:5px">
-      ${icon('file-text',11,'color:var(--accent)')}
-      <span style="color:var(--text3)">NF</span>
-      <span style="font-family:'DM Mono',monospace">${nf}</span>
-      ${nfDate ? `<span style="color:var(--text3)">·</span><span style="color:var(--text3)">${nfDate}</span>` : ''}
-    </div>
-    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,80)}</div>` : ''}
-    <div class="card-footer">
-      <button class="btn-action" onclick="event.stopPropagation();openBoletoTask(${op.id})" style="display:inline-flex;align-items:center;gap:5px">
-        ${icon('send',12)} Enviar Boleto
-      </button>
-    </div>
-  </div>`;
-}
-
-function openBoletoTask(opId) {
-  const op = ops.find(o => o.id === opId);
-  if (!op) return;
-  tempFiles = {}; tempFilesData = {};
-
-  const sd      = op.stepData || {};
-  const pv      = op.pedidoVenda || {};
-  const opEmail = (pv.email || '').replace(/'/g, '&#39;');
-  const nf      = sd.aguard_emissao?.numeroNF || '-';
-  const nfDate  = sd.aguard_emissao?.dataEmissao || '';
-  const equips  = (op.equipamentos || [op.equipamento || '']).join(', ');
-  const valor   = pv.valorLiquido
-    ? 'R$ ' + parseFloat(pv.valorLiquido).toLocaleString('pt-BR', {minimumFractionDigits:2})
-    : '';
-
-  // Template pré-preenchido com dados da OP
-  const template = [
-    `Prezado(a) ${op.cliente},`,
-    '',
-    `Segue em anexo o boleto referente à sua aquisição de ${equips} pela Contourline Equipamentos Médicos.`,
-    '',
-    `Nota Fiscal: ${nf}${nfDate ? ' - ' + nfDate : ''}`,
-    valor ? `Valor: ${valor}` : '',
-    '',
-    'Em caso de dúvidas, entre em contato conosco.',
-    '',
-    'Atenciosamente,',
-    'Contourline Equipamentos Médicos e Diagnósticos Ltda',
-  ].filter(l => l !== null).join('\n');
-
-  document.getElementById('modal').classList.add('split');
-  document.getElementById('modal').innerHTML = `
-    <div class="modal-header">
-      <div><div class="modal-title">Envio de Boleto - OP ${numOp(op)}</div>
-           <div class="modal-subtitle">${op.cliente}</div></div>
-      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
-    </div>
-    <div class="modal-split-body">
-
-      <div class="split-pane split-pane-right">
-        <div class="split-pane-header">Envio ao cliente</div>
-
-        <div class="form-group">
-          <label class="form-label">E-mail *</label>
-          <input class="form-input" id="boleto-email" type="email">
-          ${opEmail ? `
-            <label style="display:flex;align-items:center;gap:7px;margin-top:6px;cursor:pointer">
-              <input type="checkbox" id="boleto-email-ref"
-                onchange="document.getElementById('boleto-email').value=this.checked?'${opEmail}':''">
-              <span style="font-size:11px;color:var(--text2)">Usar e-mail da OP:</span>
-              <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--accent)">${opEmail}</span>
-            </label>` : ''}
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
-            <span>Mensagem ao cliente</span>
-            <span style="display:flex;gap:3px">
-              <button type="button" title="Negrito" onclick="document.execCommand('bold')"
-                style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">B</button>
-              <button type="button" title="Itálico" onclick="document.execCommand('italic')"
-                style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;font-style:italic;cursor:pointer;color:var(--text)">I</button>
-            </span>
-          </label>
-          <div id="boleto-template"
-            contenteditable="true"
-            style="min-height:160px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);
-              background:var(--surface);font-size:12px;line-height:1.6;color:var(--text);
-              white-space:pre-wrap;outline:none;font-family:'Inter',sans-serif;resize:none;
-              transition:border-color .15s"
-            onfocus="this.style.borderColor='var(--accent)'"
-            onblur="this.style.borderColor='var(--border)'"
-          >${template.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Boleto(s) *</label>
-          <div class="multi-file-wrap">
-            <div class="multi-file-list" id="mfl-boleto-task"></div>
-            <label class="multi-file-add-btn" style="cursor:pointer">
-              <input type="file" id="f-boleto-task" accept=".pdf,.png,.jpg,.jpeg"
-                style="display:none" multiple onchange="addMultiFile(this,'boleto-task')">
-              + Adicionar boleto(s)
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="split-pane split-pane-left">
-        <div class="split-pane-left-header">
-          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-            <span class="badge ${stepBadge(op.status).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status).label}</span>
-            ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
-          </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
-        </div>
-        <div class="split-pane-left-scroll">
-          ${buildInfoSections(op, opId)}
-        </div>
-      </div>
-
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" onclick="saveBoletoTask(${opId})">
-        ${icon('send',13,'color:#fff')} Confirmar Envio
-      </button>
-    </div>`;
-
-  document.getElementById('overlay').classList.add('open');
-  requestAnimationFrame(() => {
-    const modal = document.getElementById('modal');
-    if (!modal.classList.contains('split')) return;
-    const hEl = modal.querySelector('.modal-header');
-    const fEl = modal.querySelector('.modal-footer');
-    const body = modal.querySelector('.modal-split-body');
-    if (body && hEl && fEl) body.style.height = `calc(90vh - ${hEl.offsetHeight}px - ${fEl.offsetHeight}px)`;
-  });
-}
-
-function saveBoletoTask(opId) {
-  const op       = ops.find(o => o.id === opId);
-  if (!op) return;
-  const email    = document.getElementById('boleto-email')?.value?.trim() || '';
-  const msgEl    = document.getElementById('boleto-template');
-  const mensagem = msgEl ? msgEl.innerText.trim() : '';
-  const arquivos = tempFilesData['boleto-task'] || [];
-
-  if (!email || !email.includes('@')) {
-    const el = document.getElementById('boleto-email');
-    if (el) { el.style.borderColor='var(--red)'; el.focus(); setTimeout(()=>el.style.borderColor='',2500); }
-    showToast('Informe um e-mail válido para o envio', 'err');
-    return;
-  }
-  if (!arquivos.length) { showToast('Anexe ao menos um boleto antes de confirmar', 'err'); return; }
-
-  if (!op.boletoTask) op.boletoTask = { status: 'pendente', arquivos: [] };
-  op.boletoTask.status   = 'concluida';
-  op.boletoTask.email    = email;
-  op.boletoTask.mensagem = mensagem;
-  op.boletoTask.arquivos = arquivos;
-  op.boletoTask.tsEnvio  = nowTs();
-
-  dbSaveOp(op);
-  closeModal();
-  renderAll();
-  showToast(`Boleto(s) registrado(s) - ${op.cliente}`, 'ok');
 }
 
 // ─── POPUP DE MOTIVO DE ATRASO ──────────────────────────────────────
@@ -5429,8 +5157,15 @@ function submitModal() {
       if (tipo === 'motorista') {
         const nome = document.getElementById('f-envio_motorista')?.value?.trim();
         if (!nome) { const e=document.getElementById('f-envio_motorista'); e.style.borderColor='var(--red)'; e.focus(); return; }
+        // Carro e placa são obrigatórios quando é motorista próprio.
+        const carro = document.getElementById('f-envio_carro')?.value?.trim();
+        const placa = document.getElementById('f-envio_placa')?.value?.trim();
+        if (!carro) { const e=document.getElementById('f-envio_carro'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe o nome do carro', 'err'); return; }
+        if (!placa) { const e=document.getElementById('f-envio_placa'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe a placa', 'err'); return; }
         formData.envioTipo = 'motorista';
         formData.motorista = nome;
+        formData.carro = carro;
+        formData.placa = placa;
         formData.transportadora = '';
         formData.tecnico = nome; // compat: campo antigo usado em telas de detalhe
       } else {
@@ -5439,6 +5174,8 @@ function submitModal() {
         formData.envioTipo = 'transportadora';
         formData.transportadora = t;
         formData.motorista = '';
+        formData.carro = ''; // transportadora não usa carro/placa próprios
+        formData.placa = '';
         formData.tecnico = TRANSPORTADORAS[t] || t; // compat
       }
       continue;

@@ -757,6 +757,7 @@ body.kanban-mode .kanban-col-body {
       <button id="fl-clear" onclick="clearFilters()" style="display:none;height:26px;padding:0 10px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text2);cursor:pointer;white-space:nowrap">Limpar</button>
     </div>
   </div>
+  <div id="log-filter" style="display:none;flex:1;align-items:center;gap:8px;padding-left:12px;min-width:0"></div>
   <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
     style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
@@ -3210,6 +3211,7 @@ function renderCounts() {
 function renderMain() {
   const view = getActiveView();
   const el   = document.getElementById('main');
+  sincronizarTopFiltro(); // troca/restaura o filtro do topo conforme a aba
   if (verCancelados)                    return renderCancelados(el);
   if      (currentTab === 'fila')       renderQueue(view, el);
   else if (currentTab === 'concluidas') renderConcluidas(view, el);
@@ -3256,27 +3258,47 @@ function urgCat(op) {
   const c = semaforo(op).cls;
   return c === 'b-red' ? 'atrasadas' : (c === 'b-yellow' || c === 'b-orange') ? 'proximas' : 'noprazo';
 }
-function setLogUrg(v) { _logUrg = v; renderMain(); }
+function setLogUrg(v) {
+  _logUrg = v;
+  const lf = document.getElementById('log-filter'); // atualiza o destaque dos chips no topo
+  if (lf) { lf.innerHTML = logFiltroHtml(); lf.dataset.built = '1'; }
+  renderMain();
+}
 function setLogBusca(v) {
   _logBusca = v;
-  renderLogistica(document.getElementById('main'));
-  const inp = document.getElementById('log-busca'); // mantém o foco ao digitar
-  if (inp) { inp.focus(); const n = inp.value.length; inp.setSelectionRange(n, n); }
+  renderMain(); // só re-renderiza o conteúdo; a busca fica no topo e mantém o foco
 }
 
-function logToolbar() {
+// Filtro da aba Entregas (busca + chips) — vai na barra do topo, no lugar do
+// filtro normal, quando a aba está ativa (ver sincronizarTopFiltro).
+function logFiltroHtml() {
   const chip = (val, label) => {
     const on = _logUrg === val;
-    return `<button onclick="setLogUrg('${val}')" style="border:1px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent)':'transparent'};color:${on?'#fff':'var(--text2)'};font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:inherit">${label}</button>`;
+    return `<button onclick="setLogUrg('${val}')" style="border:1px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent)':'transparent'};color:${on?'#fff':'var(--text2)'};font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer;font-family:inherit;white-space:nowrap">${label}</button>`;
   };
-  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 14px">
-    <div style="position:relative;flex:1;min-width:170px;max-width:280px">
+  return `<div style="position:relative;flex:1;min-width:140px;max-width:240px">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;display:flex">${icon('search',14,'color:var(--text3)')}</span>
       <input id="log-busca" type="text" value="${_logBusca.replace(/"/g,'&quot;')}" oninput="setLogBusca(this.value)" placeholder="Buscar cidade ou estado…"
-        style="width:100%;height:34px;padding:0 10px 0 32px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none">
+        style="width:100%;height:30px;padding:0 10px 0 32px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;outline:none">
     </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">${chip('todas','Todas')}${chip('atrasadas','Atrasadas')}${chip('proximas','Próximas')}${chip('noprazo','No prazo')}</div>
-  </div>`;
+    <div style="display:flex;gap:6px;flex-wrap:nowrap">${chip('todas','Todas')}${chip('atrasadas','Atrasadas')}${chip('proximas','Próximas')}${chip('noprazo','No prazo')}</div>`;
+}
+
+// Troca o filtro do topo: na aba Entregas mostra busca+chips no lugar do filtro
+// normal (e esconde o funil). Fora dela, restaura o filtro normal.
+function sincronizarTopFiltro() {
+  const emLog  = currentTab === 'logistica' && !verCancelados;
+  const funnel = document.getElementById('btn-filter-toggle');
+  const fbar   = document.getElementById('filter-bar');
+  const lf     = document.getElementById('log-filter');
+  if (funnel) funnel.style.display = emLog ? 'none' : '';
+  if (fbar)   fbar.style.display   = emLog ? 'none' : '';
+  if (lf) {
+    lf.style.display = emLog ? 'flex' : 'none';
+    // Monta uma vez ao entrar (não a cada render, senão perde o foco da busca).
+    if (emLog && !lf.dataset.built) { lf.innerHTML = logFiltroHtml(); lf.dataset.built = '1'; }
+    if (!emLog) lf.dataset.built = '';
+  }
 }
 
 let _logGrupoOps = {};       // key do card → [ids das OPs] (arrastar/soltar)
@@ -3290,10 +3312,10 @@ function obsLogHtml(o) {
   const v = (o.obsLogistica || '').replace(/"/g, '&quot;');
   return `<div onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:6px">
     <span style="color:var(--text3);font-size:12px;font-weight:700">*</span>
-    <input value="${v}" placeholder="observação"
+    <input value="${v}"
       onfocus="const c=this.closest('[draggable]');if(c)c.draggable=false"
       onblur="const c=this.closest('[draggable]');if(c)c.draggable=true;setObsLog(${o.id},this.value)"
-      onkeydown="if(event.key==='Enter')this.blur()"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
       style="flex:1;min-width:0;border:none;background:none;color:var(--text2);font-size:11px;font-style:italic;outline:none;padding:0">
   </div>`;
 }
@@ -3314,12 +3336,22 @@ function logStatus(op) {
   return { label: 'Em preparação', bg: 'var(--surface2)', fg: 'var(--text2)' };
 }
 
-// Prazo como DATA (dd/mm/aa), a partir da data prevista de entrega.
+// Prazo SEMPRE como DATA (dd/mm/aa). Usa a data prevista; sem ela, estima
+// abertura + 20 dias (a mesma janela que o semáforo usa como fallback).
 function prazoData(op) {
   const dp = (op.pedidoVenda?.dataPrevista || '').trim();
-  if (!dp || dp === '-') return null;
-  const m = dp.match(/^(\d{2})\/(\d{2})\/(\d{2,4})/);
-  return m ? `${m[1]}/${m[2]}/${m[3].slice(-2)}` : dp;
+  if (dp && dp !== '-') {
+    const m = dp.match(/^(\d{2})\/(\d{2})\/(\d{2,4})/);
+    return m ? `${m[1]}/${m[2]}/${m[3].slice(-2)}` : dp;
+  }
+  if (op.dataAbertura) {
+    const d = new Date(op.dataAbertura + 'T12:00:00');
+    if (!isNaN(d)) {
+      d.setDate(d.getDate() + 20);
+      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
+    }
+  }
+  return null;
 }
 
 function renderLogistica(el) {
@@ -3354,7 +3386,8 @@ function renderLogistica(el) {
 
   if (!grupos.length) {
     const msg = (_logBusca || _logUrg !== 'todas') ? 'Nenhuma entrega com esse filtro.' : 'OPs em transporte (a despachar ou em trânsito) aparecem aqui.';
-    el.innerHTML = header + logToolbar() + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega</div><div class="empty-desc">${msg}</div></div>`;
+    el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega</div><div class="empty-desc">${msg}</div></div>`;
+    sincronizarTopFiltro();
     return;
   }
 
@@ -3362,7 +3395,8 @@ function renderLogistica(el) {
   // Layout de COLUNAS (masonry): os cards empilham juntos, sem o vão vertical que
   // a grid deixava (na grid, a linha fica na altura do card mais alto).
   // Também é zona de soltar "fora dos cards" para tirar uma OP da viagem.
-  el.innerHTML = header + logToolbar() + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="column-width:300px;column-gap:12px;min-height:400px;padding-bottom:24px">${cards}</div>`;
+  el.innerHTML = header + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="column-width:300px;column-gap:12px;min-height:400px;padding-bottom:24px">${cards}</div>`;
+  sincronizarTopFiltro();
 }
 
 function logGrupoCard(g) {
@@ -3399,7 +3433,7 @@ function logGrupoCard(g) {
       </div>
       <div onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
       ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
-      <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;align-self:flex-start">PRAZO: ${prazo || sm.label}</span>
+      <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;align-self:flex-start">PRAZO: ${prazo || '—'}</span>
       ${obsLogHtml(o)}
     </div>`;
   }).join('');

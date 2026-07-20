@@ -1264,6 +1264,9 @@ const HIST_REJECT = {
 
 let nextId = 1;
 let ops    = [];
+let rotas  = [];              // planejador de rotas (tabela rotas)
+let _entregaSubtab = 'rotas'; // sub-aba do painel Entregas: 'rotas' | 'sem_rota'
+let _rotaEditando  = null;    // rota sendo montada no construtor
 
 // ─── Supabase client ──────────────────────────────────────────────
 const SUPABASE_URL = 'https://hmzxqoktfzheqjjnhlam.supabase.co';
@@ -1295,6 +1298,50 @@ function rowToOp(row) {
   if (!row || !row.data || !row.data.status || !row.data.cliente) return null;
   // _loadedAt = carimbo da linha quando lemos; usado pela trava otimista do dbSaveOp
   return { ...row.data, id: Number(row.id), _loadedAt: row.updated_at || null };
+}
+
+// ── ROTAS: camada de dados (tabela rotas, mesmo padrão de ops) ──────
+function rowToRota(row) {
+  if (!row || !row.data) return null;
+  return { ...row.data, id: Number(row.id), _loadedAt: row.updated_at || null };
+}
+async function carregarRotas() {
+  const { data, error } = await sb.from('rotas').select('id,data,updated_at').order('id', { ascending: false });
+  if (error) { console.warn('Rotas indisponíveis (rode a migração 2026-07-16-rotas.sql):', error.message); rotas = []; }
+  else rotas = (data || []).map(rowToRota).filter(Boolean);
+  if (currentTab === 'logistica' && !_editandoObs) renderMain();
+}
+function startRotasRealtime() {
+  try {
+    sb.channel('rotas-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, payload => {
+        if (payload.eventType === 'DELETE') rotas = rotas.filter(r => r.id !== Number(payload.old.id));
+        else { const r = rowToRota(payload.new); if (r) { const i = rotas.findIndex(x => x.id === r.id); if (i >= 0) rotas[i] = r; else rotas.unshift(r); } }
+        if (currentTab === 'logistica' && !_editandoObs) renderMain();
+      }).subscribe();
+  } catch (e) { console.warn('Realtime de rotas indisponível:', e.message); }
+}
+async function saveRota(rota) {
+  const payload = { ...rota }; delete payload._loadedAt; delete payload.id;
+  let error;
+  if (rota.id) ({ error } = await sb.from('rotas').update({ data: payload }).eq('id', rota.id));
+  else         ({ error } = await sb.from('rotas').insert({ data: payload }));
+  if (error) { showToast('Erro ao salvar rota: ' + error.message, 'err'); return false; }
+  await carregarRotas();
+  return true;
+}
+async function excluirRota(id) {
+  const { error } = await sb.from('rotas').delete().eq('id', id);
+  if (error) { showToast('Erro ao excluir rota: ' + error.message, 'err'); return; }
+  rotas = rotas.filter(r => r.id !== id);
+  renderMain();
+  showToast('Rota excluída', 'ok');
+}
+// OPs que já estão em alguma rota (para tirar da "Sem rota")
+function opsEmRotaSet() {
+  const s = new Set();
+  rotas.forEach(r => (r.paradas || []).forEach(p => { if (p.tipo === 'entregar' && p.opId != null) s.add(Number(p.opId)); }));
+  return s;
 }
 
 async function loadOps() {
@@ -1648,7 +1695,7 @@ function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appContainer').style.display = '';
   renderRoles();
-  loadOps().then(() => startRealtime());
+  loadOps().then(() => { startRealtime(); carregarRotas(); startRotasRealtime(); });
   loadEquipItems();
   requestNotifPermission();
 }
@@ -3414,177 +3461,184 @@ function prazoData(op) {
 }
 
 function renderLogistica(el) {
-  const header = `<div class="step-header">
-      <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div>
-      <div class="step-desc">Cada entrega é um card. Arraste um card sobre outro para montar uma viagem; use "separar" para desfazer.</div>
+  const emRota = opsEmRotaSet();
+  const soltas = logisticaOps().filter(o => !emRota.has(Number(o.id)));
+
+  const sub = (id, label, n) => {
+    const on = _entregaSubtab === id;
+    return `<button onclick="setEntregaSubtab('${id}')" style="border:none;background:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;padding:4px 2px;margin-right:16px;color:${on?'var(--text)':'var(--text3)'};border-bottom:2px solid ${on?'var(--accent)':'transparent'}">${label} <span class="tab-count">${n}</span></button>`;
+  };
+  const header = `<div class="step-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      ${icon('map-pin',18,'color:var(--accent)')}
+      ${sub('rotas','Rotas', rotas.length)}
+      ${sub('sem_rota','Sem rota', soltas.length)}
+      ${_entregaSubtab==='rotas' ? `<button onclick="abrirConstrutorRota()" title="Nova rota" style="margin-left:auto;display:flex;align-items:center;gap:5px;background:var(--accent);border:none;color:#fff;font-weight:700;padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">${icon('plus',14,'color:#fff')} Nova rota</button>` : ''}
     </div>`;
 
-  // Monta os grupos a partir da lista COMPLETA (antes de filtrar), senão uma
-  // viagem multi-cidade "quebraria" ao buscar por uma cidade só, e o _logGrupoOps
-  // ficaria incompleto (o merge puxaria a OP oculta). O filtro é só de EXIBIÇÃO.
-  const todas = logisticaOps();
-  const viagens = {}, soltas = [];
-  todas.forEach(o => {
-    if (o.viagem) (viagens[o.viagem] = viagens[o.viagem] || { tipo:'viagem', key:o.viagem, viagem:o.viagem, ops:[] }).ops.push(o);
-    else soltas.push(o);
-  });
-  Object.values(viagens).filter(v => v.ops.length < 2).forEach(v => { v.ops.forEach(o => soltas.push(o)); delete viagens[v.key]; });
-
-  _logCidadeSoltas = {};
-  soltas.forEach(o => { const d = destinoOP(o); const k = d.cidade + '||' + d.uf; _logCidadeSoltas[k] = (_logCidadeSoltas[k]||0) + 1; });
-
-  const grupos = [...Object.values(viagens), ...soltas.map(o => ({ tipo:'op', key:'op_'+o.id, ops:[o] }))];
-  // _logGrupoOps reflete a composição COMPLETA (arrastar usa isso).
-  _logGrupoOps = {};
-  grupos.forEach(g => { _logGrupoOps[g.key] = g.ops.map(o => o.id); });
-
-  // Filtro de EXIBIÇÃO: um grupo aparece se ALGUMA de suas OPs casar.
-  // Busca acento-insensível: "goiania" acha "Goiânia".
-  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const busca = norm(_logBusca.trim());
-  const matchOP = o => {
-    if (_logUrg !== 'todas' && urgCat(o) !== _logUrg) return false;
-    if (busca) { const d = destinoOP(o); return norm(`${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''}`).includes(busca); }
-    return true;
-  };
-  const visiveis = (busca || _logUrg !== 'todas') ? grupos.filter(g => g.ops.some(matchOP)) : grupos;
-
-  // Ordena pela OP mais urgente (menor prazo → topo)
-  visiveis.sort((a,b) => Math.min(...a.ops.map(diasRestantes)) - Math.min(...b.ops.map(diasRestantes)));
-  const grupos_exibir = visiveis;
-
-  if (!grupos_exibir.length) {
-    const msg = (_logBusca || _logUrg !== 'todas') ? 'Nenhuma entrega com esse filtro.' : 'OPs em transporte (a despachar ou em trânsito) aparecem aqui.';
-    el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega</div><div class="empty-desc">${msg}</div></div>`;
-    sincronizarTopFiltro();
-    return;
+  if (_entregaSubtab === 'rotas') {
+    if (!rotas.length) {
+      el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('truck',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma rota</div><div class="empty-desc">Clique em "Nova rota" para montar a rota de um motorista com entregas e coletas.</div></div>`;
+    } else {
+      const cards = rotas.slice().sort((a,b)=>(b.id||0)-(a.id||0)).map(rotaCard).join('');
+      el.innerHTML = header + `<div style="column-width:320px;column-gap:12px;padding-bottom:24px">${cards}</div>`;
+    }
+  } else {
+    const norm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+    const busca = norm(_logBusca.trim());
+    let lista = soltas;
+    if (_logUrg !== 'todas') lista = lista.filter(o => urgCat(o) === _logUrg);
+    if (busca) lista = lista.filter(o => { const d = destinoOP(o); return norm(`${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''} ${o.cliente||''}`).includes(busca); });
+    lista.sort((a,b)=>diasRestantes(a)-diasRestantes(b));
+    if (!lista.length) {
+      el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--text3)')}</div><div class="empty-title">Nada sem rota</div><div class="empty-desc">As entregas em transporte que ainda não estão em rotas aparecem aqui.</div></div>`;
+    } else {
+      const cards = lista.map(o => opCardEntrega(o)).join('');
+      el.innerHTML = header + `<div style="column-width:300px;column-gap:12px;padding-bottom:24px">${cards}</div>`;
+    }
   }
-
-  const cards = grupos_exibir.map(logGrupoCard).join('');
-  // Layout de COLUNAS (masonry): os cards empilham juntos, sem o vão vertical que
-  // a grid deixava (na grid, a linha fica na altura do card mais alto).
-  // Também é zona de soltar "fora dos cards" para tirar uma OP da viagem.
-  el.innerHTML = header + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="column-width:300px;column-gap:12px;min-height:400px;padding-bottom:24px">${cards}</div>`;
   sincronizarTopFiltro();
 }
 
-function logGrupoCard(g) {
-  const ehViagem = g.tipo === 'viagem';
-  const opsG = g.ops.slice().sort((a,b) => diasRestantes(a) - diasRestantes(b));
+function setEntregaSubtab(id) { _entregaSubtab = id; renderMain(); }
 
-  const sm0  = semaforo(opsG[0]);
-  const topo = sm0.cls === 'b-red' ? 'var(--red)' : (sm0.cls === 'b-yellow' || sm0.cls === 'b-orange') ? 'var(--orange)' : 'var(--green)';
+function enderecoOP(op) {
+  const pv = op.pedidoVenda || {};
+  return (pv.enderecoEntrega || [pv.endRua, pv.endNumero].filter(Boolean).join(', ') || '').trim();
+}
+function equipOP(op) { return (op.equipamentos || [op.equipamento]).filter(Boolean).slice(0, 2).join(', '); }
 
-  let titulo, tag = '', sub = '';
-  if (ehViagem) {
-    const cidadesSet = [...new Set(g.ops.map(o => { const d = destinoOP(o); return `${d.cidade}/${d.uf}`; }))];
-    titulo = `<span style="display:inline-flex;align-items:center;gap:5px">${icon('truck',14,'color:var(--accent)')} Viagem</span>`;
-    tag = `<button onclick="event.stopPropagation();separarViagem('${g.viagem}')" title="Desfazer a viagem" style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px;cursor:pointer;font-family:inherit">separar</button>`;
-    sub = `<div style="font-size:11px;color:var(--text3);margin:-4px 0 8px">${cidadesSet.join(' · ')}</div>`;
-  } else {
-    const d = destinoOP(g.ops[0]);
-    titulo = `${d.cidade}<span style="color:var(--text3);font-weight:400">/${d.uf}</span>`;
-    const nCidade = _logCidadeSoltas[d.cidade + '||' + d.uf] || 1;
-    tag = nCidade >= 2
-      ? `<span title="${nCidade} entregas soltas para ${d.cidade} — arraste os cards um sobre o outro para montar a viagem" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 ${nCidade} p/ ${d.cidade}</span>` : '';
-  }
-
-  const linhas = opsG.map(o => {
-    const sm = semaforo(o), st = logStatus(o), prazo = prazoData(o);
-    const eq = (o.equipamentos||[o.equipamento]).filter(Boolean).slice(0,3).join(', ');
-    const cidadeOP = ehViagem ? `<span style="font-size:10px;color:var(--text3)"> · ${destinoOP(o).cidade}/${destinoOP(o).uf}</span>` : '';
-    // Numa viagem, a OP é arrastável: solta fora = tira; solta em outro card = move.
-    const rowDrag = ehViagem ? `draggable="true" ondragstart="logOpDragStart(event,${o.id})" ondragend="logDragEnd(event)"` : '';
-    return `<div ${rowDrag} style="${ehViagem?'cursor:grab;':''}border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:4px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-        <span onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}${cidadeOP}</span>
-        <span style="font-size:9px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
-      </div>
-      <div onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
-      ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
-      <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;align-self:flex-start">PRAZO: ${prazo || '—'}</span>
-      ${obsLogHtml(o)}
-    </div>`;
-  }).join('');
-
-  return `<div draggable="true"
-      ondragstart="logDragStart(event,'${g.key}')" ondragend="logDragEnd(event)"
-      ondragover="logDragOver(event)" ondragleave="logDragLeave(event)" ondrop="logDrop(event,'${g.key}')"
-      style="background:var(--surface);border:1px solid ${ehViagem?'rgba(38,114,184,.45)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab;break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-weight:700;color:var(--text);font-size:13px">${titulo}</div>
-      <div style="display:flex;gap:5px;align-items:center">${tag}${ehViagem?`<span class="tab-count">${g.ops.length}</span>`:''}</div>
+// Card de uma OP (usado em "Sem rota" e no pool do construtor)
+function opCardEntrega(o, opts = {}) {
+  const st = logStatus(o), sm = semaforo(o), prazo = prazoData(o);
+  const eq = equipOP(o);
+  const topo = sm.cls === 'b-red' ? 'var(--red)' : (sm.cls === 'b-yellow' || sm.cls === 'b-orange') ? 'var(--orange)' : 'var(--green)';
+  const onclick = opts.onclick || `openInfoModal(${o.id})`;
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;-webkit-column-break-inside:avoid">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <span onclick="${onclick}" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
+      <span style="font-size:9px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
     </div>
-    ${sub}
-    ${linhas}
+    <div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente||''}</div>
+    ${eq?`<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>`:''}
+    <div style="font-size:10px;color:var(--text3);margin-top:2px">${destinoOP(o).cidade}/${destinoOP(o).uf}</div>
+    <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'—'}</span>
+    ${opts.acaoHtml || ''}
   </div>`;
 }
 
-// ── Arrastar/soltar: montar e desfazer viagens ───────────────────────
-// _logDrag = { tipo:'card', key }  (arrasta o card inteiro para juntar)
-//          | { tipo:'op', id }     (arrasta uma OP de dentro de uma viagem)
-function logDragStart(e, key)  { _logDrag = { tipo:'card', key }; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', key); } catch {} e.currentTarget.style.opacity = '0.5'; }
-function logOpDragStart(e, id) { e.stopPropagation(); _logDrag = { tipo:'op', id }; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', 'op'+id); } catch {} e.currentTarget.style.opacity = '0.5'; }
-function logDragEnd(e)   { e.currentTarget.style.opacity = ''; }
-function logDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.style.outline = '2px dashed var(--accent)'; e.currentTarget.style.outlineOffset = '2px'; }
-function logDragLeave(e) { e.currentTarget.style.outline = ''; }
-
-// Soltar SOBRE um card
-function logDrop(e, key) {
-  e.preventDefault(); e.stopPropagation(); e.currentTarget.style.outline = '';
-  const d = _logDrag; _logDrag = null;
-  if (!d) return;
-  if (d.tipo === 'card') { if (d.key !== key) juntarViagem(d.key, key); }
-  else if (d.tipo === 'op') moverOpParaGrupo(d.id, key);
-}
-// Soltar na ÁREA VAZIA (fora de qualquer card) → tira a OP da viagem
-function logDropFora(e) {
-  e.preventDefault();
-  const d = _logDrag; _logDrag = null;
-  if (d?.tipo === 'op') tirarDaViagem(d.id);
-}
-
-// Move uma OP para o grupo de outro card (juntando numa viagem)
-function moverOpParaGrupo(opId, targetKey) {
-  const o = ops.find(x => x.id === opId);
-  const targetIds = _logGrupoOps[targetKey] || [];
-  if (!o || targetIds.includes(opId)) return;
-  const targetOps = targetIds.map(i => ops.find(x => x.id === i)).filter(Boolean);
-  if (!targetOps.length) return;
-  let vid = targetOps.map(x => x.viagem).find(Boolean);
-  if (!vid) vid = 'v_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  [o, ...targetOps].forEach(x => { if (x.viagem !== vid) { x.viagem = vid; dbSaveOp(x); } });
-  renderMain();
-  showToast('Entrega movida para a viagem', 'ok');
+// Card de uma rota (aba Rotas)
+function rotaCard(r) {
+  const paradas = r.paradas || [];
+  const entregas = paradas.filter(p => p.tipo === 'entregar').length;
+  const coletas  = paradas.filter(p => p.tipo === 'buscar').length;
+  const cab = [r.motorista, r.carro, r.placa].filter(Boolean).join(' · ') || 'Rota sem motorista';
+  const linhas = paradas.map(p => {
+    if (p.tipo === 'entregar') {
+      return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:11px">
+        <span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}
+        <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${p.cliente||''}</div>
+        ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;
+    }
+    return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:11px">
+      <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}
+      ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;
+  }).join('') || `<div style="font-size:11px;color:var(--text3);padding:7px 0">Sem paradas</div>`;
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;-webkit-column-break-inside:avoid">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px;min-width:0"><span style="flex-shrink:0">${icon('truck',14,'color:var(--accent)')}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cab}</span></div>
+      <span class="tab-count">${entregas + coletas}</span>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${entregas} entrega(s) · ${coletas} coleta(s)</div>
+    ${linhas}
+    <button onclick="abrirConstrutorRota(${r.id})" style="margin-top:8px;width:100%;background:none;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit">Ver / editar rota</button>
+  </div>`;
 }
 
-function juntarViagem(k1, k2) {
-  const ids = [...new Set([...(_logGrupoOps[k1]||[]), ...(_logGrupoOps[k2]||[])])];
-  const afet = ids.map(id => ops.find(o => o.id === id)).filter(Boolean);
-  if (afet.length < 2) return;
-  let vid = afet.map(o => o.viagem).find(Boolean);
-  if (!vid) vid = 'v_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  afet.forEach(o => { if (o.viagem !== vid) { o.viagem = vid; dbSaveOp(o); } });
-  renderMain();
-  showToast(`${afet.length} entregas na mesma viagem`, 'ok');
+// ── Construtor de rota (modal) ───────────────────────────────────────
+function abrirConstrutorRota(rotaId) {
+  const base = rotaId ? rotas.find(r => r.id === rotaId) : null;
+  _rotaEditando = base
+    ? JSON.parse(JSON.stringify({ id: base.id, motorista: base.motorista||'', carro: base.carro||'', placa: base.placa||'', paradas: base.paradas||[] }))
+    : { motorista: '', carro: '', placa: '', paradas: [] };
+  renderConstrutorRota();
+  document.getElementById('overlay').classList.add('open');
 }
 
-function separarViagem(vid) {
-  const afet = ops.filter(o => o.viagem === vid);
-  afet.forEach(o => { delete o.viagem; dbSaveOp(o); });
-  renderMain();
-  showToast('Viagem desfeita', 'ok');
+function renderConstrutorRota() {
+  const r = _rotaEditando; if (!r) return;
+  const emRota = opsEmRotaSet();
+  const jaNaRota = new Set((r.paradas||[]).filter(p=>p.tipo==='entregar').map(p=>Number(p.opId)));
+  const pool = logisticaOps().filter(o => !emRota.has(Number(o.id)) && !jaNaRota.has(Number(o.id)));
+
+  const paradasHtml = (r.paradas||[]).map((p,i) => {
+    const corpo = p.tipo==='entregar'
+      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}<div style="color:var(--text3);font-size:10px">OP ${p.opNum||p.opId} · ${p.cliente||''}${p.endereco?' · '+p.endereco:''}</div>`
+      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}`;
+    return `<div style="border-top:1px solid var(--border);padding:8px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:12px">
+      <div style="min-width:0">${corpo}</div>
+      <button onclick="removerParada(${i})" title="Remover" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;flex-shrink:0">×</button>
+    </div>`;
+  }).join('') || `<div style="font-size:12px;color:var(--text3);padding:8px 0">Nenhuma parada. Adicione entregas do lado direito ou uma coleta.</div>`;
+
+  const poolHtml = pool.length
+    ? pool.slice().sort((a,b)=>diasRestantes(a)-diasRestantes(b)).map(o => opCardEntrega(o, { onclick:`addOpNaRota(${o.id})`, acaoHtml:`<button onclick="addOpNaRota(${o.id})" style="margin-top:8px;width:100%;background:var(--accent);border:none;color:#fff;border-radius:6px;padding:5px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Adicionar</button>` })).join('')
+    : `<div style="font-size:12px;color:var(--text3);padding:12px">Nenhuma OP disponível para adicionar.</div>`;
+
+  const m = document.getElementById('modal');
+  m.classList.add('wide');
+  m.innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">${r.id?'Editar rota':'Nova rota'}</div><div class="modal-subtitle">Monte a rota do motorista</div></div>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body" style="padding:16px 22px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <input class="form-input" placeholder="Motorista" value="${(r.motorista||'').replace(/"/g,'&quot;')}" oninput="_rotaEditando.motorista=this.value" style="grid-column:1/-1">
+            <input class="form-input" placeholder="Carro" value="${(r.carro||'').replace(/"/g,'&quot;')}" oninput="_rotaEditando.carro=this.value">
+            <input class="form-input" placeholder="Placa" value="${(r.placa||'').replace(/"/g,'&quot;')}" oninput="_rotaEditando.placa=this.value">
+          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Paradas</div>
+          ${paradasHtml}
+          <button onclick="addColetaNaRota()" style="margin-top:10px;width:100%;background:none;border:1px dashed var(--border2);border-radius:8px;padding:8px;font-size:12px;color:var(--accent);cursor:pointer;font-family:inherit">+ Coleta (buscar algo num endereço)</button>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">OPs sem rota</div>
+          <div style="max-height:52vh;overflow:auto">${poolHtml}</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      ${r.id?`<button onclick="if(confirm('Excluir esta rota?')){excluirRota(${r.id});closeModal();}" style="margin-right:auto;background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--red);font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">Excluir rota</button>`:''}
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="salvarRotaEditando()">${icon('check',13)} Salvar rota</button>
+    </div>`;
 }
 
-function tirarDaViagem(opId) {
-  const o = ops.find(x => x.id === opId);
-  if (!o) return;
-  const vid = o.viagem;
-  delete o.viagem; dbSaveOp(o);
-  // Se sobrar só 1 na viagem, desfaz também (viagem de 1 não faz sentido)
-  const resto = ops.filter(x => x.viagem === vid);
-  if (resto.length === 1) { delete resto[0].viagem; dbSaveOp(resto[0]); }
-  renderMain();
+function addOpNaRota(opId) {
+  const o = ops.find(x => x.id === opId); if (!o || !_rotaEditando) return;
+  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({
+    tipo: 'entregar', opId: o.id, opNum: numOp(o), cliente: o.cliente || '', equip: equipOP(o), endereco: enderecoOP(o),
+  });
+  renderConstrutorRota();
+}
+function addColetaNaRota() {
+  const item = prompt('O que buscar/coletar?'); if (!item || !item.trim()) return;
+  const endereco = prompt('Endereço da coleta:') || '';
+  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({ tipo: 'buscar', item: item.trim(), endereco: endereco.trim() });
+  renderConstrutorRota();
+}
+function removerParada(i) {
+  if (!_rotaEditando) return;
+  _rotaEditando.paradas.splice(i, 1);
+  renderConstrutorRota();
+}
+async function salvarRotaEditando() {
+  const r = _rotaEditando; if (!r) return;
+  if (!(r.paradas||[]).length) { showToast('Adicione ao menos uma parada', 'err'); return; }
+  const ok = await saveRota(r);
+  if (ok) { _rotaEditando = null; closeModal(); showToast('Rota salva', 'ok'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════

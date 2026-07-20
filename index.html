@@ -3438,9 +3438,9 @@ function setObsLog(opId, val) {
 // Situação clara para a logística: em preparação → pronto para sair (NF emitida)
 // → em trânsito. Despacho (aguard_despacho) é logo após a emissão da NF.
 function logStatus(op) {
-  if (op.status === 'transito')        return { label: 'Em trânsito',      bg: 'var(--blue-bg)',        fg: 'var(--accent)' };
-  if (op.status === 'aguard_despacho') return { label: 'Pronto para sair', bg: 'rgba(22,163,74,.12)',   fg: 'var(--green)'  };
-  return { label: 'Em preparação', bg: 'var(--surface2)', fg: 'var(--text2)' };
+  const meta  = STEPS[op.status];
+  const color = meta?.color || 'gray';
+  return { label: meta?.label || 'Em preparação', bg: `var(--${color}-bg)`, fg: `var(--${color})` };
 }
 
 // Prazo SEMPRE como DATA (dd/mm/aa). Usa a data prevista; sem ela, estima
@@ -3535,7 +3535,7 @@ function rotaCard(r) {
   const cab = [r.motorista, r.carro, r.placa].filter(Boolean).join(' · ') || 'Rota sem motorista';
   const linhas = paradas.map(p => {
     if (p.tipo === 'entregar') {
-      return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:11px">
+      return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:7px 0;font-size:11px;cursor:pointer">
         <span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}
         <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${p.cliente||''}</div>
         ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;

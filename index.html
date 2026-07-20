@@ -745,7 +745,7 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn" id="btn-tab-logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
-      <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:116px;outline:none">
+      <input id="fl-q"    type="text"  placeholder="Nº OP, cliente ou série" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
       <input id="fl-pv"   type="text"  placeholder="Nº PV"            oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:78px;outline:none">
       <input id="fl-from" type="date"  onchange="applyFilters()" title="Criação: de"  style="height:26px;font-size:12px;padding:0 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none">
       <span style="font-size:11px;color:var(--text3)">até</span>
@@ -1723,6 +1723,15 @@ async function checkSession() {
 
 function _hasActiveFilter() { return Object.values(_filters).some(Boolean); }
 
+// Todos os números de série de uma OP (equipamentos + os lançados no Transporte).
+function opSeries(op) {
+  const out = [];
+  (op.equipamentos || []).forEach(e => { if (e?.numSerie) out.push(String(e.numSerie)); });
+  const ns = op.stepData?.aguard_nf?.numSeries;
+  if (Array.isArray(ns)) ns.forEach(s => { if (s) out.push(String(s)); });
+  return out;
+}
+
 function _opsFiltered() {
   const { q, pv, dateFrom, dateTo, sem } = _filters;
   // OPs canceladas somem de TODAS as filas normais (Pendentes/Todas/Concluídas).
@@ -1732,7 +1741,10 @@ function _opsFiltered() {
   return vivas.filter(op => {
     if (q) {
       const ql = q.toLowerCase();
-      if (!(numOp(op)||'').toLowerCase().includes(ql) && !(op.cliente||'').toLowerCase().includes(ql)) return false;
+      const ok = (numOp(op)||'').toLowerCase().includes(ql)
+              || (op.cliente||'').toLowerCase().includes(ql)
+              || opSeries(op).some(s => s.toLowerCase().includes(ql));
+      if (!ok) return false;
     }
     if (pv && !String(op.pedidoProtheus||'').toLowerCase().includes(pv.toLowerCase())) return false;
     if (dateFrom && (op.dataAbertura||'') < dateFrom) return false;

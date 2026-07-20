@@ -2969,6 +2969,26 @@ function toggleEnvio(tipo) {
   if (tra) tra.style.display = tipo === 'transportadora'? 'block' : 'none';
 }
 
+// Coleta e valida o campo de envio (motorista + carro + placa, ou transportadora).
+// Retorna o objeto de dados, ou null se inválido (já mostrou o erro e focou o campo).
+function collectEnvio() {
+  const tipo = document.querySelector('input[name="envioTipo"]:checked')?.value;
+  if (!tipo) { showToast('Escolha Motorista ou Transportadora', 'err'); return null; }
+  if (tipo === 'motorista') {
+    const nome  = document.getElementById('f-envio_motorista')?.value?.trim();
+    if (!nome)  { const e=document.getElementById('f-envio_motorista'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe o nome do motorista', 'err'); return null; }
+    // Carro e placa são obrigatórios quando é motorista próprio.
+    const carro = document.getElementById('f-envio_carro')?.value?.trim();
+    const placa = document.getElementById('f-envio_placa')?.value?.trim();
+    if (!carro) { const e=document.getElementById('f-envio_carro'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe o nome do carro', 'err'); return null; }
+    if (!placa) { const e=document.getElementById('f-envio_placa'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe a placa', 'err'); return null; }
+    return { envioTipo:'motorista', motorista:nome, carro, placa, transportadora:'', tecnico:nome };
+  }
+  const t = document.getElementById('f-envio_transportadora')?.value;
+  if (!t) { const e=document.getElementById('f-envio_transportadora'); e.style.borderColor='var(--red)'; e.focus(); return null; }
+  return { envioTipo:'transportadora', transportadora:t, motorista:'', carro:'', placa:'', tecnico: TRANSPORTADORAS[t] || t };
+}
+
 // Deduz o estágio (0-3) a partir do texto do último evento
 function inferStage(r) {
   if (!r) return -1;
@@ -4438,10 +4458,7 @@ function openActionModal(opId, mode) {
         <label class="form-label">Endereço de Entrega Completo *</label>
         <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2">${nfData.enderecoEntrega||''}</textarea>
       </div>
-      <div class="form-group">
-        <label class="form-label">Motorista / Transportadora *</label>
-        <input class="form-input" id="f-reNF_tecnico" value="${nfData.tecnico||''}">
-      </div>
+      ${buildFieldHtml({ key:'envio', label:'Motorista / Transportadora *', type:'envio' })}
       <div class="form-row">
         <div class="form-group"><label class="form-label">Nº de Volumes *</label>
           <input class="form-input" id="f-reNF_volumes" type="number" value="${nfData.volumes||''}"></div>
@@ -5265,20 +5282,19 @@ function submitModal() {
   if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && modalMode === 'advance') {
     const err = id => { const e = document.getElementById(id); if(e){e.style.borderColor='var(--red)';e.style.boxShadow='0 0 0 3px rgba(220,38,38,.12)';e.focus();} };
     const addr  = document.getElementById('f-reNF_enderecoEntrega')?.value?.trim();
-    const tec   = document.getElementById('f-reNF_tecnico')?.value?.trim();
+    if (!addr)  { err('f-reNF_enderecoEntrega'); return; }
+    const ev    = collectEnvio(); if (!ev) return; // motorista+carro+placa ou transportadora
     const numNF = document.getElementById('f-numeroNF')?.value?.trim();
     const chvNF = document.getElementById('f-chaveNfe')?.value?.trim();
     const dtNF  = document.getElementById('f-dataEmissao')?.value;
     const descNF= document.getElementById('f-descricao')?.value?.trim();
-    if (!addr)  { err('f-reNF_enderecoEntrega'); return; }
-    if (!tec)   { err('f-reNF_tecnico');         return; }
     if (!numNF) { err('f-numeroNF');              return; }
     if (!dtNF)  { err('f-dataEmissao');           return; }
     if (!descNF){ err('f-descricao');             return; }
     op.stepData.aguard_nf = {
-      ...(op.stepData.aguard_nf || {}), // preserva envioTipo/transportadora/motorista
+      ...(op.stepData.aguard_nf || {}),
       enderecoEntrega: addr,
-      tecnico: tec,
+      ...ev, // envioTipo, motorista/transportadora, carro, placa, tecnico
       volumes: document.getElementById('f-reNF_volumes')?.value || '',
       peso:    document.getElementById('f-reNF_peso')?.value    || '',
       descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
@@ -5347,32 +5363,8 @@ function submitModal() {
       continue;
     }
     if (f.type === 'envio') {
-      const tipo = document.querySelector('input[name="envioTipo"]:checked')?.value;
-      if (!tipo) { showToast('Escolha Motorista ou Transportadora', 'err'); return; }
-      if (tipo === 'motorista') {
-        const nome = document.getElementById('f-envio_motorista')?.value?.trim();
-        if (!nome) { const e=document.getElementById('f-envio_motorista'); e.style.borderColor='var(--red)'; e.focus(); return; }
-        // Carro e placa são obrigatórios quando é motorista próprio.
-        const carro = document.getElementById('f-envio_carro')?.value?.trim();
-        const placa = document.getElementById('f-envio_placa')?.value?.trim();
-        if (!carro) { const e=document.getElementById('f-envio_carro'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe o nome do carro', 'err'); return; }
-        if (!placa) { const e=document.getElementById('f-envio_placa'); e.style.borderColor='var(--red)'; e.focus(); showToast('Informe a placa', 'err'); return; }
-        formData.envioTipo = 'motorista';
-        formData.motorista = nome;
-        formData.carro = carro;
-        formData.placa = placa;
-        formData.transportadora = '';
-        formData.tecnico = nome; // compat: campo antigo usado em telas de detalhe
-      } else {
-        const t = document.getElementById('f-envio_transportadora')?.value;
-        if (!t) { const e=document.getElementById('f-envio_transportadora'); e.style.borderColor='var(--red)'; e.focus(); return; }
-        formData.envioTipo = 'transportadora';
-        formData.transportadora = t;
-        formData.motorista = '';
-        formData.carro = ''; // transportadora não usa carro/placa próprios
-        formData.placa = '';
-        formData.tecnico = TRANSPORTADORAS[t] || t; // compat
-      }
+      const ev = collectEnvio(); if (!ev) return;
+      Object.assign(formData, ev);
       continue;
     }
     const el  = document.getElementById('f-' + f.key);

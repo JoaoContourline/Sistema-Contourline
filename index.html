@@ -230,6 +230,7 @@ main { padding: 24px; }
 .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 480px; transform: scale(.97) translateY(8px); transition: transform .2s; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
 .modal-overlay.open .modal { transform: scale(1) translateY(0); }
 .modal.wide { max-width: 620px; }
+.modal.xwide { max-width: 920px; }
 .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: sticky; top: 0; background: var(--surface); z-index: 1; flex-shrink: 0; }
 .modal-title { font-size: 15px; font-weight: 700; }
 .modal-subtitle { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
@@ -636,6 +637,7 @@ body.kanban-mode .kanban-col-body {
   .modal-overlay { padding: 6px; align-items: flex-end; }
   .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 92vh; }
   .modal.wide { max-width: 100%; }
+  .modal.xwide { max-width: 100%; }
   .modal.split { flex-direction: column !important; }
   .modal.split > * { width: 100% !important; max-width: 100% !important; }
   .login-card { border-radius: 14px; padding: 22px 18px; }
@@ -3461,6 +3463,34 @@ function prazoData(op) {
   return null;
 }
 
+// Selo de prazo (data máxima = previsão) com cor pela janela:
+//   • Verde:    dentro da data ótima (faltam 10+ dias, ou seja até 10 dias antes da máxima)
+//   • Amarelo:  fora da ótima e ainda no prazo (faltam de 0 a 9 dias — inclui os 3 dias finais)
+//   • Vermelho: passou da data máxima
+function prazoBadge(op) {
+  const date = prazoData(op) || '—';
+  const dias = diasRestantes(op);
+  const cls  = dias < 0 ? 'b-red' : dias < 10 ? 'b-yellow' : 'b-green';
+  return { cls, date };
+}
+
+// Abre a rota completa no Google Maps: 1ª parada = origem, última = destino,
+// intermediárias = waypoints. Usa o endereço/CEP de cada parada para geolocalizar.
+function abrirRotaMaps(rotaId) {
+  const r = rotas.find(x => x.id === rotaId); if (!r) return;
+  const pts = (r.paradas || []).map(p => (p.endereco || p.cep || '').trim()).filter(Boolean);
+  if (!pts.length) { showToast('Rota sem endereços para o mapa', 'err'); return; }
+  const enc = s => encodeURIComponent(s);
+  let url;
+  if (pts.length === 1) {
+    url = `https://www.google.com/maps/dir/?api=1&destination=${enc(pts[0])}`;
+  } else {
+    const way = pts.slice(1, -1).map(enc).join('|');
+    url = `https://www.google.com/maps/dir/?api=1&origin=${enc(pts[0])}&destination=${enc(pts[pts.length-1])}` + (way ? `&waypoints=${way}` : '');
+  }
+  window.open(url, '_blank');
+}
+
 function renderLogistica(el) {
   const emRota = opsEmRotaSet();
   const soltas = logisticaOps().filter(o => !emRota.has(Number(o.id)));
@@ -3514,7 +3544,7 @@ function opCardEntrega(o, opts = {}) {
   const eq = equipOP(o);
   const topo = sm.cls === 'b-red' ? 'var(--red)' : (sm.cls === 'b-yellow' || sm.cls === 'b-orange') ? 'var(--orange)' : 'var(--green)';
   const onclick = opts.onclick || `openInfoModal(${o.id})`;
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;-webkit-column-break-inside:avoid">
+  return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
       <span onclick="${onclick}" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
       <span style="font-size:9px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
@@ -3535,23 +3565,29 @@ function rotaCard(r) {
   const cab = [r.motorista, r.carro, r.placa].filter(Boolean).join(' · ') || 'Rota sem motorista';
   const linhas = paradas.map(p => {
     if (p.tipo === 'entregar') {
-      return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:7px 0;font-size:11px;cursor:pointer">
+      const o = ops.find(x => x.id === p.opId);
+      const pb = o ? prazoBadge(o) : null;
+      return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:8px 0;font-size:11px;cursor:pointer">
         <span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}
         <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${p.cliente||''}</div>
-        ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;
+        ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}
+        ${pb?`<span class="sema ${pb.cls}" style="font-size:12px;font-weight:700;margin-top:5px">PRAZO: ${pb.date}</span>`:''}</div>`;
     }
     return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:11px">
       <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}
       ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;
   }).join('') || `<div style="font-size:11px;color:var(--text3);padding:7px 0">Sem paradas</div>`;
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;break-inside:avoid;-webkit-column-break-inside:avoid">
+  return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
       <div style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px;min-width:0"><span style="flex-shrink:0">${icon('truck',14,'color:var(--accent)')}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cab}</span></div>
       <span class="tab-count">${entregas + coletas}</span>
     </div>
     <div style="font-size:10px;color:var(--text3);margin-bottom:4px">${entregas} entrega(s) · ${coletas} coleta(s)</div>
     ${linhas}
-    <button onclick="abrirConstrutorRota(${r.id})" style="margin-top:8px;width:100%;background:none;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit">Ver / editar rota</button>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="abrirRotaMaps(${r.id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:none;border:1px solid var(--accent);border-radius:6px;padding:7px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;font-family:inherit">${icon('map-pin',13,'color:var(--accent)')} Ver no mapa</button>
+      <button onclick="abrirConstrutorRota(${r.id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:none;border:1px solid var(--border);border-radius:6px;padding:7px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit">${icon('pencil',13)} Editar</button>
+    </div>
   </div>`;
 }
 
@@ -3587,7 +3623,7 @@ function renderConstrutorRota() {
     : `<div style="font-size:12px;color:var(--text3);padding:12px">Nenhuma OP disponível para adicionar.</div>`;
 
   const m = document.getElementById('modal');
-  m.classList.add('wide');
+  m.classList.remove('wide', 'xwide'); m.classList.add('xwide');
   m.innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">${r.id?'Editar rota':'Nova rota'}</div><div class="modal-subtitle">Monte a rota do motorista</div></div>
@@ -3728,7 +3764,7 @@ function openCancelarOP(opId) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
   const m = document.getElementById('modal');
-  m.classList.remove('wide', 'split');
+  m.classList.remove('wide', 'split', 'xwide');
   m.innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Cancelar OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
@@ -4897,7 +4933,7 @@ function openInfoModal(opId) {
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   const _cm = document.getElementById('modal');
-  _cm.classList.remove('wide', 'split');
+  _cm.classList.remove('wide', 'split', 'xwide');
   _cm.style.height = '';
   _cm.style.maxHeight = '';
   activeOpId = null; modalMode = null; tempEquipList = []; tempVendedores = []; tempFiles = {}; tempFilesData = {};
@@ -4913,7 +4949,7 @@ function openAnexarFotos(opId) {
   const op  = ops.find(o => o.id === opId);
   const cur = (op?.stepData?.transito?.fotos || []).length;
 
-  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').classList.remove('wide', 'split', 'xwide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Anexar Fotos de Entrega</div>
@@ -4966,7 +5002,7 @@ function openSimplesFaturamento(opId) {
     ${buildFieldHtml({ key:'sf_obs', label:'Observações', type:'textarea', placeholder:'Boa tarde,\n\nEnvio em anexo o simples faturamento.\n\nAtenciosamente,' })}`;
 
   const modal = document.getElementById('modal');
-  modal.classList.remove('wide');
+  modal.classList.remove('wide', 'xwide');
   modal.classList.add('split');
   modal.innerHTML = `
     <div class="modal-header">
@@ -5071,7 +5107,7 @@ function saveSimplesFaturamento(opId) {
 // ─── POPUP DE MOTIVO DE ATRASO ──────────────────────────────────────
 function showDelayModal(opId, formData, diasAtraso, dataPrevistaFmt) {
   _pendingAdvance = { opId, formData };
-  document.getElementById('modal').classList.remove('wide', 'split');
+  document.getElementById('modal').classList.remove('wide', 'split', 'xwide');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div>

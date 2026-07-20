@@ -2392,6 +2392,8 @@ async function addMultiFile(input, key) {
     }
     // Ao anexar a NF (XML ou DANFE em PDF), lê a chave e o número automaticamente.
     if (key === 'arquivoNF') autoPreencherNota(f);
+    // Simples faturamento: preenche a data de emissão a partir da nota anexada.
+    if (key === 'sf_arquivos') autoPreencherSF(f);
   }
   if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
   input.value = '';
@@ -2501,6 +2503,21 @@ async function autoPreencherNota(file) {
   } catch (e) {
     showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
   }
+}
+
+// Simples faturamento: lê só a data de emissão da nota anexada e preenche f-sf_data.
+async function autoPreencherSF(file) {
+  const nome = (file.name || '').toLowerCase();
+  const ehXml = nome.endsWith('.xml');
+  const ehPdf = nome.endsWith('.pdf');
+  if (!ehXml && !ehPdf) return;
+  try {
+    const dados = ehXml ? extrairDadosNotaXml(await file.text()) : extrairDadosNota(await pdfParaTexto(file));
+    if (dados?.dataEmissao) {
+      const el = document.getElementById('f-sf_data');
+      if (el) { el.value = dados.dataEmissao; showToast('Data de emissão preenchida pela nota', 'ok'); }
+    }
+  } catch (e) { /* silencioso: se não ler, o usuário preenche a data manualmente */ }
 }
 
 function removeMultiFile(key, idx) {

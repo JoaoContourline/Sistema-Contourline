@@ -3226,8 +3226,10 @@ const UF_NOME = { AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE
 
 // OPs que a logística acompanha: em fase de transporte, não entregues/canceladas.
 function logisticaOps() {
-  const fases = ['aguard_nf','aguard_emissao','aguard_despacho','transito'];
-  return ops.filter(o => !o.cancelada && fases.includes(o.status));
+  // Mostra desde a criação (o destino já é conhecido na abertura), para a
+  // logística planejar com antecedência. Fora: entregues, canceladas, bloqueadas.
+  const fora = ['entregue', 'bloqueada', 'aberta'];
+  return ops.filter(o => !o.cancelada && !fora.includes(o.status));
 }
 
 function destinoOP(op) {

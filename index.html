@@ -3277,8 +3277,9 @@ function logToolbar() {
   </div>`;
 }
 
-let _logGrupoOps = {};   // key do card → [ids das OPs] (usado no arrastar/soltar)
+let _logGrupoOps = {};       // key do card → [ids das OPs] (arrastar/soltar)
 let _logDragKey  = null;
+let _logCidadeSoltas = {};   // cidade||uf → nº de entregas soltas (para o 💡)
 
 function renderLogistica(el) {
   let list = logisticaOps();
@@ -3288,26 +3289,26 @@ function renderLogistica(el) {
 
   const header = `<div class="step-header">
       <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div>
-      <div class="step-desc">Arraste um card sobre outro para montar uma viagem (juntar entregas). Separe pelo botão do card.</div>
+      <div class="step-desc">Cada entrega é um card. Arraste um card sobre outro para montar uma viagem; use "separar" para desfazer.</div>
     </div>`;
 
-  // Separa em VIAGENS (montadas à mão, op.viagem) e cidades soltas.
-  const viagens = {}, cidades = {};
+  // VIAGENS montadas à mão (op.viagem, ≥2). O resto: cada OP é um card SOLTO.
+  const viagens = {}, soltas = [];
   list.forEach(o => {
-    if (o.viagem) { (viagens[o.viagem] = viagens[o.viagem] || { tipo:'viagem', key:o.viagem, viagem:o.viagem, ops:[] }).ops.push(o); }
-    else { const { uf, cidade } = destinoOP(o); const k = cidade + '||' + uf; (cidades[k] = cidades[k] || { tipo:'cidade', key:k, uf, cidade, ops:[] }).ops.push(o); }
+    if (o.viagem) (viagens[o.viagem] = viagens[o.viagem] || { tipo:'viagem', key:o.viagem, viagem:o.viagem, ops:[] }).ops.push(o);
+    else soltas.push(o);
   });
-  // Viagem que sobrou com 1 OP não é viagem — cai para cidade.
-  Object.values(viagens).filter(v => v.ops.length < 2).forEach(v => {
-    v.ops.forEach(o => { const { uf, cidade } = destinoOP(o); const k = cidade + '||' + uf; (cidades[k] = cidades[k] || { tipo:'cidade', key:k, uf, cidade, ops:[] }).ops.push(o); });
-    delete viagens[v.key];
-  });
+  Object.values(viagens).filter(v => v.ops.length < 2).forEach(v => { v.ops.forEach(o => soltas.push(o)); delete viagens[v.key]; });
 
-  const grupos = [...Object.values(viagens), ...Object.values(cidades)];
+  // Quantas soltas por cidade (para sugerir juntar)
+  _logCidadeSoltas = {};
+  soltas.forEach(o => { const d = destinoOP(o); const k = d.cidade + '||' + d.uf; _logCidadeSoltas[k] = (_logCidadeSoltas[k]||0) + 1; });
+
+  const grupos = [...Object.values(viagens), ...soltas.map(o => ({ tipo:'op', key:'op_'+o.id, ops:[o] }))];
   _logGrupoOps = {};
   grupos.forEach(g => { _logGrupoOps[g.key] = g.ops.map(o => o.id); });
 
-  // Ordena TODOS os grupos pela OP mais urgente (menor prazo → topo)
+  // Ordena TODOS os cards pela OP mais urgente (menor prazo → topo)
   grupos.sort((a,b) => Math.min(...a.ops.map(diasRestantes)) - Math.min(...b.ops.map(diasRestantes)));
 
   if (!grupos.length) {
@@ -3327,18 +3328,18 @@ function logGrupoCard(g) {
   const sm0  = semaforo(opsG[0]);
   const topo = sm0.cls === 'b-red' ? 'var(--red)' : (sm0.cls === 'b-yellow' || sm0.cls === 'b-orange') ? 'var(--orange)' : 'var(--green)';
 
-  let titulo, tag;
+  let titulo, tag = '', sub = '';
   if (ehViagem) {
     const cidadesSet = [...new Set(g.ops.map(o => { const d = destinoOP(o); return `${d.cidade}/${d.uf}`; }))];
     titulo = `<span style="display:inline-flex;align-items:center;gap:5px">${icon('truck',14,'color:var(--accent)')} Viagem</span>`;
     tag = `<button onclick="event.stopPropagation();separarViagem('${g.viagem}')" title="Desfazer a viagem" style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px;cursor:pointer;font-family:inherit">separar</button>`;
-    var sub = `<div style="font-size:11px;color:var(--text3);margin:-4px 0 8px">${cidadesSet.join(' · ')}</div>`;
+    sub = `<div style="font-size:11px;color:var(--text3);margin:-4px 0 8px">${cidadesSet.join(' · ')}</div>`;
   } else {
-    const nConsol = g.ops.filter(consolidavel).length;
-    titulo = `${g.cidade}<span style="color:var(--text3);font-weight:400">/${g.uf}</span>`;
-    tag = nConsol >= 2
-      ? `<span title="${nConsol} entregas ainda não despachadas — arraste este card sobre outro para montar a viagem" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 juntar ${nConsol}</span>` : '';
-    var sub = '';
+    const d = destinoOP(g.ops[0]);
+    titulo = `${d.cidade}<span style="color:var(--text3);font-weight:400">/${d.uf}</span>`;
+    const nCidade = _logCidadeSoltas[d.cidade + '||' + d.uf] || 1;
+    tag = nCidade >= 2
+      ? `<span title="${nCidade} entregas soltas para ${d.cidade} — arraste os cards um sobre o outro para montar a viagem" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 ${nCidade} p/ ${d.cidade}</span>` : '';
   }
 
   const linhas = opsG.map(o => {
@@ -3360,10 +3361,10 @@ function logGrupoCard(g) {
   return `<div draggable="true"
       ondragstart="logDragStart(event,'${g.key}')" ondragend="logDragEnd(event)"
       ondragover="logDragOver(event)" ondragleave="logDragLeave(event)" ondrop="logDrop(event,'${g.key}')"
-      style="background:${ehViagem?'var(--blue-bg)':'var(--surface)'};border:1px solid ${ehViagem?'rgba(38,114,184,.35)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab">
+      style="background:var(--surface);border:1px solid ${ehViagem?'rgba(38,114,184,.45)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-weight:700;color:var(--text);font-size:13px">${titulo}</div>
-      <div style="display:flex;gap:5px;align-items:center">${tag}<span class="tab-count">${g.ops.length}</span></div>
+      <div style="display:flex;gap:5px;align-items:center">${tag}${ehViagem?`<span class="tab-count">${g.ops.length}</span>`:''}</div>
     </div>
     ${sub}
     ${linhas}

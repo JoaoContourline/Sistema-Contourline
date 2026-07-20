@@ -3300,7 +3300,9 @@ function renderLogistica(el) {
   }
 
   const cards = chaves.map(k => logCityCard(grupos[k])).join('');
-  el.innerHTML = header + logToolbar() + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${cards}</div>`;
+  // align-items:start → cada card tem a altura do próprio conteúdo (sem esticar
+  // os curtos até a altura do mais alto da linha, o que deixava espaço branco).
+  el.innerHTML = header + logToolbar() + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start">${cards}</div>`;
 }
 
 function logCityCard(g) {

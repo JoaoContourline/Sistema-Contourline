@@ -1267,6 +1267,7 @@ let ops    = [];
 let rotas  = [];              // planejador de rotas (tabela rotas)
 let _entregaSubtab = 'rotas'; // sub-aba do painel Entregas: 'rotas' | 'sem_rota'
 let _rotaEditando  = null;    // rota sendo montada no construtor
+let _addingColeta  = false;   // form de coleta inline aberto no construtor
 
 // ─── Supabase client ──────────────────────────────────────────────
 const SUPABASE_URL = 'https://hmzxqoktfzheqjjnhlam.supabase.co';
@@ -3560,6 +3561,7 @@ function abrirConstrutorRota(rotaId) {
   _rotaEditando = base
     ? JSON.parse(JSON.stringify({ id: base.id, motorista: base.motorista||'', carro: base.carro||'', placa: base.placa||'', paradas: base.paradas||[] }))
     : { motorista: '', carro: '', placa: '', paradas: [] };
+  _addingColeta = false;
   renderConstrutorRota();
   document.getElementById('overlay').classList.add('open');
 }
@@ -3601,7 +3603,23 @@ function renderConstrutorRota() {
           </div>
           <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Paradas</div>
           ${paradasHtml}
-          <button onclick="addColetaNaRota()" style="margin-top:10px;width:100%;background:none;border:1px dashed var(--border2);border-radius:8px;padding:8px;font-size:12px;color:var(--accent);cursor:pointer;font-family:inherit">+ Coleta (buscar algo num endereço)</button>
+          ${_addingColeta ? `
+          <div style="margin-top:10px;border:1px solid var(--border2);border-radius:8px;padding:12px;display:grid;gap:8px;background:var(--bg2)">
+            <div style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px">Nova coleta</div>
+            <input id="col-item" class="form-input" placeholder="O que buscar/coletar?" autocomplete="off">
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:8px">
+              <input id="col-cep" class="form-input" placeholder="CEP" inputmode="numeric" autocomplete="off"
+                     oninput="fmtCEP(this);lookupCEPforField(this.value,'col-endereco','col-cepstatus')">
+              <input id="col-num" class="form-input" placeholder="Número" autocomplete="off">
+            </div>
+            <input id="col-endereco" class="form-input" placeholder="Endereço (preenchido pelo CEP)" style="font-size:11px;color:var(--text2)">
+            <div id="col-cepstatus" style="font-size:10px;color:var(--text3);min-height:12px"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button onclick="cancelColeta()" class="btn-cancel" style="padding:6px 12px;font-size:12px">Cancelar</button>
+              <button onclick="confirmarColeta()" class="btn-primary" style="padding:6px 12px;font-size:12px">Adicionar</button>
+            </div>
+          </div>`
+          : `<button onclick="abrirColetaForm()" style="margin-top:10px;width:100%;background:none;border:1px dashed var(--border2);border-radius:8px;padding:8px;font-size:12px;color:var(--accent);cursor:pointer;font-family:inherit">+ Coleta (buscar algo num endereço)</button>`}
         </div>
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">OPs sem rota</div>
@@ -3623,10 +3641,17 @@ function addOpNaRota(opId) {
   });
   renderConstrutorRota();
 }
-function addColetaNaRota() {
-  const item = prompt('O que buscar/coletar?'); if (!item || !item.trim()) return;
-  const endereco = prompt('Endereço da coleta:') || '';
-  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({ tipo: 'buscar', item: item.trim(), endereco: endereco.trim() });
+function abrirColetaForm() { _addingColeta = true; renderConstrutorRota(); setTimeout(()=>{ const el=document.getElementById('col-item'); if(el) el.focus(); }, 0); }
+function cancelColeta() { _addingColeta = false; renderConstrutorRota(); }
+function confirmarColeta() {
+  const item = (document.getElementById('col-item')?.value || '').trim();
+  if (!item) { showToast('Informe o que buscar/coletar', 'err'); document.getElementById('col-item')?.focus(); return; }
+  const cep = (document.getElementById('col-cep')?.value || '').trim();
+  const numero = (document.getElementById('col-num')?.value || '').trim();
+  const base = (document.getElementById('col-endereco')?.value || '').trim();
+  const endereco = [base, numero ? 'Nº ' + numero : ''].filter(Boolean).join(', ');
+  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({ tipo: 'buscar', item, cep, numero, endereco });
+  _addingColeta = false;
   renderConstrutorRota();
 }
 function removerParada(i) {

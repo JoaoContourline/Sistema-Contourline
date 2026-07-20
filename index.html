@@ -740,6 +740,7 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
   <button class="tab-btn" id="btn-tab-rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
+  <button class="tab-btn" id="btn-tab-logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
   <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
     style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
@@ -3189,6 +3190,15 @@ function renderCounts() {
     if (!canRastreio && currentTab === 'rastreio') currentTab = 'fila';
   }
 
+  // Aba Entregas (painel de logística): só para logística e gestor
+  const logBtn = document.getElementById('btn-tab-logistica');
+  if (logBtn) {
+    const canLog = view?.role === 'logistica' || view?.role === 'gestor';
+    logBtn.style.display = canLog ? '' : 'none';
+    document.getElementById('cnt-logistica').textContent = canLog ? logisticaOps().length : 0;
+    if (!canLog && currentTab === 'logistica') currentTab = 'fila';
+  }
+
   // Botão de cancelados: badge com a contagem (só aparece se houver alguma)
   const nCanc = ops.filter(o => o.cancelada).length;
   const cntC  = document.getElementById('cnt-cancelados');
@@ -3203,8 +3213,120 @@ function renderMain() {
   if (verCancelados)                    return renderCancelados(el);
   if      (currentTab === 'fila')       renderQueue(view, el);
   else if (currentTab === 'concluidas') renderConcluidas(view, el);
+  else if (currentTab === 'logistica')  renderLogistica(el);
   else if (currentTab === 'rastreio')   renderRastreio(el);
   else                                  renderTodas(el);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PAINEL DE LOGÍSTICA — Entregas por destino + prazo
+// ═══════════════════════════════════════════════════════════════════
+
+const UF_NOME = { AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins' };
+
+// OPs que a logística acompanha: em fase de transporte, não entregues/canceladas.
+function logisticaOps() {
+  const fases = ['aguard_nf','aguard_emissao','aguard_despacho','transito'];
+  return ops.filter(o => !o.cancelada && fases.includes(o.status));
+}
+
+function destinoOP(op) {
+  const pv = op.pedidoVenda || {};
+  return { uf: (pv.endEstado||'').trim().toUpperCase() || '??', cidade: (pv.endCidade||'').trim() || 'Sem cidade' };
+}
+
+// Consolidável = ainda não despachada → dá para juntar na mesma viagem.
+function consolidavel(op) {
+  return op.status === 'aguard_nf' || op.status === 'aguard_emissao' || op.status === 'aguard_despacho';
+}
+
+const _semaOrdem = { 'b-red':0, 'b-orange':1, 'b-yellow':2, 'b-green':3, 'b-gray':4 };
+
+function renderLogistica(el) {
+  const list = logisticaOps();
+
+  let noPrazo = 0, prox = 0, atras = 0;
+  list.forEach(o => { const c = semaforo(o).cls; if (c==='b-red') atras++; else if (c==='b-yellow'||c==='b-orange') prox++; else noPrazo++; });
+
+  const header = `<div class="step-header">
+      <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div>
+      <div class="step-desc">
+        <span style="color:var(--green);font-weight:600">${noPrazo} no prazo</span> ·
+        <span style="color:var(--orange);font-weight:600">${prox} próximas</span> ·
+        <span style="color:${atras?'var(--red)':'inherit'};font-weight:${atras?700:400}">${atras} atrasada${atras!==1?'s':''}</span>
+        &nbsp;·&nbsp;<span style="color:var(--text3)">💡 = dá para juntar entregas na mesma viagem</span>
+      </div>
+    </div>`;
+
+  if (!list.length) {
+    el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega em andamento</div><div class="empty-desc">OPs em transporte (a despachar ou em trânsito) aparecem aqui, agrupadas por estado e cidade.</div></div>`;
+    return;
+  }
+
+  const porUF = {};
+  list.forEach(o => {
+    const { uf, cidade } = destinoOP(o);
+    porUF[uf] = porUF[uf] || { cidades:{}, total:0, atras:0 };
+    (porUF[uf].cidades[cidade] = porUF[uf].cidades[cidade] || []).push(o);
+    porUF[uf].total++;
+    if (semaforo(o).cls === 'b-red') porUF[uf].atras++;
+  });
+
+  // Estados: mais atrasadas primeiro, depois maior volume
+  const ufs = Object.keys(porUF).sort((a,b) => porUF[b].atras - porUF[a].atras || porUF[b].total - porUF[a].total);
+
+  const blocks = ufs.map(uf => {
+    const info = porUF[uf];
+    const nomeUF = UF_NOME[uf] ? `${uf} · ${UF_NOME[uf]}` : uf;
+    const cidades = Object.keys(info.cidades).sort((a,b) => info.cidades[b].length - info.cidades[a].length);
+    const cityCards = cidades.map(cid => logCityCard(cid, info.cidades[cid])).join('');
+    const atrasBadge = info.atras ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">${info.atras} atrasada${info.atras>1?'s':''}</span>` : '';
+    return `<div style="margin-top:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="width:9px;height:9px;border-radius:50%;background:var(--accent)"></span>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${nomeUF}</div>
+        <span class="tab-count">${info.total}</span>${atrasBadge}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">${cityCards}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = header + blocks;
+}
+
+function logCityCard(cidade, opsCidade) {
+  const nConsol = opsCidade.filter(consolidavel).length;
+  const consolTag = nConsol >= 2
+    ? `<span title="${nConsol} entregas ainda não despachadas para esta cidade — dá para juntar" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 juntar ${nConsol}</span>` : '';
+
+  let vol = 0, peso = 0;
+  opsCidade.forEach(o => { const d = o.stepData?.aguard_nf||{}; vol += parseInt(d.volumes)||0; peso += parseFloat(d.peso)||0; });
+  const carga = (vol||peso) ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${vol?vol+' vol':''}${vol&&peso?' · ':''}${peso?peso.toLocaleString('pt-BR')+' kg':''}</div>` : '';
+
+  const linhas = opsCidade
+    .slice().sort((a,b) => (_semaOrdem[semaforo(a).cls]??5) - (_semaOrdem[semaforo(b).cls]??5))
+    .map(o => {
+      const sb = stepBadge(o.status), sm = semaforo(o);
+      const eq = (o.equipamentos||[o.equipamento]).filter(Boolean).slice(0,3).join(', ');
+      return `<div onclick="openInfoModal(${o.id})" style="cursor:pointer;border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span style="font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
+          <span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
+        ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
+        <span class="badge ${sb.cls}" style="font-size:9px;align-self:flex-start">${sb.label}</span>
+      </div>`;
+    }).join('');
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div style="font-weight:700;color:var(--text);font-size:13px">${cidade}</div>
+      <div style="display:flex;gap:5px;align-items:center">${consolTag}<span class="tab-count">${opsCidade.length}</span></div>
+    </div>
+    ${carga}
+    ${linhas}
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════

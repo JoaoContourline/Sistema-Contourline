@@ -3474,20 +3474,19 @@ function prazoBadge(op) {
   return { cls, date };
 }
 
-// Abre a rota completa no Google Maps: 1ª parada = origem, última = destino,
-// intermediárias = waypoints. Usa o endereço/CEP de cada parada para geolocalizar.
+// Origem fixa da rota: sede da Contourline (Sete Lagoas/MG).
+const ORIGEM_ROTA = 'R. Joaquim Dias Drumond, 100 - Henrique Nery, Sete Lagoas - MG, 35700-333';
+
+// Abre a rota completa no Google Maps: origem = sede Contourline, última parada =
+// destino, demais paradas = waypoints. Usa o endereço/CEP de cada parada.
 function abrirRotaMaps(rotaId) {
   const r = rotas.find(x => x.id === rotaId); if (!r) return;
   const pts = (r.paradas || []).map(p => (p.endereco || p.cep || '').trim()).filter(Boolean);
   if (!pts.length) { showToast('Rota sem endereços para o mapa', 'err'); return; }
   const enc = s => encodeURIComponent(s);
-  let url;
-  if (pts.length === 1) {
-    url = `https://www.google.com/maps/dir/?api=1&destination=${enc(pts[0])}`;
-  } else {
-    const way = pts.slice(1, -1).map(enc).join('|');
-    url = `https://www.google.com/maps/dir/?api=1&origin=${enc(pts[0])}&destination=${enc(pts[pts.length-1])}` + (way ? `&waypoints=${way}` : '');
-  }
+  const destination = pts[pts.length - 1];
+  const way = pts.slice(0, -1).map(enc).join('|'); // todas menos a última viram waypoints
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${enc(ORIGEM_ROTA)}&destination=${enc(destination)}` + (way ? `&waypoints=${way}` : '');
   window.open(url, '_blank');
 }
 

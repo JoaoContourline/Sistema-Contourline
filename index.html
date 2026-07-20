@@ -1359,6 +1359,12 @@ function setSaveIndicator(state) {
  * a carregamos (op._loadedAt vs updated_at, mantido pelo trigger do banco).
  */
 function dbSaveOp(op, _semTrava) {
+  // Coalescing por OP: se já há um save em voo para esta OP, marca para re-salvar
+  // ao terminar. Sem isso, dois saves rápidos da mesma OP (ex.: arrastar e logo
+  // arrastar de novo) usavam o _loadedAt velho → falso "alterada por outra pessoa".
+  if (op._saving && !_semTrava) { op._saveDirty = true; return; }
+  op._saving = true;
+
   // Campos de controle local NÃO podem ir para o jsonb. _rastreioLoading era
   // gravado como true (o save acontece antes do finally que o limpa) e voltava
   // do banco para todos: botão preso em "atualizando…" em todo reload.
@@ -1367,6 +1373,8 @@ function dbSaveOp(op, _semTrava) {
   delete payload._rastreioLoading;
   delete payload._rastreioErro;
   delete payload._qrEnviando;
+  delete payload._saving;
+  delete payload._saveDirty;
 
   const json = JSON.stringify(payload);
   const kb   = (json.length / 1024).toFixed(0);
@@ -1382,7 +1390,8 @@ function dbSaveOp(op, _semTrava) {
   if (comTrava) q = q.eq('updated_at', op._loadedAt);
 
   q.select('id,updated_at').then(async ({ data, error }) => {
-    if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); return; }
+    const finalizar = () => { op._saving = false; if (op._saveDirty) { op._saveDirty = false; dbSaveOp(op); } };
+    if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); finalizar(); return; }
 
     if (comTrava && (!data || !data.length)) {
       // 0 linhas: ou alguém salvou antes de nós, ou o updated_at não casou por
@@ -1391,6 +1400,7 @@ function dbSaveOp(op, _semTrava) {
       if (atual && atual.updated_at === op._loadedAt) {
         // A linha NÃO mudou → o .eq() falhou por formato, não é conflito real.
         console.warn('[dbSaveOp] trava otimista não casou por formato — salvando sem trava');
+        op._saving = false; op._saveDirty = false;
         return dbSaveOp(op, true);
       }
       setSaveIndicator('err');
@@ -1400,6 +1410,7 @@ function dbSaveOp(op, _semTrava) {
         const fresh = row && rowToOp(row);
         if (fresh) { const i = ops.findIndex(o => o.id === fresh.id); if (i >= 0) ops[i] = fresh; renderAll(); }
       }
+      op._saving = false; op._saveDirty = false; // conflito real: não re-tenta em loop
       return;
     }
 
@@ -1412,6 +1423,7 @@ function dbSaveOp(op, _semTrava) {
       if (savedTs >= curTs) ops[idx] = op;
     }
     renderAll();
+    finalizar();
   });
 }
 
@@ -1504,8 +1516,11 @@ function startRealtime() {
 
 let currentTab    = 'fila';
 let verCancelados = false; // modo "ver OPs canceladas" (botão ban no topo)
+let _editandoObs  = false; // enquanto true, renderMain não reconstrói o #main (não perde a observação sendo digitada)
+let _renderMainPendente = false; // render adiada durante edição da observação
 let activeOpId    = null;
 let modalMode     = null;
+let _modalStatus  = null; // status da OP quando o modal de ação foi aberto (guard anti-corrida)
 let tempEquipList    = []; // [{name, qty}]
 let tempVendedores   = []; // vendedores (1..5) vindos do pedido de venda
 let tempFiles        = {}; // { key: [File, ...] } - only used for File object reference
@@ -1777,6 +1792,9 @@ function rejectOP(opId, formData) {
   if (!op) return;
   const step = STEPS[op.status];
   if (!step.getReject) return;
+  // Defesa: bloquear/rejeitar limpa a aprovação do financeiro, para a OP não
+  // voltar "aprovada" ao ser desbloqueada.
+  if (op.status === 'aguard_financeiro' && op.stepData?.aguard_financeiro) delete op.stepData.aguard_financeiro.aprovado;
   op.stepData[op.status + '_reject'] = formData;
   const user = getUser();
   const view = getActiveView();
@@ -1852,6 +1870,8 @@ function semaforo(op) {
     return { cls:'b-red', label:`${Math.abs(dias)}d atrasada`, icon:'!' };
   }
 
+  // Sem data prevista E sem abertura válida → neutro (evita "NaNd crítico")
+  if (!op.dataAbertura || isNaN(new Date(op.dataAbertura))) return { cls:'b-gray', label:'sem prazo', icon:'' };
   // Fallback: janela fixa desde a abertura (sem data prevista definida)
   const d = daysSince(op.dataAbertura);
   if (d <= 16) return { cls:'b-green',  label:`${20-d}d restantes`, icon:'●' };
@@ -2445,26 +2465,35 @@ function chaveNfeValida(ch) {
 /** Extrai chave/número/data do TEXTO do DANFE (PDF). */
 function extrairDadosNota(txt) {
   const limpo = String(txt || '');
-  const cands = [];
-  // Chave impressa em 11 grupos de 4 dígitos (com ou sem espaços entre eles)
-  (limpo.match(/\d{4}(?:\s*\d{4}){10}/g) || []).forEach(s => {
-    const d = s.replace(/\s/g, '');
-    if (d.length === 44) cands.push(d);
+  // Número impresso como "N. 000019175" (âncora obrigatória: "UN 100" não casa).
+  const mnum = limpo.match(/N[º°.]\s*0*(\d{3,9})/);
+  const numImpresso = mnum ? String(parseInt(mnum[1], 10) || '') : '';
+
+  // Chave de 44 dígitos: coleta todas as janelas com DV válido e prefere a que
+  // tem o nNF (díg 26–34) igual ao número impresso. Desliza sobre blocos com
+  // espaços/pontos, então funciona com a chave em 11 grupos de 4. O desempate
+  // evita pegar uma janela deslocada que por acaso também passe no DV.
+  const validas = [];
+  (limpo.match(/\d[\d\s.]{40,}\d/g) || []).forEach(b => {
+    const d = b.replace(/\D/g, '');
+    for (let i = 0; i + 44 <= d.length; i++) {
+      const c = d.slice(i, i + 44);
+      if (chaveNfeValida(c)) validas.push(c);
+    }
   });
-  // ...ou 44 dígitos contínuos
-  (limpo.match(/\d{44}/g) || []).forEach(d => cands.push(d));
+  let chave = (numImpresso && validas.find(c => String(parseInt(c.slice(25, 34), 10) || '') === numImpresso))
+           || validas[0]
+           || (limpo.match(/\d{44}/) || [''])[0];
 
-  const chave = cands.find(chaveNfeValida) || cands[0] || '';
-
-  // Número da nota: dígitos 26–34 da chave (campo nNF); fallback "N. 000019175"
   let numero = '';
   if (chave.length === 44) numero = String(parseInt(chave.slice(25, 34), 10) || '');
-  if (!numero) { const mn = limpo.match(/N[º°.]?\s*0*(\d{3,9})/i); if (mn) numero = String(parseInt(mn[1], 10) || ''); }
+  if (!numero) numero = numImpresso;
 
-  // Data de emissão dd/mm/aaaa → ISO
+  // Data de emissão: SÓ com a âncora EMISSÃO/SAÍDA (não pega "qualquer data",
+  // que capturava o vencimento). Valida dia/mês antes de aceitar.
   let dataEmissao = '';
-  const md = limpo.match(/EMISS[ÃA]O[^0-9]{0,20}(\d{2})\/(\d{2})\/(\d{4})/i) || limpo.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  if (md) dataEmissao = `${md[3]}-${md[2]}-${md[1]}`;
+  const md = limpo.match(/(?:EMISS[ÃA]O|SA[ÍI]DA)[^0-9]{0,25}(\d{2})\/(\d{2})\/(\d{4})/i);
+  if (md && +md[1] >= 1 && +md[1] <= 31 && +md[2] >= 1 && +md[2] <= 12) dataEmissao = `${md[3]}-${md[2]}-${md[1]}`;
 
   return { chave, numero, dataEmissao, chaveValida: chaveNfeValida(chave) };
 }
@@ -2485,13 +2514,16 @@ async function autoPreencherNota(file) {
   const ehXml = nome.endsWith('.xml');
   const ehPdf = nome.endsWith('.pdf');
   if (!ehXml && !ehPdf) return; // imagem/foto não dá para ler com segurança
+  const opAoLer = activeOpId; // ler PDF é assíncrono; se trocar de modal, aborta
   try {
     const dados = ehXml ? extrairDadosNotaXml(await file.text()) : extrairDadosNota(await pdfParaTexto(file));
+    if (activeOpId !== opAoLer) return; // modal mudou durante a leitura — não contamina
     if (!dados || (!dados.chave && !dados.numero)) {
       showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
       return;
     }
-    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    // Só preenche campo vazio: não sobrescreve o que o operador já digitou.
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v && !el.value.trim()) el.value = v; };
     setVal('f-chaveNfe', dados.chave);
     setVal('f-numeroNF', dados.numero);
     setVal('f-dataEmissao', dados.dataEmissao);
@@ -2511,11 +2543,13 @@ async function autoPreencherSF(file) {
   const ehXml = nome.endsWith('.xml');
   const ehPdf = nome.endsWith('.pdf');
   if (!ehXml && !ehPdf) return;
+  const opAoLer = activeOpId;
   try {
     const dados = ehXml ? extrairDadosNotaXml(await file.text()) : extrairDadosNota(await pdfParaTexto(file));
+    if (activeOpId !== opAoLer) return; // trocou de modal durante a leitura
     if (dados?.dataEmissao) {
       const el = document.getElementById('f-sf_data');
-      if (el) { el.value = dados.dataEmissao; showToast('Data de emissão preenchida pela nota', 'ok'); }
+      if (el && !el.value) { el.value = dados.dataEmissao; showToast('Data de emissão preenchida pela nota', 'ok'); }
     }
   } catch (e) { /* silencioso: se não ler, o usuário preenche a data manualmente */ }
 }
@@ -3229,6 +3263,9 @@ function renderMain() {
   const view = getActiveView();
   const el   = document.getElementById('main');
   sincronizarTopFiltro(); // troca/restaura o filtro do topo conforme a aba
+  // Não reconstrói o #main enquanto uma observação está sendo digitada (senão o
+  // realtime/outro save apagaria o texto ainda não confirmado). Fica pendente.
+  if (_editandoObs) { _renderMainPendente = true; return; }
   if (verCancelados)                    return renderCancelados(el);
   if      (currentTab === 'fila')       renderQueue(view, el);
   else if (currentTab === 'concluidas') renderConcluidas(view, el);
@@ -3269,6 +3306,8 @@ let _logUrg   = 'todas';  // todas | atrasadas | proximas | noprazo
 function diasRestantes(op) {
   const prev = parseBRDate(op.pedidoVenda?.dataPrevista);
   if (prev) { const t = new Date(); t.setHours(0,0,0,0); return Math.ceil((prev - t) / 86400000); }
+  // Sem data prevista nem abertura válida → neutro (não vira NaN nem "atrasada").
+  if (!op.dataAbertura || isNaN(new Date(op.dataAbertura))) return 999;
   return 20 - daysSince(op.dataAbertura);
 }
 function urgCat(op) {
@@ -3330,8 +3369,8 @@ function obsLogHtml(o) {
   return `<div onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:4px;margin-top:6px">
     <span style="color:var(--text3);font-size:12px;font-weight:700">*</span>
     <input value="${v}"
-      onfocus="const c=this.closest('[draggable]');if(c)c.draggable=false"
-      onblur="const c=this.closest('[draggable]');if(c)c.draggable=true;setObsLog(${o.id},this.value)"
+      onfocus="_editandoObs=true;const c=this.closest('[draggable]');if(c)c.draggable=false"
+      onblur="_editandoObs=false;const c=this.closest('[draggable]');if(c)c.draggable=true;setObsLog(${o.id},this.value);if(_renderMainPendente){_renderMainPendente=false;renderMain();}"
       onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
       style="flex:1;min-width:0;border:none;background:none;color:var(--text2);font-size:11px;font-style:italic;outline:none;padding:0">
   </div>`;
@@ -3372,43 +3411,53 @@ function prazoData(op) {
 }
 
 function renderLogistica(el) {
-  let list = logisticaOps();
-  if (_logUrg !== 'todas') list = list.filter(o => urgCat(o) === _logUrg);
-  const busca = _logBusca.trim().toLowerCase();
-  if (busca) list = list.filter(o => { const d = destinoOP(o); return `${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''}`.toLowerCase().includes(busca); });
-
   const header = `<div class="step-header">
       <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div>
       <div class="step-desc">Cada entrega é um card. Arraste um card sobre outro para montar uma viagem; use "separar" para desfazer.</div>
     </div>`;
 
-  // VIAGENS montadas à mão (op.viagem, ≥2). O resto: cada OP é um card SOLTO.
+  // Monta os grupos a partir da lista COMPLETA (antes de filtrar), senão uma
+  // viagem multi-cidade "quebraria" ao buscar por uma cidade só, e o _logGrupoOps
+  // ficaria incompleto (o merge puxaria a OP oculta). O filtro é só de EXIBIÇÃO.
+  const todas = logisticaOps();
   const viagens = {}, soltas = [];
-  list.forEach(o => {
+  todas.forEach(o => {
     if (o.viagem) (viagens[o.viagem] = viagens[o.viagem] || { tipo:'viagem', key:o.viagem, viagem:o.viagem, ops:[] }).ops.push(o);
     else soltas.push(o);
   });
   Object.values(viagens).filter(v => v.ops.length < 2).forEach(v => { v.ops.forEach(o => soltas.push(o)); delete viagens[v.key]; });
 
-  // Quantas soltas por cidade (para sugerir juntar)
   _logCidadeSoltas = {};
   soltas.forEach(o => { const d = destinoOP(o); const k = d.cidade + '||' + d.uf; _logCidadeSoltas[k] = (_logCidadeSoltas[k]||0) + 1; });
 
   const grupos = [...Object.values(viagens), ...soltas.map(o => ({ tipo:'op', key:'op_'+o.id, ops:[o] }))];
+  // _logGrupoOps reflete a composição COMPLETA (arrastar usa isso).
   _logGrupoOps = {};
   grupos.forEach(g => { _logGrupoOps[g.key] = g.ops.map(o => o.id); });
 
-  // Ordena TODOS os cards pela OP mais urgente (menor prazo → topo)
-  grupos.sort((a,b) => Math.min(...a.ops.map(diasRestantes)) - Math.min(...b.ops.map(diasRestantes)));
+  // Filtro de EXIBIÇÃO: um grupo aparece se ALGUMA de suas OPs casar.
+  // Busca acento-insensível: "goiania" acha "Goiânia".
+  const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const busca = norm(_logBusca.trim());
+  const matchOP = o => {
+    if (_logUrg !== 'todas' && urgCat(o) !== _logUrg) return false;
+    if (busca) { const d = destinoOP(o); return norm(`${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''}`).includes(busca); }
+    return true;
+  };
+  const visiveis = (busca || _logUrg !== 'todas') ? grupos.filter(g => g.ops.some(matchOP)) : grupos;
 
-  if (!grupos.length) {
+  // Ordena pela OP mais urgente (menor prazo → topo)
+  visiveis.sort((a,b) => Math.min(...a.ops.map(diasRestantes)) - Math.min(...b.ops.map(diasRestantes)));
+  const grupos_exibir = visiveis;
+
+  if (!grupos_exibir.length) {
     const msg = (_logBusca || _logUrg !== 'todas') ? 'Nenhuma entrega com esse filtro.' : 'OPs em transporte (a despachar ou em trânsito) aparecem aqui.';
     el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega</div><div class="empty-desc">${msg}</div></div>`;
     sincronizarTopFiltro();
     return;
   }
 
-  const cards = grupos.map(logGrupoCard).join('');
+  const cards = grupos_exibir.map(logGrupoCard).join('');
   // Layout de COLUNAS (masonry): os cards empilham juntos, sem o vão vertical que
   // a grid deixava (na grid, a linha fica na altura do card mais alto).
   // Também é zona de soltar "fora dos cards" para tirar uma OP da viagem.
@@ -3633,6 +3682,12 @@ function doCancelarOP(opId) {
   if (!op) return;
   const user = getUser();
   op.cancelada = { motivo, ts: nowTs(), by: user?.userName || user?.name || getActiveView()?.role || '', statusAnterior: op.status };
+  // Se estava numa viagem, sai dela (e dissolve a viagem se sobrar 1).
+  if (op.viagem) {
+    const vid = op.viagem; delete op.viagem;
+    const resto = ops.filter(x => x.viagem === vid);
+    if (resto.length === 1) { delete resto[0].viagem; dbSaveOp(resto[0]); }
+  }
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Cancelada', note: motivo });
   dbSaveOp(op);
   closeModal();
@@ -4147,6 +4202,7 @@ function openActionModal(opId, mode) {
   activeOpId = opId; modalMode = mode; tempFiles = {}; tempFilesData = {};
   const op   = ops.find(o => o.id === opId);
   const step = STEPS[op.status];
+  _modalStatus = op?.status; // guarda a etapa ao abrir; o submit aborta se mudou (outro usuário avançou)
   const fields = mode==='reject' ? (step.rejectFields||[]) : (step.formFields||[]);
 
   // Reset and pre-seed equipment list for aberta step
@@ -5259,6 +5315,12 @@ function submitModal() {
   if (!activeOpId || !modalMode) return;
   const op = ops.find(o => o.id === activeOpId);
   if (!op) { showToast('OP não encontrada - recarregue a página', 'err'); closeModal(); return; }
+  // Se outro usuário avançou a OP enquanto o modal estava aberto, o formulário é
+  // de outra etapa — abortar para não gravar dados no passo errado.
+  if (_modalStatus && op.status !== _modalStatus) {
+    showToast('Esta OP mudou de etapa (outro usuário avançou). Reabra para continuar.', 'err');
+    closeModal(); return;
+  }
   const step = STEPS[op.status];
   if (!step) { showToast('Estado inválido da OP', 'err'); closeModal(); return; }
 
@@ -5294,13 +5356,18 @@ function submitModal() {
       peso:    document.getElementById('f-reNF_peso')?.value    || '',
       descricao: document.getElementById('f-reNF_descricao')?.value?.trim() || '',
     };
-    // Normaliza para array (igual ao multi-file do passo normal)
+    // Re-emissão gera uma NF NOVA → exige o novo PDF (senão a OP seguiria com o
+    // arquivo da nota cancelada).
     const rawFileNF = tempFilesData['arquivoNF'] || null;
-    const prevNF    = op.stepData.aguard_emissao?.arquivoNF;
-    const prevArr   = prevNF ? (Array.isArray(prevNF) ? prevNF : [prevNF]) : [];
-    // Se anexou novo arquivo, substitui; caso contrário mantém o anterior
-    const fileNF    = rawFileNF ? [rawFileNF] : prevArr;
-    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
+    if (!rawFileNF) { showToast('Anexe o PDF da NF re-emitida', 'err'); return; }
+    // Arquiva a NF anterior (número/chave/arquivo da nota cancelada) antes de
+    // sobrescrever — o advanceOP substitui stepData.aguard_emissao por completo.
+    if (op.stepData.aguard_emissao) {
+      op.stepData.aguard_emissao_hist = [...(op.stepData.aguard_emissao_hist || []), {
+        ...op.stepData.aguard_emissao, canceladaEm: nowTs(), motivo: op.stepData.aguard_despacho_reject?.motivoReemissao || '',
+      }];
+    }
+    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: [rawFileNF], descricao: descNF });
     closeModal(); return;
   }
 
@@ -5861,23 +5928,34 @@ function preencherPedido(p) {
     // Condição de pagamento só com zeros (00 / 000) → itens saem gratuitos
     const cpDigits = String(p.condPag || '').replace(/\D/g, '');
     const gratuito = cpDigits.length > 0 && /^0+$/.test(cpDigits);
-    tempEquipList = p.itens.map(it => ({
-      name:      (it.descricao || it.produto || '').trim(),
-      code:      (it.produto || '').trim(),
-      qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
-      valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
-      desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
-      qrcode:    (it.qrcode || '').trim(),
-      // Protheus traz 1 QR por linha (C6_XQRCODE). Se a linha tiver mais de uma
-      // máquina, os demais adesivos são digitados na abertura da OP.
-      qrcodes:   (it.qrcode || '').trim() ? [(it.qrcode || '').trim()] : [],
-      qrLocked:  (it.qrcode || '').trim() ? true : undefined,
-      numSerie:  (it.numSerie || '').trim(),
-      lote:      (it.lote || '').trim(),
-      gratuito:  gratuito,
-      tes:       (it.tes || '').trim(),
-      tesDesc:   (it.tesDesc || '').trim(),
-    }));
+    tempEquipList = p.itens.map(it => {
+      const nome = (it.descricao || it.produto || '').trim();
+      const code = (it.produto || '').trim();
+      const item = {
+        name:      nome,
+        code:      code,
+        qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
+        valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
+        desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
+        qrcode:    (it.qrcode || '').trim(),
+        // Protheus traz 1 QR por linha (C6_XQRCODE). Se a linha tiver mais de uma
+        // máquina, os demais adesivos são digitados na abertura da OP.
+        qrcodes:   (it.qrcode || '').trim() ? [(it.qrcode || '').trim()] : [],
+        qrLocked:  (it.qrcode || '').trim() ? true : undefined,
+        numSerie:  (it.numSerie || '').trim(),
+        lote:      (it.lote || '').trim(),
+        gratuito:  gratuito,
+        tes:       (it.tes || '').trim(),
+        tesDesc:   (it.tesDesc || '').trim(),
+      };
+      // Fixa o controle série/lote no item (do catálogo) já na abertura, para não
+      // ser recomputado no despacho: se o cache do catálogo mudar entre a captura
+      // da série e o build do payload do QR, a série podia parear com a máquina
+      // errada. Fixado aqui, série e QR ficam sempre alinhados.
+      const cc = _equipCache?.find(c => (code && c.code === code) || c.name === nome);
+      if (cc && cc.tracking !== undefined) item.tracking = cc.tracking;
+      return item;
+    });
     refreshEquipList();
   }
 

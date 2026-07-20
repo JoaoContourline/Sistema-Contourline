@@ -6680,6 +6680,10 @@ function printPedidoVenda(opId) {
     payRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;
   }
 
+  // Campos preenchidos automaticamente no bloco de expedição:
+  const previsaoChegada = pv.dataPrevista || '';                        // previsão de entrega (definida na abertura da OP)
+  const numeroNFPdf     = op.stepData?.aguard_emissao?.numeroNF || '';  // preenchido após a emissão da NF
+
   const w = window.open('', '_blank', 'width=900,height=1200');
   if (!w) { showToast('Popup bloqueado pelo navegador. Permita popups para este site e tente novamente.', 'err'); return; }
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -6834,10 +6838,7 @@ ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
 <!-- PAGAMENTOS -->
 <table class="pay">
   <thead><tr>
-    <th>Qtda Parcelas</th>
-    <th>Valor da parcela</th>
-    <th>Data de Vencimento</th>
-    <th>Data do &uacute;ltimo<br>vencimento</th>
+    <th colspan="4" style="text-align:center">CONDI&Ccedil;&Otilde;ES DE PAGAMENTO</th>
   </tr></thead>
   <tbody>${payRows}</tbody>
 </table>
@@ -6848,8 +6849,8 @@ ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
   <tr><td colspan="2"><span class="lbl">PRODUTO LIBERADO:</span>&nbsp;&nbsp;( ) APROVADO&nbsp;&nbsp;&nbsp;&nbsp;( ) REPROVADO</td></tr>
   <tr><td colspan="2"><span class="lbl">DATA DA EXPEDI&Ccedil;&Atilde;O:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( ) RETIRADA PELO CLIENTE&nbsp;&nbsp;&nbsp;&nbsp;( ) ENVIADO PELA CONTOURLINE</td></tr>
   <tr>
-    <td style="width:55%"><span class="lbl">DATA PREVISTA DE CHEGADA AO CLIENTE:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
-    <td><span class="lbl">N&ordm; DA NOTA FISCAL:</span></td>
+    <td style="width:55%"><span class="lbl">DATA PREVISTA DE CHEGADA AO CLIENTE:</span>&nbsp;&nbsp;<strong>${previsaoChegada}</strong></td>
+    <td><span class="lbl">N&ordm; DA NOTA FISCAL:</span>&nbsp;&nbsp;<strong>${numeroNFPdf}</strong></td>
   </tr>
   <tr>
     <td><span class="lbl">NOME DO COLABORADOR DA EXPEDI&Ccedil;&Atilde;O:</span></td>

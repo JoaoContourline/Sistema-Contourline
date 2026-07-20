@@ -3278,7 +3278,7 @@ function logToolbar() {
 }
 
 let _logGrupoOps = {};       // key do card → [ids das OPs] (arrastar/soltar)
-let _logDragKey  = null;
+let _logDrag     = null;     // { tipo:'card', key } | { tipo:'op', id }
 let _logCidadeSoltas = {};   // cidade||uf → nº de entregas soltas (para o 💡)
 
 function renderLogistica(el) {
@@ -3318,7 +3318,9 @@ function renderLogistica(el) {
   }
 
   const cards = grupos.map(logGrupoCard).join('');
-  el.innerHTML = header + logToolbar() + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start">${cards}</div>`;
+  // A grid é zona de soltar "fora dos cards": arrastar uma OP da viagem e soltar
+  // no espaço vazio a tira da viagem. min-height dá área vazia suficiente.
+  el.innerHTML = header + logToolbar() + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start;min-height:65vh;padding-bottom:24px">${cards}</div>`;
 }
 
 function logGrupoCard(g) {
@@ -3346,11 +3348,12 @@ function logGrupoCard(g) {
     const sb = stepBadge(o.status), sm = semaforo(o);
     const eq = (o.equipamentos||[o.equipamento]).filter(Boolean).slice(0,3).join(', ');
     const cidadeOP = ehViagem ? `<span style="font-size:10px;color:var(--text3)"> · ${destinoOP(o).cidade}/${destinoOP(o).uf}</span>` : '';
-    const tirar = ehViagem ? `<button onclick="event.stopPropagation();tirarDaViagem(${o.id})" title="Tirar desta viagem" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">×</button>` : '';
-    return `<div style="border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
+    // Numa viagem, a OP é arrastável: solta fora = tira; solta em outro card = move.
+    const rowDrag = ehViagem ? `draggable="true" ondragstart="logOpDragStart(event,${o.id})" ondragend="logDragEnd(event)"` : '';
+    return `<div ${rowDrag} style="${ehViagem?'cursor:grab;':''}border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
         <span onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}${cidadeOP}</span>
-        <span style="display:flex;align-items:center;gap:5px"><span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>${tirar}</span>
+        <span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>
       </div>
       <div onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
       ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
@@ -3372,15 +3375,41 @@ function logGrupoCard(g) {
 }
 
 // ── Arrastar/soltar: montar e desfazer viagens ───────────────────────
-function logDragStart(e, key) { _logDragKey = key; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', key); } catch {} e.currentTarget.style.opacity = '0.5'; }
+// _logDrag = { tipo:'card', key }  (arrasta o card inteiro para juntar)
+//          | { tipo:'op', id }     (arrasta uma OP de dentro de uma viagem)
+function logDragStart(e, key)  { _logDrag = { tipo:'card', key }; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', key); } catch {} e.currentTarget.style.opacity = '0.5'; }
+function logOpDragStart(e, id) { e.stopPropagation(); _logDrag = { tipo:'op', id }; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', 'op'+id); } catch {} e.currentTarget.style.opacity = '0.5'; }
 function logDragEnd(e)   { e.currentTarget.style.opacity = ''; }
 function logDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.style.outline = '2px dashed var(--accent)'; e.currentTarget.style.outlineOffset = '2px'; }
 function logDragLeave(e) { e.currentTarget.style.outline = ''; }
+
+// Soltar SOBRE um card
 function logDrop(e, key) {
-  e.preventDefault(); e.currentTarget.style.outline = '';
-  const origem = _logDragKey; _logDragKey = null;
-  if (!origem || origem === key) return;
-  juntarViagem(origem, key);
+  e.preventDefault(); e.stopPropagation(); e.currentTarget.style.outline = '';
+  const d = _logDrag; _logDrag = null;
+  if (!d) return;
+  if (d.tipo === 'card') { if (d.key !== key) juntarViagem(d.key, key); }
+  else if (d.tipo === 'op') moverOpParaGrupo(d.id, key);
+}
+// Soltar na ÁREA VAZIA (fora de qualquer card) → tira a OP da viagem
+function logDropFora(e) {
+  e.preventDefault();
+  const d = _logDrag; _logDrag = null;
+  if (d?.tipo === 'op') tirarDaViagem(d.id);
+}
+
+// Move uma OP para o grupo de outro card (juntando numa viagem)
+function moverOpParaGrupo(opId, targetKey) {
+  const o = ops.find(x => x.id === opId);
+  const targetIds = _logGrupoOps[targetKey] || [];
+  if (!o || targetIds.includes(opId)) return;
+  const targetOps = targetIds.map(i => ops.find(x => x.id === i)).filter(Boolean);
+  if (!targetOps.length) return;
+  let vid = targetOps.map(x => x.viagem).find(Boolean);
+  if (!vid) vid = 'v_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  [o, ...targetOps].forEach(x => { if (x.viagem !== vid) { x.viagem = vid; dbSaveOp(x); } });
+  renderMain();
+  showToast('Entrega movida para a viagem', 'ok');
 }
 
 function juntarViagem(k1, k2) {

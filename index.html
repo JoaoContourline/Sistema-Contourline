@@ -6658,7 +6658,7 @@ function printPedidoVenda(opId) {
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
   const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${e.tes}${e.tesDesc?' ('+e.tesDesc+')':''}`))];
-  if (tesUniq.length) obsParts.push(`[Colinha]: ${tesUniq.join(', ')}`);
+  if (tesUniq.length) obsParts.push(tesUniq.join(', '));
   const obsText = obsParts.join('\n');
 
   // Linhas de pagamento

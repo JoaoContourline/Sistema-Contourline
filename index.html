@@ -2387,10 +2387,117 @@ async function addMultiFile(input, key) {
     } catch (err) {
       showToast('Erro ao enviar ' + f.name + ': ' + (err.message || 'tente novamente'), 'err');
     }
+    // Ao anexar a NF (XML ou DANFE em PDF), lê a chave e o número automaticamente.
+    if (key === 'arquivoNF') autoPreencherNota(f);
   }
   if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
   input.value = '';
   refreshMultiFileList(key);
+}
+
+// ── Leitura automática da NF (chave 44 díg. + número) ────────────────
+
+let _pdfjsPromise = null;
+function carregarPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (_pdfjsPromise) return _pdfjsPromise;
+  _pdfjsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = () => {
+      try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; } catch {}
+      resolve(window.pdfjsLib);
+    };
+    s.onerror = () => reject(new Error('Falha ao carregar o leitor de PDF'));
+    document.head.appendChild(s);
+  });
+  return _pdfjsPromise;
+}
+
+async function pdfParaTexto(file) {
+  const lib = await carregarPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await lib.getDocument({ data: buf }).promise;
+  let txt = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const c = await page.getTextContent();
+    txt += ' ' + c.items.map(i => i.str).join(' ');
+  }
+  return txt;
+}
+
+/** Dígito verificador (módulo 11) da chave da NFe — confirma os 44 dígitos. */
+function chaveNfeValida(ch) {
+  if (!/^\d{44}$/.test(ch)) return false;
+  let peso = 2, soma = 0;
+  for (let i = 42; i >= 0; i--) { soma += parseInt(ch[i], 10) * peso; peso = peso === 9 ? 2 : peso + 1; }
+  let dv = 11 - (soma % 11);
+  if (dv >= 10) dv = 0;
+  return dv === parseInt(ch[43], 10);
+}
+
+/** Extrai chave/número/data do TEXTO do DANFE (PDF). */
+function extrairDadosNota(txt) {
+  const limpo = String(txt || '');
+  const cands = [];
+  // Chave impressa em 11 grupos de 4 dígitos (com ou sem espaços entre eles)
+  (limpo.match(/\d{4}(?:\s*\d{4}){10}/g) || []).forEach(s => {
+    const d = s.replace(/\s/g, '');
+    if (d.length === 44) cands.push(d);
+  });
+  // ...ou 44 dígitos contínuos
+  (limpo.match(/\d{44}/g) || []).forEach(d => cands.push(d));
+
+  const chave = cands.find(chaveNfeValida) || cands[0] || '';
+
+  // Número da nota: dígitos 26–34 da chave (campo nNF); fallback "N. 000019175"
+  let numero = '';
+  if (chave.length === 44) numero = String(parseInt(chave.slice(25, 34), 10) || '');
+  if (!numero) { const mn = limpo.match(/N[º°.]?\s*0*(\d{3,9})/i); if (mn) numero = String(parseInt(mn[1], 10) || ''); }
+
+  // Data de emissão dd/mm/aaaa → ISO
+  let dataEmissao = '';
+  const md = limpo.match(/EMISS[ÃA]O[^0-9]{0,20}(\d{2})\/(\d{2})\/(\d{4})/i) || limpo.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (md) dataEmissao = `${md[3]}-${md[2]}-${md[1]}`;
+
+  return { chave, numero, dataEmissao, chaveValida: chaveNfeValida(chave) };
+}
+
+/** Extrai do XML da NFe (100% confiável, caso anexem o XML). */
+function extrairDadosNotaXml(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const g = t => doc.getElementsByTagName(t)[0]?.textContent?.trim() || '';
+  let chave = (g('chNFe') || (doc.getElementsByTagName('infNFe')[0]?.getAttribute('Id') || '')).replace(/\D/g, '');
+  chave = (chave.match(/\d{44}/) || [''])[0];
+  const numero = String(parseInt(g('nNF'), 10) || '');
+  let dataEmissao = (g('dhEmi') || g('dEmi')).slice(0, 10);
+  return { chave, numero, dataEmissao, chaveValida: chaveNfeValida(chave) };
+}
+
+async function autoPreencherNota(file) {
+  const nome = (file.name || '').toLowerCase();
+  const ehXml = nome.endsWith('.xml');
+  const ehPdf = nome.endsWith('.pdf');
+  if (!ehXml && !ehPdf) return; // imagem/foto não dá para ler com segurança
+  try {
+    const dados = ehXml ? extrairDadosNotaXml(await file.text()) : extrairDadosNota(await pdfParaTexto(file));
+    if (!dados || (!dados.chave && !dados.numero)) {
+      showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
+      return;
+    }
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    setVal('f-chaveNfe', dados.chave);
+    setVal('f-numeroNF', dados.numero);
+    setVal('f-dataEmissao', dados.dataEmissao);
+    if (dados.chave && !dados.chaveValida) {
+      showToast(`NF ${dados.numero || '?'} lida, mas confira a chave (dígito verificador não bateu)`, 'err');
+    } else {
+      showToast(`Nota lida: NF ${dados.numero || '?'}${dados.chave ? ' · chave preenchida' : ''}`, 'ok');
+    }
+  } catch (e) {
+    showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
+  }
 }
 
 function removeMultiFile(key, idx) {
@@ -2999,6 +3106,8 @@ async function handleFile(input) {
     showToast('Erro ao enviar arquivo: ' + (err.message || 'tente novamente'), 'err');
     if (display) display.innerHTML = `<div class="file-upload-text" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('upload',14)} Clique para tentar novamente</div>`;
   }
+  // Re-emissão: mesmo anexo da NF → lê chave e número automaticamente.
+  if (key === 'arquivoNF') autoPreencherNota(file);
   input.value = '';
 }
 

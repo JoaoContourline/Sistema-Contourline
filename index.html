@@ -3320,9 +3320,10 @@ function renderLogistica(el) {
   }
 
   const cards = grupos.map(logGrupoCard).join('');
-  // A grid é zona de soltar "fora dos cards": arrastar uma OP da viagem e soltar
-  // no espaço vazio a tira da viagem. min-height dá área vazia suficiente.
-  el.innerHTML = header + logToolbar() + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start;min-height:65vh;padding-bottom:24px">${cards}</div>`;
+  // Layout de COLUNAS (masonry): os cards empilham juntos, sem o vão vertical que
+  // a grid deixava (na grid, a linha fica na altura do card mais alto).
+  // Também é zona de soltar "fora dos cards" para tirar uma OP da viagem.
+  el.innerHTML = header + logToolbar() + `<div ondragover="event.preventDefault()" ondrop="logDropFora(event)" style="column-width:300px;column-gap:12px;min-height:400px;padding-bottom:24px">${cards}</div>`;
 }
 
 function logGrupoCard(g) {
@@ -3366,7 +3367,7 @@ function logGrupoCard(g) {
   return `<div draggable="true"
       ondragstart="logDragStart(event,'${g.key}')" ondragend="logDragEnd(event)"
       ondragover="logDragOver(event)" ondragleave="logDragLeave(event)" ondrop="logDrop(event,'${g.key}')"
-      style="background:var(--surface);border:1px solid ${ehViagem?'rgba(38,114,184,.45)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab">
+      style="background:var(--surface);border:1px solid ${ehViagem?'rgba(38,114,184,.45)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab;break-inside:avoid;-webkit-column-break-inside:avoid;margin-bottom:12px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-weight:700;color:var(--text);font-size:13px">${titulo}</div>
       <div style="display:flex;gap:5px;align-items:center">${tag}${ehViagem?`<span class="tab-count">${g.ops.length}</span>`:''}</div>

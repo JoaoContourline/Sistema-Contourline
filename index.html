@@ -3306,6 +3306,22 @@ function setObsLog(opId, val) {
   dbSaveOp(o); // persiste; não re-renderiza para não perder o que se digita
 }
 
+// Situação clara para a logística: em preparação → pronto para sair (NF emitida)
+// → em trânsito. Despacho (aguard_despacho) é logo após a emissão da NF.
+function logStatus(op) {
+  if (op.status === 'transito')        return { label: 'Em trânsito',      bg: 'var(--blue-bg)',        fg: 'var(--accent)' };
+  if (op.status === 'aguard_despacho') return { label: 'Pronto para sair', bg: 'rgba(22,163,74,.12)',   fg: 'var(--green)'  };
+  return { label: 'Em preparação', bg: 'var(--surface2)', fg: 'var(--text2)' };
+}
+
+// Prazo como DATA (dd/mm/aa), a partir da data prevista de entrega.
+function prazoData(op) {
+  const dp = (op.pedidoVenda?.dataPrevista || '').trim();
+  if (!dp || dp === '-') return null;
+  const m = dp.match(/^(\d{2})\/(\d{2})\/(\d{2,4})/);
+  return m ? `${m[1]}/${m[2]}/${m[3].slice(-2)}` : dp;
+}
+
 function renderLogistica(el) {
   let list = logisticaOps();
   if (_logUrg !== 'todas') list = list.filter(o => urgCat(o) === _logUrg);
@@ -3371,19 +3387,19 @@ function logGrupoCard(g) {
   }
 
   const linhas = opsG.map(o => {
-    const sb = stepBadge(o.status), sm = semaforo(o);
+    const sm = semaforo(o), st = logStatus(o), prazo = prazoData(o);
     const eq = (o.equipamentos||[o.equipamento]).filter(Boolean).slice(0,3).join(', ');
     const cidadeOP = ehViagem ? `<span style="font-size:10px;color:var(--text3)"> · ${destinoOP(o).cidade}/${destinoOP(o).uf}</span>` : '';
     // Numa viagem, a OP é arrastável: solta fora = tira; solta em outro card = move.
     const rowDrag = ehViagem ? `draggable="true" ondragstart="logOpDragStart(event,${o.id})" ondragend="logDragEnd(event)"` : '';
-    return `<div ${rowDrag} style="${ehViagem?'cursor:grab;':''}border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
+    return `<div ${rowDrag} style="${ehViagem?'cursor:grab;':''}border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:4px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
         <span onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}${cidadeOP}</span>
-        <span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>
+        <span style="font-size:9px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
       </div>
       <div onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
       ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
-      <span class="badge ${sb.cls}" style="font-size:9px;align-self:flex-start">${sb.label}</span>
+      <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;align-self:flex-start">PRAZO: ${prazo || sm.label}</span>
       ${obsLogHtml(o)}
     </div>`;
   }).join('');

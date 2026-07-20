@@ -5616,10 +5616,10 @@ function openNovaOP() {
               <div id="nova-cep-entrega-status" class="api-status" style="font-size:11px"></div>
             </div>
             <textarea class="form-textarea" id="nova-enderecoEntrega" rows="2"></textarea></div>
-          <div class="form-group"><label class="form-label">Contato responsável</label>
+          <div class="form-group"><label class="form-label">Contato responsável *</label>
             <input class="form-input" id="nova-contatoEntrega"></div>
           <div class="form-row">
-            <div class="form-group"><label class="form-label">Previsão de entrega</label>
+            <div class="form-group"><label class="form-label">Previsão de entrega *</label>
               <input class="form-input" id="nova-previsaoEntrega" type="date" oninput="calcPrazoEntrega()"></div>
             <div class="form-group"><label class="form-label">A contar de (hoje)</label>
               <input class="form-input" id="nova-aContarDe" type="date" value="${todayISO}" readonly style="background:var(--surface2)"></div>
@@ -6406,6 +6406,8 @@ async function submitNovaOP() {
   const enderecoEntrega  = v('nova-enderecoEntrega');
   const contatoEntrega   = v('nova-contatoEntrega');
   const previsaoISO      = g('nova-previsaoEntrega')?.value || '';
+  if (!contatoEntrega.trim()) { highlightError('nova-contatoEntrega'); showToast('Informe o contato responsável', 'err'); return; }
+  if (!previsaoISO)           { highlightError('nova-previsaoEntrega'); showToast('Informe a previsão de entrega', 'err'); return; }
   const aContarDe        = g('nova-aContarDe')?.value;
   const diasUteis        = false;
   let prazo = '', dataPrevista = '';

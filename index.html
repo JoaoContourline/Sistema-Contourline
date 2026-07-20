@@ -1270,6 +1270,7 @@ let rotas  = [];              // planejador de rotas (tabela rotas)
 let _entregaSubtab = 'rotas'; // sub-aba do painel Entregas: 'rotas' | 'sem_rota'
 let _rotaEditando  = null;    // rota sendo montada no construtor
 let _addingColeta  = false;   // form de coleta inline aberto no construtor
+let _coletaCep     = null;    // partes do CEP da coleta em edição {street,neighborhood,city,state,cep}
 
 // ─── Supabase client ──────────────────────────────────────────────
 const SUPABASE_URL = 'https://hmzxqoktfzheqjjnhlam.supabase.co';
@@ -3481,7 +3482,7 @@ const ORIGEM_ROTA = 'R. Joaquim Dias Drumond, 100 - Henrique Nery, Sete Lagoas -
 // destino, demais paradas = waypoints. Usa o endereço/CEP de cada parada.
 function abrirRotaMaps(rotaId) {
   const r = rotas.find(x => x.id === rotaId); if (!r) return;
-  const pts = (r.paradas || []).map(p => (p.endereco || p.cep || '').trim()).filter(Boolean);
+  const pts = (r.paradas || []).map(p => (p.mapsQuery || p.endereco || p.cep || '').trim()).filter(Boolean);
   if (!pts.length) { showToast('Rota sem endereços para o mapa', 'err'); return; }
   const enc = s => encodeURIComponent(s);
   const destination = pts[pts.length - 1];
@@ -3644,7 +3645,7 @@ function renderConstrutorRota() {
             <input id="col-item" class="form-input" placeholder="O que buscar/coletar?" autocomplete="off">
             <div style="display:grid;grid-template-columns:110px 1fr;gap:8px">
               <input id="col-cep" class="form-input" placeholder="CEP" inputmode="numeric" autocomplete="off"
-                     oninput="fmtCEP(this);lookupCEPforField(this.value,'col-endereco','col-cepstatus')">
+                     oninput="fmtCEP(this);lookupColetaCEP(this.value)">
               <input id="col-num" class="form-input" placeholder="Número" autocomplete="off">
             </div>
             <input id="col-endereco" class="form-input" placeholder="Endereço (preenchido pelo CEP)" style="font-size:11px;color:var(--text2)">
@@ -3676,17 +3677,50 @@ function addOpNaRota(opId) {
   });
   renderConstrutorRota();
 }
-function abrirColetaForm() { _addingColeta = true; renderConstrutorRota(); setTimeout(()=>{ const el=document.getElementById('col-item'); if(el) el.focus(); }, 0); }
-function cancelColeta() { _addingColeta = false; renderConstrutorRota(); }
+function abrirColetaForm() { _addingColeta = true; _coletaCep = null; renderConstrutorRota(); setTimeout(()=>{ const el=document.getElementById('col-item'); if(el) el.focus(); }, 0); }
+function cancelColeta() { _addingColeta = false; _coletaCep = null; renderConstrutorRota(); }
+
+// Busca o CEP da coleta e guarda as PARTES (rua/bairro/cidade/uf/cep) — precisamos
+// delas para montar um endereço que o Google Maps geolocalize corretamente.
+async function lookupColetaCEP(rawVal) {
+  const digits = rawVal.replace(/\D/g, '');
+  const elEnd = document.getElementById('col-endereco');
+  if (digits.length !== 8) { _coletaCep = null; return; }
+  setStatus('col-cepstatus', 'Buscando…', 'loading');
+  try {
+    const res = await fetch('https://brasilapi.com.br/api/cep/v2/' + digits);
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    const cepFmt = digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+    _coletaCep = { street: d.street || '', neighborhood: d.neighborhood || '', city: d.city || '', state: d.state || '', cep: cepFmt };
+    if (elEnd) elEnd.value = [d.street, d.neighborhood, [d.city, d.state].filter(Boolean).join('/'), cepFmt].filter(Boolean).join(', ');
+    setStatus('col-cepstatus', '✓ ' + [d.city, d.state].filter(Boolean).join('/'), 'ok');
+  } catch {
+    _coletaCep = null;
+    setStatus('col-cepstatus', '✗ CEP não encontrado', 'err');
+  }
+}
+
 function confirmarColeta() {
   const item = (document.getElementById('col-item')?.value || '').trim();
   if (!item) { showToast('Informe o que buscar/coletar', 'err'); document.getElementById('col-item')?.focus(); return; }
   const cep = (document.getElementById('col-cep')?.value || '').trim();
   const numero = (document.getElementById('col-num')?.value || '').trim();
   const base = (document.getElementById('col-endereco')?.value || '').trim();
+  // Display: como o usuário vê (rua, bairro, cidade/uf, cep, Nº X).
   const endereco = [base, numero ? 'Nº ' + numero : ''].filter(Boolean).join(', ');
-  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({ tipo: 'buscar', item, cep, numero, endereco });
-  _addingColeta = false;
+  // Maps: número LOGO após a rua e "Cidade - UF" — formato que o Google geolocaliza
+  // certo (com o número no fim, depois do CEP, ele erra a rua).
+  let mapsQuery = '';
+  if (_coletaCep) {
+    const c = _coletaCep;
+    const rua = c.street + (numero ? ', ' + numero : '');
+    mapsQuery = [rua, c.neighborhood, [c.city, c.state].filter(Boolean).join(' - '), c.cep].filter(Boolean).join(', ');
+  } else {
+    mapsQuery = endereco;
+  }
+  (_rotaEditando.paradas = _rotaEditando.paradas || []).push({ tipo: 'buscar', item, cep, numero, endereco, mapsQuery });
+  _addingColeta = false; _coletaCep = null;
   renderConstrutorRota();
 }
 function removerParada(i) {

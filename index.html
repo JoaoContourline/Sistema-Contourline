@@ -1144,7 +1144,7 @@ const STEPS = {
     actionLabel: 'Confirmar Emissão da Nota Fiscal',
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
-      { key: 'chaveNfe',    label: 'Chave da NFe (44 díg.) — necessária p/ rastreio automático', type: 'text' },
+      { key: 'chaveNfe',    label: 'Chave da NFe (44 díg.)', type: 'text' },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
       { key: 'arquivoNF',   label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
       { key: 'descricao',   label: 'Observações',             type: 'textarea',
@@ -1761,7 +1761,8 @@ function advanceOP(opId, formData) {
 
   // Ao entrar em trânsito (logística confirmou o despacho da NF), dispara o
   // 1º rastreio automático quando a transportadora tem integração + chave NFe.
-  if (next === 'transito'
+  if (RASTREIO_ATIVO
+      && next === 'transito'
       && op.stepData?.aguard_nf?.envioTipo === 'transportadora'
       && RASTREAVEIS.has(op.stepData?.aguard_nf?.transportadora)
       && (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '').length >= 44) {
@@ -2637,7 +2638,7 @@ function buildFieldHtml(f) {
     const mot   = (seed.motorista || (seed.envioTipo !== 'transportadora' ? seed.tecnico : '') || '').replace(/"/g,'&quot;');
     const transp= seed.transportadora || '';
     const opts  = Object.entries(TRANSPORTADORAS).map(([id,label]) =>
-      `<option value="${id}" ${transp===id?'selected':''}>${label}${RASTREAVEIS.has(id)?' · rastreio automático':''}</option>`).join('');
+      `<option value="${id}" ${transp===id?'selected':''}>${label}${RASTREIO_ATIVO && RASTREAVEIS.has(id)?' · rastreio automático':''}</option>`).join('');
     return `
     <div class="form-group">
       <label class="form-label">${f.label}</label>
@@ -2655,7 +2656,7 @@ function buildFieldHtml(f) {
         <option value="">Selecione a transportadora…</option>
         ${opts}
       </select>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora com integração ativa o rastreio automático das cargas.</div>
+      ${RASTREIO_ATIVO ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">Transportadora com integração ativa o rastreio automático das cargas.</div>` : ''}
     </div>`;
   }
 
@@ -2833,6 +2834,11 @@ async function _cadastrarEquipamentosQR(op) {
 
 const TRANSPORTADORAS = { azul: 'Azul Cargo', jamef: 'Jamef', correios: 'Correios', rotta: 'Rotta Master', loggica: 'Loggica' };
 const RASTREAVEIS     = new Set(['azul']); // com integração de API hoje (demais entram ao ter API)
+
+// DESLIGADO temporariamente até a API de rastreio da transportadora ficar pronta.
+// Com false: aba Rastreamento, seção no detalhe, disparo automático e os textos
+// de "rastreio automático" somem. Todo o código continua aqui — religar = true.
+const RASTREIO_ATIVO  = false;
 
 const RAST_STAGES = ['Coletado', 'Em transferência', 'Saiu para entrega', 'Entregue'];
 
@@ -3176,7 +3182,7 @@ function renderCounts() {
   // Aba Rastreamento: só para logística e gestor
   const rastBtn = document.getElementById('btn-tab-rastreio');
   if (rastBtn) {
-    const canRastreio = view?.role === 'logistica' || view?.role === 'gestor';
+    const canRastreio = RASTREIO_ATIVO && (view?.role === 'logistica' || view?.role === 'gestor');
     rastBtn.style.display = canRastreio ? '' : 'none';
     document.getElementById('cnt-rastreio').textContent = canRastreio ? rastreioOps().length : 0;
     // Se estava na aba e perdeu acesso, volta pra fila
@@ -3885,7 +3891,7 @@ function openActionModal(opId, mode) {
         <input class="form-input" id="f-numeroNF" value="${emData.numeroNF||''}">
       </div>
       <div class="form-group">
-        <label class="form-label">Chave da NFe (44 díg.) — necessária p/ rastreio automático</label>
+        <label class="form-label">Chave da NFe (44 díg.)</label>
         <input class="form-input" id="f-chaveNfe" value="${emData.chaveNfe||''}">
       </div>
       <div class="form-group">
@@ -4235,7 +4241,8 @@ function buildInfoSections(op, opId) {
   }
 
   // ── RASTREAMENTO (envio por transportadora) — penúltima, antes do Histórico
-  if (sd.aguard_nf?.envioTipo === 'transportadora') {
+  // Oculto até a API de rastreio ficar pronta (ver RASTREIO_ATIVO).
+  if (RASTREIO_ATIVO && sd.aguard_nf?.envioTipo === 'transportadora') {
     const vm = rastreioVM(op);
     let rHtml = `<div class="detail-grid">
       ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '—')}

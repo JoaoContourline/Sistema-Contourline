@@ -740,6 +740,11 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn"        onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
   <button class="tab-btn" id="btn-tab-rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
+  <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
+    style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+    <span id="cnt-cancelados" style="display:none">0</span>
+  </button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
       <input id="fl-q"    type="text"  placeholder="Nº OP ou cliente" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:116px;outline:none">
@@ -1496,6 +1501,7 @@ function startRealtime() {
 // ═══════════════════════════════════════════════════════════════════
 
 let currentTab    = 'fila';
+let verCancelados = false; // modo "ver OPs canceladas" (botão ban no topo)
 let activeOpId    = null;
 let modalMode     = null;
 let tempEquipList    = []; // [{name, qty}]
@@ -1651,8 +1657,11 @@ function _hasActiveFilter() { return Object.values(_filters).some(Boolean); }
 
 function _opsFiltered() {
   const { q, pv, dateFrom, dateTo, sem } = _filters;
-  if (!q && !pv && !dateFrom && !dateTo && !sem) return ops;
-  return ops.filter(op => {
+  // OPs canceladas somem de TODAS as filas normais (Pendentes/Todas/Concluídas).
+  // Elas só aparecem no modo "ver cancelados", que nem passa por aqui.
+  const vivas = ops.filter(o => !o.cancelada);
+  if (!q && !pv && !dateFrom && !dateTo && !sem) return vivas;
+  return vivas.filter(op => {
     if (q) {
       const ql = q.toLowerCase();
       if (!(numOp(op)||'').toLowerCase().includes(ql) && !(op.cliente||'').toLowerCase().includes(ql)) return false;
@@ -2741,6 +2750,7 @@ function inferStage(r) {
 // OPs que aparecem na aba: enviadas por transportadora, em trânsito ou entregues há ≤7 dias
 function rastreioOps() {
   return ops.filter(o => {
+    if (o.cancelada) return false; // carga cancelada não é rastreada
     const nf = o.stepData?.aguard_nf;
     if (nf?.envioTipo !== 'transportadora') return false;
     if (o.status === 'transito') return true;
@@ -3063,15 +3073,140 @@ function renderCounts() {
     // Se estava na aba e perdeu acesso, volta pra fila
     if (!canRastreio && currentTab === 'rastreio') currentTab = 'fila';
   }
+
+  // Botão de cancelados: badge com a contagem (só aparece se houver alguma)
+  const nCanc = ops.filter(o => o.cancelada).length;
+  const cntC  = document.getElementById('cnt-cancelados');
+  if (cntC) { cntC.textContent = nCanc; cntC.style.display = nCanc ? '' : 'none'; }
+  // Se ligou o modo mas não há mais cancelados, desliga sozinho
+  if (verCancelados && !nCanc) { verCancelados = false; aplicarEstiloCancelados(); }
 }
 
 function renderMain() {
   const view = getActiveView();
   const el   = document.getElementById('main');
+  if (verCancelados)                    return renderCancelados(el);
   if      (currentTab === 'fila')       renderQueue(view, el);
   else if (currentTab === 'concluidas') renderConcluidas(view, el);
   else if (currentTab === 'rastreio')   renderRastreio(el);
   else                                  renderTodas(el);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CANCELAMENTO DE OP
+// ═══════════════════════════════════════════════════════════════════
+
+function aplicarEstiloCancelados() {
+  const btn  = document.getElementById('btn-cancelados');
+  const tabs = document.querySelectorAll('.tab-btn');
+  if (btn) {
+    btn.style.background  = verCancelados ? 'var(--red-bg)' : 'transparent';
+    btn.style.color       = verCancelados ? 'var(--red)'    : 'var(--text3)';
+    btn.style.borderColor = verCancelados ? 'rgba(220,38,38,.4)' : 'var(--border)';
+    btn.title = verCancelados ? 'Voltar às OPs ativas' : 'Ver OPs canceladas';
+  }
+  // Enquanto vê cancelados, as abas normais ficam apagadas (não fazem sentido)
+  tabs.forEach(t => { t.style.opacity = verCancelados ? '0.4' : '1'; t.style.pointerEvents = verCancelados ? 'none' : ''; });
+}
+
+function toggleCancelados() {
+  verCancelados = !verCancelados;
+  aplicarEstiloCancelados();
+  renderAll();
+}
+
+function renderCancelados(el) {
+  const list = ops.filter(o => o.cancelada)
+                  .sort((a, b) => (b.cancelada.ts || '').localeCompare(a.cancelada.ts || ''));
+  const header = `<div class="step-header" style="display:flex;align-items:center;gap:10px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      <div><div class="step-title">OPs Canceladas</div>
+        <div class="step-desc">${list.length} cancelada${list.length!==1?'s':''} · clique em Reativar para devolver ao fluxo</div></div>
+    </div>`;
+
+  if (!list.length) {
+    el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma OP cancelada</div><div class="empty-desc">OPs canceladas aparecem aqui e somem das filas normais.</div></div>`;
+    return;
+  }
+
+  const cards = list.map(op => {
+    const c = op.cancelada || {};
+    const etapa = STEPS[c.statusAnterior]?.label || c.statusAnterior || '—';
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="font-weight:700;color:var(--text);font-size:13px">OP ${numOp(op)} <span style="color:var(--text3);font-weight:400">· ${op.cliente}</span></div>
+        <span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'—'} · por ${c.by||'—'} · estava em: ${etapa}</div>
+      ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${c.motivo}</div>` : ''}
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button onclick="openInfoModal(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--text2);cursor:pointer">Abrir OP</button>
+        <button onclick="reativarOP(${op.id})" style="background:var(--green);border:none;border-radius:6px;padding:5px 12px;font-size:11px;color:#fff;font-weight:600;cursor:pointer">Reativar</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = header + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">${cards}</div>`;
+}
+
+/** Abre o modal pedindo o motivo do cancelamento. */
+function openCancelarOP(opId) {
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  const m = document.getElementById('modal');
+  m.classList.remove('wide', 'split');
+  m.innerHTML = `
+    <div class="modal-header">
+      <div><div class="modal-title">Cancelar OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
+    </div>
+    <div class="modal-body" style="padding:16px 22px;gap:12px">
+      <div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">
+        ${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}
+        <span style="font-size:12px;line-height:1.5">A OP sai das filas de todos os setores e vai para a lista de canceladas. Não some do sistema — dá para <strong>reativar</strong> depois. Não cancela a NF na SEFAZ nem desfaz cadastro no Sistema QR.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Motivo do cancelamento *</label>
+        <textarea class="form-textarea" id="f-motivoCancel" rows="3" placeholder="Ex: cliente desistiu da compra / pedido duplicado / erro de digitação…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Voltar</button>
+      <button class="btn-primary" style="background:var(--red)" onclick="doCancelarOP(${opId})">Confirmar Cancelamento</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('f-motivoCancel')?.focus(), 50);
+}
+
+function doCancelarOP(opId) {
+  const motivo = document.getElementById('f-motivoCancel')?.value?.trim();
+  if (!motivo) {
+    const t = document.getElementById('f-motivoCancel');
+    if (t) { t.style.borderColor = 'var(--red)'; t.focus(); }
+    showToast('Informe o motivo do cancelamento', 'err');
+    return;
+  }
+  const op = ops.find(o => o.id === opId);
+  if (!op) return;
+  const user = getUser();
+  op.cancelada = { motivo, ts: nowTs(), by: user?.userName || user?.name || getActiveView()?.role || '', statusAnterior: op.status };
+  op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Cancelada', note: motivo });
+  dbSaveOp(op);
+  closeModal();
+  renderAll();
+  showToast(`OP ${numOp(op)} cancelada`, 'ok');
+}
+
+function reativarOP(opId) {
+  const op = ops.find(o => o.id === opId);
+  if (!op || !op.cancelada) return;
+  const etapa = op.cancelada.statusAnterior;
+  const user  = getUser();
+  delete op.cancelada;
+  op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Reativada', note: '' });
+  dbSaveOp(op);
+  renderAll();
+  showToast(`OP ${numOp(op)} reativada${etapa && STEPS[etapa] ? ' — voltou para ' + STEPS[etapa].label : ''}`, 'ok');
 }
 
 function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) {
@@ -4167,8 +4302,9 @@ function openInfoModal(opId) {
   const statusHeader = `
     <div class="op-info-block" style="margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
+        ${op.cancelada?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.3);padding:2px 9px;border-radius:20px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> CANCELADA</span>`:''}
         <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
-        ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
+        ${op.status!=='entregue'&&!op.cancelada?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
         ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">
@@ -4187,6 +4323,14 @@ function openInfoModal(opId) {
         ${icon('image',13)} Anexar Fotos
        </button>` : '';
 
+  // Cancelar (OP ativa) ou Reativar (OP cancelada). Entregue não cancela.
+  const banIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
+  const cancelarBtn = op.cancelada
+    ? `<button onclick="reativarOP(${opId});closeModal()" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px;background:var(--green);border:none;color:#fff;font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${icon('check',13,'color:#fff')} Reativar OP</button>`
+    : (op.status !== 'entregue'
+      ? `<button onclick="openCancelarOP(${opId})" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--red);font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${banIcon} Cancelar OP</button>`
+      : '');
+
   const _im = document.getElementById('modal');
   _im.classList.remove('split');
   _im.style.height = '';
@@ -4200,7 +4344,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
-    <div class="modal-footer">${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${cancelarBtn}${anexarBoletoBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }

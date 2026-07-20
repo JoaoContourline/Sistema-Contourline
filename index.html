@@ -3277,65 +3277,138 @@ function logToolbar() {
   </div>`;
 }
 
+let _logGrupoOps = {};   // key do card → [ids das OPs] (usado no arrastar/soltar)
+let _logDragKey  = null;
+
 function renderLogistica(el) {
   let list = logisticaOps();
   if (_logUrg !== 'todas') list = list.filter(o => urgCat(o) === _logUrg);
   const busca = _logBusca.trim().toLowerCase();
   if (busca) list = list.filter(o => { const d = destinoOP(o); return `${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''}`.toLowerCase().includes(busca); });
 
-  const header = `<div class="step-header"><div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div></div>`;
+  const header = `<div class="step-header">
+      <div class="step-title" style="display:flex;align-items:center;gap:8px">${icon('map-pin',18,'color:var(--accent)')} Entregas por Destino</div>
+      <div class="step-desc">Arraste um card sobre outro para montar uma viagem (juntar entregas). Separe pelo botão do card.</div>
+    </div>`;
 
-  // Agrupa por cidade/UF
-  const grupos = {};
-  list.forEach(o => { const { uf, cidade } = destinoOP(o); const k = cidade + '||' + uf; (grupos[k] = grupos[k] || { uf, cidade, ops: [] }).ops.push(o); });
+  // Separa em VIAGENS (montadas à mão, op.viagem) e cidades soltas.
+  const viagens = {}, cidades = {};
+  list.forEach(o => {
+    if (o.viagem) { (viagens[o.viagem] = viagens[o.viagem] || { tipo:'viagem', key:o.viagem, viagem:o.viagem, ops:[] }).ops.push(o); }
+    else { const { uf, cidade } = destinoOP(o); const k = cidade + '||' + uf; (cidades[k] = cidades[k] || { tipo:'cidade', key:k, uf, cidade, ops:[] }).ops.push(o); }
+  });
+  // Viagem que sobrou com 1 OP não é viagem — cai para cidade.
+  Object.values(viagens).filter(v => v.ops.length < 2).forEach(v => {
+    v.ops.forEach(o => { const { uf, cidade } = destinoOP(o); const k = cidade + '||' + uf; (cidades[k] = cidades[k] || { tipo:'cidade', key:k, uf, cidade, ops:[] }).ops.push(o); });
+    delete viagens[v.key];
+  });
 
-  // Cidades ordenadas pela MAIS URGENTE a sair (menor prazo primeiro → topo)
-  const chaves = Object.keys(grupos).sort((a,b) =>
-    Math.min(...grupos[a].ops.map(diasRestantes)) - Math.min(...grupos[b].ops.map(diasRestantes)));
+  const grupos = [...Object.values(viagens), ...Object.values(cidades)];
+  _logGrupoOps = {};
+  grupos.forEach(g => { _logGrupoOps[g.key] = g.ops.map(o => o.id); });
 
-  if (!chaves.length) {
-    const msg = (_logBusca || _logUrg !== 'todas') ? 'Nenhuma entrega com esse filtro.' : 'OPs em transporte (a despachar ou em trânsito) aparecem aqui, agrupadas por cidade.';
+  // Ordena TODOS os grupos pela OP mais urgente (menor prazo → topo)
+  grupos.sort((a,b) => Math.min(...a.ops.map(diasRestantes)) - Math.min(...b.ops.map(diasRestantes)));
+
+  if (!grupos.length) {
+    const msg = (_logBusca || _logUrg !== 'todas') ? 'Nenhuma entrega com esse filtro.' : 'OPs em transporte (a despachar ou em trânsito) aparecem aqui.';
     el.innerHTML = header + logToolbar() + `<div class="empty"><div class="empty-icon">${icon('map-pin',32,'color:var(--text3)')}</div><div class="empty-title">Nenhuma entrega</div><div class="empty-desc">${msg}</div></div>`;
     return;
   }
 
-  const cards = chaves.map(k => logCityCard(grupos[k])).join('');
-  // align-items:start → cada card tem a altura do próprio conteúdo (sem esticar
-  // os curtos até a altura do mais alto da linha, o que deixava espaço branco).
+  const cards = grupos.map(logGrupoCard).join('');
   el.innerHTML = header + logToolbar() + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start">${cards}</div>`;
 }
 
-function logCityCard(g) {
-  const { uf, cidade, ops: opsCidade } = g;
-  const nConsol = opsCidade.filter(consolidavel).length;
-  const consolTag = nConsol >= 2
-    ? `<span title="${nConsol} entregas ainda não despachadas para ${cidade} — dá para juntar na mesma viagem" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 juntar ${nConsol}</span>` : '';
+function logGrupoCard(g) {
+  const ehViagem = g.tipo === 'viagem';
+  const opsG = g.ops.slice().sort((a,b) => diasRestantes(a) - diasRestantes(b));
 
-  // Cor do topo do card = urgência da OP mais urgente da cidade
-  const sm0 = semaforo(opsCidade.slice().sort((a,b)=>diasRestantes(a)-diasRestantes(b))[0]);
+  const sm0  = semaforo(opsG[0]);
   const topo = sm0.cls === 'b-red' ? 'var(--red)' : (sm0.cls === 'b-yellow' || sm0.cls === 'b-orange') ? 'var(--orange)' : 'var(--green)';
 
-  const linhas = opsCidade.slice().sort((a,b) => diasRestantes(a) - diasRestantes(b)).map(o => {
+  let titulo, tag;
+  if (ehViagem) {
+    const cidadesSet = [...new Set(g.ops.map(o => { const d = destinoOP(o); return `${d.cidade}/${d.uf}`; }))];
+    titulo = `<span style="display:inline-flex;align-items:center;gap:5px">${icon('truck',14,'color:var(--accent)')} Viagem</span>`;
+    tag = `<button onclick="event.stopPropagation();separarViagem('${g.viagem}')" title="Desfazer a viagem" style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px;cursor:pointer;font-family:inherit">separar</button>`;
+    var sub = `<div style="font-size:11px;color:var(--text3);margin:-4px 0 8px">${cidadesSet.join(' · ')}</div>`;
+  } else {
+    const nConsol = g.ops.filter(consolidavel).length;
+    titulo = `${g.cidade}<span style="color:var(--text3);font-weight:400">/${g.uf}</span>`;
+    tag = nConsol >= 2
+      ? `<span title="${nConsol} entregas ainda não despachadas — arraste este card sobre outro para montar a viagem" style="font-size:10px;font-weight:700;color:var(--accent);background:var(--blue-bg);border:1px solid rgba(38,114,184,.25);padding:2px 8px;border-radius:20px">💡 juntar ${nConsol}</span>` : '';
+    var sub = '';
+  }
+
+  const linhas = opsG.map(o => {
     const sb = stepBadge(o.status), sm = semaforo(o);
     const eq = (o.equipamentos||[o.equipamento]).filter(Boolean).slice(0,3).join(', ');
-    return `<div onclick="openInfoModal(${o.id})" style="cursor:pointer;border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
+    const cidadeOP = ehViagem ? `<span style="font-size:10px;color:var(--text3)"> · ${destinoOP(o).cidade}/${destinoOP(o).uf}</span>` : '';
+    const tirar = ehViagem ? `<button onclick="event.stopPropagation();tirarDaViagem(${o.id})" title="Tirar desta viagem" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">×</button>` : '';
+    return `<div style="border-top:1px solid var(--border);padding:8px 0;display:flex;flex-direction:column;gap:3px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-        <span style="font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
-        <span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>
+        <span onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}${cidadeOP}</span>
+        <span style="display:flex;align-items:center;gap:5px"><span class="sema ${sm.cls}" style="font-size:9px">${sm.label}</span>${tirar}</span>
       </div>
-      <div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
+      <div onclick="openInfoModal(${o.id})" style="cursor:pointer;font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente}</div>
       ${eq ? `<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>` : ''}
       <span class="badge ${sb.cls}" style="font-size:9px;align-self:flex-start">${sb.label}</span>
     </div>`;
   }).join('');
 
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-top:3px solid ${topo};border-radius:12px;padding:12px 14px">
+  return `<div draggable="true"
+      ondragstart="logDragStart(event,'${g.key}')" ondragend="logDragEnd(event)"
+      ondragover="logDragOver(event)" ondragleave="logDragLeave(event)" ondrop="logDrop(event,'${g.key}')"
+      style="background:${ehViagem?'var(--blue-bg)':'var(--surface)'};border:1px solid ${ehViagem?'rgba(38,114,184,.35)':'var(--border)'};border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;cursor:grab">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <div style="font-weight:700;color:var(--text);font-size:13px">${cidade}<span style="color:var(--text3);font-weight:400">/${uf}</span></div>
-      <div style="display:flex;gap:5px;align-items:center">${consolTag}<span class="tab-count">${opsCidade.length}</span></div>
+      <div style="font-weight:700;color:var(--text);font-size:13px">${titulo}</div>
+      <div style="display:flex;gap:5px;align-items:center">${tag}<span class="tab-count">${g.ops.length}</span></div>
     </div>
+    ${sub}
     ${linhas}
   </div>`;
+}
+
+// ── Arrastar/soltar: montar e desfazer viagens ───────────────────────
+function logDragStart(e, key) { _logDragKey = key; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', key); } catch {} e.currentTarget.style.opacity = '0.5'; }
+function logDragEnd(e)   { e.currentTarget.style.opacity = ''; }
+function logDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.style.outline = '2px dashed var(--accent)'; e.currentTarget.style.outlineOffset = '2px'; }
+function logDragLeave(e) { e.currentTarget.style.outline = ''; }
+function logDrop(e, key) {
+  e.preventDefault(); e.currentTarget.style.outline = '';
+  const origem = _logDragKey; _logDragKey = null;
+  if (!origem || origem === key) return;
+  juntarViagem(origem, key);
+}
+
+function juntarViagem(k1, k2) {
+  const ids = [...new Set([...(_logGrupoOps[k1]||[]), ...(_logGrupoOps[k2]||[])])];
+  const afet = ids.map(id => ops.find(o => o.id === id)).filter(Boolean);
+  if (afet.length < 2) return;
+  let vid = afet.map(o => o.viagem).find(Boolean);
+  if (!vid) vid = 'v_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  afet.forEach(o => { if (o.viagem !== vid) { o.viagem = vid; dbSaveOp(o); } });
+  renderMain();
+  showToast(`${afet.length} entregas na mesma viagem`, 'ok');
+}
+
+function separarViagem(vid) {
+  const afet = ops.filter(o => o.viagem === vid);
+  afet.forEach(o => { delete o.viagem; dbSaveOp(o); });
+  renderMain();
+  showToast('Viagem desfeita', 'ok');
+}
+
+function tirarDaViagem(opId) {
+  const o = ops.find(x => x.id === opId);
+  if (!o) return;
+  const vid = o.viagem;
+  delete o.viagem; dbSaveOp(o);
+  // Se sobrar só 1 na viagem, desfaz também (viagem de 1 não faz sentido)
+  const resto = ops.filter(x => x.viagem === vid);
+  if (resto.length === 1) { delete resto[0].viagem; dbSaveOp(resto[0]); }
+  renderMain();
 }
 
 // ═══════════════════════════════════════════════════════════════════

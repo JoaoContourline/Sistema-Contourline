@@ -1344,6 +1344,25 @@ async function excluirRota(id) {
   renderMain();
   showToast('Rota excluída', 'ok');
 }
+// Remove a OP de todas as rotas (parada de entrega) e salva as afetadas.
+// Usado ao cancelar ou ao concluir a entrega — evita roteirizar entrega morta.
+async function removerOpDasRotas(opId) {
+  const id = Number(opId);
+  const afetadas = rotas.filter(r => (r.paradas || []).some(p => p.tipo === 'entregar' && Number(p.opId) === id));
+  for (const r of afetadas) {
+    r.paradas = r.paradas.filter(p => !(p.tipo === 'entregar' && Number(p.opId) === id));
+    await saveRota(r);
+  }
+}
+
+// Uma parada de entrega só é válida se a OP ainda existe e não foi cancelada/entregue.
+// Guarda de exibição para rotas antigas que ficaram com paradas "mortas".
+function entregaParadaAtiva(p) {
+  if (p.tipo !== 'entregar') return true;
+  const o = ops.find(x => x.id === Number(p.opId));
+  return !!o && !o.cancelada && o.status !== 'entregue';
+}
+
 // OPs que já estão em alguma rota (para tirar da "Sem rota")
 function opsEmRotaSet() {
   const s = new Set();
@@ -1533,6 +1552,9 @@ let _pendingSeeded   = false;     // já rodou uma vez (não alerta na 1ª)
 function refreshPendingAlert() {
   const view    = getActiveView();
   const roleKey = view ? (view.role || view.id || '') : '';
+  // Comercial acompanha TODAS as OPs não entregues — bolinha/som viraria ruído
+  // constante. O alerta é só para setores que atuam numa fila real.
+  if (roleKey === 'vendedor') { setPendingDot(false); return; }
   const ids     = view ? getQueue(view).map(o => o.id) : [];
   const key     = id => roleKey + ':' + id;
 
@@ -1882,6 +1904,10 @@ function advanceOP(opId, formData) {
 
   op.status = next;
   dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
+
+  // Concluiu a entrega → tira a OP das rotas (não deve mais ser roteirizada).
+  if (next === 'entregue') removerOpDasRotas(op.id);
+
   renderAll();
 
   // Ao entrar em trânsito (logística aprovou a emissão/despacho da NF), cadastra
@@ -3592,7 +3618,7 @@ const ORIGEM_ROTA = 'R. Joaquim Dias Drumond, 100 - Henrique Nery, Sete Lagoas -
 // destino, demais paradas = waypoints. Usa o endereço/CEP de cada parada.
 function abrirRotaMaps(rotaId) {
   const r = rotas.find(x => x.id === rotaId); if (!r) return;
-  const pts = (r.paradas || []).map(p => (p.mapsQuery || p.endereco || p.cep || '').trim()).filter(Boolean);
+  const pts = (r.paradas || []).filter(entregaParadaAtiva).map(p => (p.mapsQuery || p.endereco || p.cep || '').trim()).filter(Boolean);
   if (!pts.length) { showToast('Rota sem endereços para o mapa', 'err'); return; }
   const enc = s => encodeURIComponent(s);
   const destination = pts[pts.length - 1];
@@ -3669,7 +3695,7 @@ function opCardEntrega(o, opts = {}) {
 
 // Card de uma rota (aba Rotas)
 function rotaCard(r) {
-  const paradas = r.paradas || [];
+  const paradas = (r.paradas || []).filter(entregaParadaAtiva); // esconde entregas canceladas/entregues
   const entregas = paradas.filter(p => p.tipo === 'entregar').length;
   const coletas  = paradas.filter(p => p.tipo === 'buscar').length;
   const cab = [r.motorista, r.carro, r.placa].filter(Boolean).join(' · ') || 'Rota sem motorista';
@@ -3870,7 +3896,10 @@ function paradaDrop(i, ev) {
   const arr = _rotaEditando.paradas;
   if (from === i || from < 0 || from >= arr.length) { renderConstrutorRota(); return; }
   const [it] = arr.splice(from, 1);
-  arr.splice(i, 0, it);
+  // Ao remover antes do alvo, o índice do alvo desloca 1 — corrige para soltar
+  // exatamente onde o usuário largou (arrastar p/ baixo e p/ cima simétricos).
+  const alvo = from < i ? i - 1 : i;
+  arr.splice(alvo, 0, it);
   renderConstrutorRota();
 }
 async function salvarRotaEditando() {
@@ -3978,12 +4007,8 @@ function doCancelarOP(opId) {
   if (!op) return;
   const user = getUser();
   op.cancelada = { motivo, ts: nowTs(), by: user?.userName || user?.name || getActiveView()?.role || '', statusAnterior: op.status };
-  // Se estava numa viagem, sai dela (e dissolve a viagem se sobrar 1).
-  if (op.viagem) {
-    const vid = op.viagem; delete op.viagem;
-    const resto = ops.filter(x => x.viagem === vid);
-    if (resto.length === 1) { delete resto[0].viagem; dbSaveOp(resto[0]); }
-  }
+  // Sai de qualquer rota (senão o motorista é roteirizado para uma OP cancelada).
+  removerOpDasRotas(op.id);
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Cancelada', note: motivo });
   dbSaveOp(op);
   closeModal();
@@ -4311,7 +4336,7 @@ function buildContextPanel(op) {
   const pv = op.pedidoVenda;
   const sd = op.stepData || {};
   const sem = semaforo(op);
-  const badge = stepBadge(op.status);
+  const badge = stepBadge(op.status, op);
 
   const cRow = (label, val) => {
     if (!val) return '';
@@ -4611,7 +4636,7 @@ function openActionModal(opId, mode) {
         <div class="split-pane-left-header">
           <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(op.cliente)}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-            <span class="badge ${stepBadge(op.status).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status).label}</span>
+            <span class="badge ${stepBadge(op.status, op).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status, op).label}</span>
             ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
@@ -4920,7 +4945,7 @@ function buildInfoSections(op, opId) {
 function openInfoModal(opId) {
   const op    = ops.find(o => o.id === opId);
   if (!op) { console.warn('openInfoModal: OP', opId, 'não encontrada'); return; }
-  const badge = stepBadge(op.status);
+  const badge = stepBadge(op.status, op);
   const sem   = semaforo(op);
   const pv    = op.pedidoVenda;
   const sd    = op.stepData || {};
@@ -5100,6 +5125,7 @@ function openInfoModal(opId) {
     <div class="modal-body" style="gap:0;padding:16px 22px">
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
+    </div>
     <div class="modal-footer">${cancelarBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
@@ -5383,6 +5409,9 @@ function submitModal() {
     const prevNF    = op.stepData.aguard_emissao?.arquivoNF;
     const prevArr   = prevNF ? (Array.isArray(prevNF) ? prevNF : [prevNF]) : [];
     const fileNF    = rawFileNF ? [rawFileNF] : prevArr;
+    // Re-emissão concluída: limpa o pedido de re-emissão para o aviso vermelho
+    // "RE-EMISSÃO SOLICITADA" não ficar preso na OP (inclusive já entregue).
+    delete op.stepData.aguard_despacho_reject;
     advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }

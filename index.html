@@ -1925,6 +1925,12 @@ function rejectOP(opId, formData) {
 function daysSince(d)  { return Math.floor((new Date() - new Date(d)) / 86400000); }
 function fmtDate(d)    { return new Date(d+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
 
+// Escapa HTML — usar em TODA interpolação de dado não confiável (cliente/Protheus,
+// texto digitado, nome de arquivo, item/endereço de coleta) antes de ir pro innerHTML.
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
 // Converte "dd/mm/yyyy" → Date (meio-dia p/ evitar problema de fuso)
 function parseBRDate(s) {
   if (!s) return null;
@@ -2448,7 +2454,7 @@ function fileLinkHtml(f, compact = false) {
   if (!f) return '-';
   if (typeof f === 'string') {
     // legado: apenas nome sem dataUrl
-    return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${f}</span>`;
+    return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${esc(f)}</span>`;
   }
   const kb          = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
   const fileUrl     = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
@@ -2468,7 +2474,7 @@ function fileLinkHtml(f, compact = false) {
         style="height:${h}px;width:auto;max-width:130px;border-radius:5px;border:1px solid var(--border);cursor:zoom-in;object-fit:cover;flex-shrink:0">
       <span style="display:flex;flex-direction:column;gap:4px;padding-top:2px">
         <span style="font-size:${compact?'10':'11'}px;color:var(--text2);display:inline-flex;align-items:center;gap:4px">
-          ${icon('image',10,'color:var(--text3)')} ${f.name}
+          ${icon('image',10,'color:var(--text3)')} ${esc(f.name)}
           ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
         </span>
         <a href="${safeDataUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
@@ -3270,7 +3276,7 @@ function verTimeline(opId) {
           ${i < eventos.length - 1 ? `<div style="flex:1;width:2px;background:var(--border2)"></div>` : ''}
         </div>
         <div style="padding-bottom:14px">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${ev.descricao || '—'}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${esc(ev.descricao || '—')}</div>
           <div style="font-size:11px;color:var(--text3)">${rastFmtTs(ev.ts)}${ev.local ? ' · ' + ev.local : ''}${pod}${ins}</div>
         </div>
       </div>`;
@@ -3299,7 +3305,7 @@ async function handleFile(input) {
     tempFilesData[key] = fileData;
     if (display) {
       display.classList.add('has-file');
-      display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${file.name} <span style="font-weight:400;opacity:.7">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
+      display.innerHTML = `<div class="file-upload-text has-file" style="display:flex;align-items:center;justify-content:center;gap:6px">${icon('check-circle',14,'color:var(--green)')} ${esc(file.name)} <span style="font-weight:400;opacity:.7">(${(file.size/1024).toFixed(0)} KB)</span></div>`;
     }
   } catch (err) {
     showToast('Erro ao enviar arquivo: ' + (err.message || 'tente novamente'), 'err');
@@ -3622,7 +3628,7 @@ function renderLogistica(el) {
     const busca = norm(_logBusca.trim());
     let lista = soltas;
     if (_logUrg !== 'todas') lista = lista.filter(o => urgCat(o) === _logUrg);
-    if (busca) lista = lista.filter(o => { const d = destinoOP(o); return norm(`${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''} ${o.cliente||''}`).includes(busca); });
+    if (busca) lista = lista.filter(o => { const d = destinoOP(o); return norm(`${d.cidade} ${d.uf} ${UF_NOME[d.uf]||''} ${esc(o.cliente)}`).includes(busca); });
     lista.sort((a,b)=>diasRestantes(a)-diasRestantes(b));
     if (!lista.length) {
       el.innerHTML = header + `<div class="empty"><div class="empty-icon">${icon('check-circle',32,'color:var(--text3)')}</div><div class="empty-title">Nada sem rota</div><div class="empty-desc">As entregas em transporte que ainda não estão em rotas aparecem aqui.</div></div>`;
@@ -3653,9 +3659,9 @@ function opCardEntrega(o, opts = {}) {
       <span onclick="${onclick}" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
       <span style="font-size:9px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
     </div>
-    <div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.cliente||''}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.cliente)}</div>
     ${eq?`<div style="font-size:10px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>`:''}
-    <div style="font-size:10px;color:var(--text3);margin-top:2px">${destinoOP(o).cidade}/${destinoOP(o).uf}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px">${esc(destinoOP(o).cidade)}/${esc(destinoOP(o).uf)}</div>
     <span class="sema ${sm.cls}" style="font-size:10px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'—'}</span>
     ${opts.acaoHtml || ''}
   </div>`;
@@ -3672,14 +3678,14 @@ function rotaCard(r) {
       const o = ops.find(x => x.id === p.opId);
       const pb = o ? prazoBadge(o) : null;
       return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:8px 0;font-size:11px;cursor:pointer">
-        <span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}
-        <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${p.cliente||''}</div>
-        ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}
+        <span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}
+        <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${esc(p.cliente)}</div>
+        ${p.endereco?`<div style="color:var(--text3);font-size:10px">${esc(p.endereco)}</div>`:''}
         ${pb?`<span class="sema ${pb.cls}" style="font-size:12px;font-weight:700;margin-top:5px">PRAZO: ${pb.date}</span>`:''}</div>`;
     }
     return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:11px">
-      <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}
-      ${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}</div>`;
+      <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}
+      ${p.endereco?`<div style="color:var(--text3);font-size:10px">${esc(p.endereco)}</div>`:''}</div>`;
   }).join('') || `<div style="font-size:11px;color:var(--text3);padding:7px 0">Sem paradas</div>`;
   return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
@@ -3717,8 +3723,8 @@ function renderConstrutorRota() {
       <span style="width:14px;height:2px;background:currentColor;border-radius:1px"></span></span>`;
   const paradasHtml = (r.paradas||[]).map((p,i) => {
     const corpo = p.tipo==='entregar'
-      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${p.equip||'—'}<div style="color:var(--text3);font-size:10px">OP ${p.opNum||p.opId} · ${p.cliente||''}${p.endereco?' · '+p.endereco:''}</div>`
-      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${p.item||'—'}${p.endereco?`<div style="color:var(--text3);font-size:10px">${p.endereco}</div>`:''}`;
+      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}<div style="color:var(--text3);font-size:10px">OP ${p.opNum||p.opId} · ${esc(p.cliente)}${p.endereco?' · '+esc(p.endereco):''}</div>`
+      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}${p.endereco?`<div style="color:var(--text3);font-size:10px">${esc(p.endereco)}</div>`:''}`;
     return `<div draggable="true" data-pidx="${i}"
       ondragstart="paradaDragStart(${i},event)" ondragend="paradaDragEnd(event)"
       ondragover="paradaDragOver(${i},event)" ondrop="paradaDrop(${i},event)"
@@ -3916,7 +3922,7 @@ function renderCancelados(el) {
     const etapa = STEPS[c.statusAnterior]?.label || c.statusAnterior || '—';
     return `<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <div style="font-weight:700;color:var(--text);font-size:13px">OP ${numOp(op)} <span style="color:var(--text3);font-weight:400">· ${op.cliente}</span></div>
+        <div style="font-weight:700;color:var(--text);font-size:13px">OP ${numOp(op)} <span style="color:var(--text3);font-weight:400">· ${esc(op.cliente)}</span></div>
         <span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
       </div>
       <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'—'} · por ${c.by||'—'} · estava em: ${etapa}</div>
@@ -3939,7 +3945,7 @@ function openCancelarOP(opId) {
   m.classList.remove('wide', 'split', 'xwide');
   m.innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Cancelar OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <div><div class="modal-title">Cancelar OP ${numOp(op)}</div><div class="modal-subtitle">${esc(op.cliente)}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-body" style="padding:16px 22px;gap:12px">
@@ -4283,7 +4289,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
         ${flagsHtml(op)}
       </div>
     </div>
-    <div class="card-client">${op.cliente}</div>
+    <div class="card-client">${esc(op.cliente)}</div>
     <div class="equip-chips">${equipList}</div>
     <div class="card-meta">
       <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
@@ -4321,7 +4327,7 @@ function buildContextPanel(op) {
 
   // OP summary header
   parts.push(`<div style="display:flex;flex-direction:column;gap:5px">
-    <div style="font-size:13px;font-weight:700;line-height:1.3">${op.cliente}</div>
+    <div style="font-size:13px;font-weight:700;line-height:1.3">${esc(op.cliente)}</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
       <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
       ${op.status!=='entregue'?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
@@ -4429,8 +4435,8 @@ function buildContextPanel(op) {
     const d = sd.aguard_despacho_reject;
     parts.push(`<div style="background:var(--red-bg);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:10px;display:flex;flex-direction:column;gap:6px">
       <div class="ctx-sec-title" style="color:var(--red);border-color:rgba(220,38,38,.2)">Re-emissão Solicitada</div>
-      ${d.motivoReemissao?`<div class="ctx-row">${cRow('Motivo',d.motivoReemissao)}</div>`:''}
-      ${d.dadosCorrigidos?`<div class="ctx-row">${cRow('Dados corrigidos',d.dadosCorrigidos.replace(/\n/g,'<br>'))}</div>`:''}
+      ${d.motivoReemissao?`<div class="ctx-row">${cRow('Motivo',esc(d.motivoReemissao))}</div>`:''}
+      ${d.dadosCorrigidos?`<div class="ctx-row">${cRow('Dados corrigidos',esc(d.dadosCorrigidos).replace(/\n/g,'<br>'))}</div>`:''}
     </div>`);
   }
 
@@ -4513,8 +4519,8 @@ function openActionModal(opId, mode) {
     rejectionNote = `
       <div style="background:var(--red-bg);border:1.5px solid rgba(220,38,38,.3);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px">
         <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.2px;display:flex;align-items:center;gap:6px">${icon('alert-triangle',14,'color:var(--red)')} RE-EMISSÃO SOLICITADA PELA LOGÍSTICA</div>
-        ${rej.motivoReemissao ? `<div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Motivo:</strong> ${rej.motivoReemissao}</div>` : ''}
-        ${rej.dadosCorrigidos ? `<div style="font-size:12px;color:var(--text);line-height:1.5;padding:8px;background:rgba(0,0,0,.03);border-radius:6px;border:1px solid rgba(220,38,38,.15)"><strong>Dados corrigidos:</strong><br>${rej.dadosCorrigidos.replace(/\n/g,'<br>')}</div>` : ''}
+        ${rej.motivoReemissao ? `<div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Motivo:</strong> ${esc(rej.motivoReemissao)}</div>` : ''}
+        ${rej.dadosCorrigidos ? `<div style="font-size:12px;color:var(--text);line-height:1.5;padding:8px;background:rgba(0,0,0,.03);border-radius:6px;border:1px solid rgba(220,38,38,.15)"><strong>Dados corrigidos:</strong><br>${esc(rej.dadosCorrigidos).replace(/\n/g,'<br>')}</div>` : ''}
         <div style="font-size:11px;color:var(--text3)">Os campos abaixo foram pré-preenchidos com os dados anteriores. Corrija conforme necessário e re-emita.</div>
       </div>`;
   }
@@ -4528,7 +4534,7 @@ function openActionModal(opId, mode) {
       ${sh2('Dados de Despacho - verificar e corrigir')}
       <div class="form-group">
         <label class="form-label">Endereço de Entrega Completo *</label>
-        <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2">${nfData.enderecoEntrega||''}</textarea>
+        <textarea class="form-textarea" id="f-reNF_enderecoEntrega" rows="2">${esc(nfData.enderecoEntrega||'')}</textarea>
       </div>
       ${buildFieldHtml({ key:'envio', label:'Motorista / Transportadora *', type:'envio' })}
       <div class="form-row">
@@ -4539,16 +4545,16 @@ function openActionModal(opId, mode) {
       </div>
       <div class="form-group">
         <label class="form-label">Obs. do Despacho</label>
-        <textarea class="form-textarea" id="f-reNF_descricao" rows="2">${nfData.descricao||''}</textarea>
+        <textarea class="form-textarea" id="f-reNF_descricao" rows="2">${esc(nfData.descricao||'')}</textarea>
       </div>
       ${sh2('Emissão da Nota Fiscal')}
       <div class="form-group">
         <label class="form-label">Número da NF *</label>
-        <input class="form-input" id="f-numeroNF" value="${emData.numeroNF||''}">
+        <input class="form-input" id="f-numeroNF" value="${esc(emData.numeroNF||'')}">
       </div>
       <div class="form-group">
         <label class="form-label">Chave da NFe (44 díg.)</label>
-        <input class="form-input" id="f-chaveNfe" value="${emData.chaveNfe||''}">
+        <input class="form-input" id="f-chaveNfe" value="${esc(emData.chaveNfe||'')}">
       </div>
       <div class="form-group">
         <label class="form-label">Data de Emissão *</label>
@@ -4565,7 +4571,7 @@ function openActionModal(opId, mode) {
       </div>
       <div class="form-group">
         <label class="form-label">Observações *</label>
-        <textarea class="form-textarea" id="f-descricao" rows="2">${emData.descricao||''}</textarea>
+        <textarea class="form-textarea" id="f-descricao" rows="2">${esc(emData.descricao||'')}</textarea>
       </div>`;
   } else if (op.status === 'aguard_despacho' && mode === 'advance') {
     // Despacho: só data + hora, sem anexo
@@ -4593,7 +4599,7 @@ function openActionModal(opId, mode) {
   document.getElementById('modal').classList.add('split');
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
+      <div><div class="modal-title">${titles[mode]}</div><div class="modal-subtitle">OP ${numOp(op)} · ${esc(op.cliente)}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
@@ -4603,12 +4609,12 @@ function openActionModal(opId, mode) {
       </div>
       <div class="split-pane split-pane-left">
         <div class="split-pane-left-header">
-          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(op.cliente)}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
             <span class="badge ${stepBadge(op.status).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status).label}</span>
             ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
           ${buildInfoSections(op, op.id)}
@@ -4681,11 +4687,11 @@ function buildInfoSections(op, opId) {
       const _qrs = qrListaDaLinha(e).filter(Boolean); // 1 QR por máquina
       const details = [valor, _qrs.length&&`QR ${_qrs.join(', ')}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
       return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
-        <div style="font-weight:500">${e.name}${e.qty>1?' × '+e.qty:''}</div>
+        <div style="font-weight:500">${esc(e.name)}${e.qty>1?' × '+e.qty:''}</div>
         ${tesBadge}
         ${details.map(d=>`<div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:1px">${d}</div>`).join('')}
       </div>`;
-    }).join('') || `<div style="font-size:12px">${(op.equipamentos||[]).join(', ')}</div>`;
+    }).join('') || `<div style="font-size:12px">${esc((op.equipamentos||[]).join(', '))}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -4709,7 +4715,7 @@ function buildInfoSections(op, opId) {
     }
     if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
     pvHtml += `<div class="detail-grid">
-      ${dItem('Cliente', `<strong>${pv.cliente||'-'}</strong>`)}
+      ${dItem('Cliente', `<strong>${esc(pv.cliente||'-')}</strong>`)}
       ${dItem('CPF/CNPJ', pv.cpf)}
       ${dItem('RG', pv.rg)}
       ${dItem('Nascimento', pv.dn)}
@@ -4720,11 +4726,11 @@ function buildInfoSections(op, opId) {
       ${dItem('Instagram', pv.instagram)}
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
       ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
-      ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${pv.enderecoEntrega}</div></div>` : ''}
+      ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(pv.enderecoEntrega)}</div></div>` : ''}
       ${dItem('Previsão de entrega', pv.dataPrevista || '')}
-      ${dItem('Contato', pv.contatoEntrega)}
+      ${dItem('Contato', esc(pv.contatoEntrega))}
       ${dItem('Treinamento', pv.treinamento)}
-      ${op.stepData?.aberta?.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Observações</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${op.stepData.aberta.descricao}</div></div>` : ''}
+      ${op.stepData?.aberta?.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Observações</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${esc(op.stepData.aberta.descricao)}</div></div>` : ''}
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn-primary" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px" onclick="printPedidoVenda(${opId})">${icon('printer',13,'color:#fff')} Baixar Pedido de Venda</button>
@@ -4745,7 +4751,7 @@ function buildInfoSections(op, opId) {
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
   } else {
     sections.push(infoAcc('Pedido', 'clipboard-list', `<div class="detail-grid">
-      ${dItem('Equipamentos', (op.equipamentos||[op.equipamento||'-']).join(', '))}
+      ${dItem('Equipamentos', esc((op.equipamentos||[op.equipamento||'-']).join(', ')))}
       ${dItem('Contrato', op.numContrato||op.contrato)}
       ${dItem('Vendedor', op.vendedorCanal||op.vendedorName)}
     </div>`, true));
@@ -4756,8 +4762,8 @@ function buildInfoSections(op, opId) {
     const df = sd.aguard_financeiro || {};
     const dr = sd.aguard_financeiro_reject || {};
     let finHtml = `<div class="detail-grid">
-        ${dItem('Confirmação', df.descricao)}
-        ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${dr.descricao}</div></div>` : ''}
+        ${dItem('Confirmação', esc(df.descricao))}
+        ${dr.descricao ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label" style="color:var(--red)">Motivo do Bloqueio</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(dr.descricao)}</div></div>` : ''}
       </div>`;
     if (df.anexo?.length) finHtml += `<div style="margin-top:8px">${fileLinksHtml(df.anexo)}</div>`;
     sections.push(infoAcc('Financeiro', 'check-circle', finHtml));
@@ -4775,12 +4781,12 @@ function buildInfoSections(op, opId) {
       return d.numSerie ? dItem('Nº de Série', d.numSerie) : '';
     })();
     let entHtml = `<div class="detail-grid">
-      ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${d.enderecoEntrega}</div></div>` : ''}
-      ${dItem('Motorista / Transportadora', d.tecnico)}
+      ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(d.enderecoEntrega)}</div></div>` : ''}
+      ${dItem('Motorista / Transportadora', esc(d.tecnico))}
       ${(d.carro||d.placa) ? dItem('Carro / Placa', [d.carro, d.placa].filter(Boolean).join(' · ')) : ''}
       ${d.volumes||d.peso ? dItem('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
       ${nsRows}
-      ${dItem('Observações', d.descricao)}
+      ${dItem('Observações', esc(d.descricao))}
     </div>`;
     if (sd.aguard_despacho) {
       const dd = sd.aguard_despacho;
@@ -4793,8 +4799,8 @@ function buildInfoSections(op, opId) {
       const dr = sd.aguard_despacho_reject;
       entHtml += `<div style="background:var(--red-bg);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:8px;margin-top:8px">
         <div style="font-size:9px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);margin-bottom:5px">Re-emissão Solicitada</div>
-        ${dr.motivoReemissao?`<div style="font-size:11px;margin-bottom:4px"><strong>Motivo:</strong> ${dr.motivoReemissao}</div>`:''}
-        ${dr.dadosCorrigidos?`<div style="font-size:11px"><strong>Dados corrigidos:</strong> ${dr.dadosCorrigidos.replace(/\n/g,'<br>')}</div>`:''}
+        ${dr.motivoReemissao?`<div style="font-size:11px;margin-bottom:4px"><strong>Motivo:</strong> ${esc(dr.motivoReemissao)}</div>`:''}
+        ${dr.dadosCorrigidos?`<div style="font-size:11px"><strong>Dados corrigidos:</strong> ${esc(dr.dadosCorrigidos).replace(/\n/g,'<br>')}</div>`:''}
       </div>`;
     }
     sections.push(infoAcc('Dados de Entrega', 'truck', entHtml));
@@ -4804,10 +4810,10 @@ function buildInfoSections(op, opId) {
   if (sd.aguard_emissao) {
     const d = sd.aguard_emissao;
     let nfeHtml = `<div class="detail-grid">
-      ${dItem('Número NF', d.numeroNF)}
-      ${d.chaveNfe ? dItem('Chave NFe', d.chaveNfe) : ''}
+      ${dItem('Número NF', esc(d.numeroNF))}
+      ${d.chaveNfe ? dItem('Chave NFe', esc(d.chaveNfe)) : ''}
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
-      ${dItem('Observações', d.descricao)}
+      ${dItem('Observações', esc(d.descricao))}
     </div>`;
     // Normaliza arquivoNF: pode ser array (multi-file), objeto único ou string legada
     const nfFiles = d.arquivoNF
@@ -4828,7 +4834,7 @@ function buildInfoSections(op, opId) {
     const d = sd.simples_faturamento;
     let sfHtml = `<div class="detail-grid">
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
-      ${dItem('Observações', d.observacoes)}
+      ${dItem('Observações', esc(d.observacoes))}
     </div>`;
     const sfFiles = d.arquivos
       ? (Array.isArray(d.arquivos) ? d.arquivos : [d.arquivos])
@@ -4856,7 +4862,7 @@ function buildInfoSections(op, opId) {
 
     let confHtml = `<div class="detail-grid">
       ${d.dataEntrega ? `<div class="detail-item"><div class="detail-label">Data de Entrega</div><div class="detail-value" style="font-size:12px;font-weight:400;display:flex;align-items:center;flex-wrap:wrap;gap:2px">${fmtDate(d.dataEntrega)}${prazoBadge}</div></div>` : ''}
-      ${dItem('Observações', d.descricao)}
+      ${dItem('Observações', esc(d.descricao))}
     </div>`;
 
     if (d.motivoAtraso) {
@@ -5088,7 +5094,7 @@ function openInfoModal(opId) {
   _im.classList.add('wide');
   _im.innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">OP ${numOp(op)}</div><div class="modal-subtitle">${op.cliente}</div></div>
+      <div><div class="modal-title">OP ${numOp(op)}</div><div class="modal-subtitle">${esc(op.cliente)}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-body" style="gap:0;padding:16px 22px">
@@ -5122,7 +5128,7 @@ function openAnexarFotos(opId) {
   document.getElementById('modal').innerHTML = `
     <div class="modal-header">
       <div><div class="modal-title">Anexar Fotos de Entrega</div>
-           <div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
+           <div class="modal-subtitle">OP ${numOp(op)} · ${esc(op.cliente)}</div></div>
       <button class="close-btn" onclick="openInfoModal(${opId})">${icon('x',14)}</button>
     </div>
     <div class="modal-body">
@@ -5175,7 +5181,7 @@ function openSimplesFaturamento(opId) {
   modal.classList.add('split');
   modal.innerHTML = `
     <div class="modal-header">
-      <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${numOp(op)} · ${op.cliente}</div></div>
+      <div><div class="modal-title">Simples Faturamento</div><div class="modal-subtitle">OP ${numOp(op)} · ${esc(op.cliente)}</div></div>
       <button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>
     </div>
     <div class="modal-split-body">
@@ -5185,12 +5191,12 @@ function openSimplesFaturamento(opId) {
       </div>
       <div class="split-pane split-pane-left">
         <div class="split-pane-left-header">
-          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${op.cliente}</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:6px">${esc(op.cliente)}</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
             <span class="badge ${stepBadge(op.status, op).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status, op).label}</span>
             ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?e.name+(e.qty>1?' ×'+e.qty:''):e}</span>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:10px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
           ${buildInfoSections(op, opId)}
@@ -5728,7 +5734,7 @@ function showDupPedidoWarn(dupOp, num, onContinue) {
       </div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
         O PV <strong>${num}</strong> já está vinculado à OP <strong>${numOp(dupOp)}</strong>
-        (${dupOp.cliente || ''}). Criar uma OP repetida pode prejudicar o fluxo de trabalho.
+        (${esc(dupOp.cliente || '')}). Criar uma OP repetida pode prejudicar o fluxo de trabalho.
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button id="_dup-cancel" style="padding:7px 16px;border-radius:var(--radius);border:1px solid rgba(220,38,38,.4);background:var(--red-bg);color:var(--red);font-size:12px;font-weight:600;cursor:pointer">Cancelar</button>
@@ -6724,8 +6730,8 @@ function printPedidoVenda(opId) {
   const obsParts = [];
   const obsDescricao = op.stepData?.aberta?.descricao;
   if (obsDescricao) obsParts.push(obsDescricao);
-  if (pv.enderecoEntrega) obsParts.push(`Endereço de Entrega: ${pv.enderecoEntrega}`);
-  if (pv.contatoEntrega)  obsParts.push(`Contato responsável: ${pv.contatoEntrega}`);
+  if (pv.enderecoEntrega) obsParts.push(`Endereço de Entrega: ${esc(pv.enderecoEntrega)}`);
+  if (pv.contatoEntrega)  obsParts.push(`Contato responsável: ${esc(pv.contatoEntrega)}`);
   if (pv.prazo) {
     let ps = `Prazo de entrega: ${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
     if (pv.aContarDe) ps += ` a contar de ${pv.aContarDe}`;
@@ -6836,7 +6842,7 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
   <!-- EMPRESA (PJ) -->
   <tr>
     <td class="cb">(${isPJ?'X':'&nbsp;'})</td>
-    <td><span class="lbl">EMPRESA:</span> ${isPJ?pv.cliente:''}</td>
+    <td><span class="lbl">EMPRESA:</span> ${isPJ?esc(pv.cliente):''}</td>
     <td><span class="lbl">CNPJ:</span> ${isPJ?pv.cpf:''}</td>
   </tr>
   <tr>
@@ -6860,7 +6866,7 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
   <!-- PF -->
   <tr>
     <td class="cb">(${!isPJ?'X':'&nbsp;'})</td>
-    <td colspan="2"><span class="lbl">PF/REPRES. LEGAL:</span> <b>${!isPJ?pv.cliente:''}</b>&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">DN:</span> ${!isPJ?pv.dn:''}</td>
+    <td colspan="2"><span class="lbl">PF/REPRES. LEGAL:</span> <b>${!isPJ?esc(pv.cliente):''}</b>&nbsp;&nbsp;&nbsp;&nbsp;<span class="lbl">DN:</span> ${!isPJ?pv.dn:''}</td>
   </tr>
   <tr>
     <td></td>
@@ -6905,7 +6911,7 @@ ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
 
 <!-- OBSERVAÇÕES GERAIS -->
 <div class="obs-hdr">OBSERVA&Ccedil;&Otilde;ES GERAIS:</div>
-<div class="obs-body">${obsText||' '}</div>
+<div class="obs-body">${esc(obsText)||' '}</div>
 
 <!-- PAGAMENTOS -->
 <table class="pay">
@@ -6922,7 +6928,7 @@ ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
   <tr><td colspan="2"><span class="lbl">DATA DA EXPEDI&Ccedil;&Atilde;O:</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( ) RETIRADA PELO CLIENTE&nbsp;&nbsp;&nbsp;&nbsp;( ) ENVIADO PELA CONTOURLINE</td></tr>
   <tr>
     <td style="width:55%"><span class="lbl">DATA PREVISTA DE CHEGADA AO CLIENTE:</span>&nbsp;&nbsp;<strong>${previsaoChegada}</strong></td>
-    <td><span class="lbl">N&ordm; DA NOTA FISCAL:</span>&nbsp;&nbsp;<strong>${numeroNFPdf}</strong></td>
+    <td><span class="lbl">N&ordm; DA NOTA FISCAL:</span>&nbsp;&nbsp;<strong>${esc(numeroNFPdf)}</strong></td>
   </tr>
   <tr>
     <td><span class="lbl">NOME DO COLABORADOR DA EXPEDI&Ccedil;&Atilde;O:</span></td>

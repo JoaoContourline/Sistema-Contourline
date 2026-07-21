@@ -4740,7 +4740,7 @@ function buildInfoSections(op, opId) {
         ${pv.tipoContrato ? dItem('Tipo', pv.tipoContrato) : ''}
       </div>`;
     }
-    if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${pv.detalhesPagamento}</div></div>`;
+    if (pv.detalhesPagamento) pvHtml += `<div class="detail-item" style="grid-column:1/-1;margin-bottom:8px"><div class="detail-label">Pagamento</div><div class="detail-value" style="font-size:12px;font-weight:400;white-space:pre-line">${esc(pv.detalhesPagamento)}</div></div>`;
     pvHtml += `<div class="detail-grid">
       ${dItem('Cliente', `<strong>${esc(pv.cliente||'-')}</strong>`)}
       ${dItem('CPF/CNPJ', pv.cpf)}
@@ -4752,7 +4752,7 @@ function buildInfoSections(op, opId) {
       ${dItem('E-mail', pv.email)}
       ${dItem('Instagram', pv.instagram)}
       ${(pv.simulador && parseFloat(pv.simulador)>0) ? dItem('Simulador', fmtBRL(pv.simulador)) : ''}
-      ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${endDisplay}</div></div>` : ''}
+      ${endDisplay ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço do cliente</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(endDisplay)}</div></div>` : ''}
       ${pv.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Endereço de entrega</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(pv.enderecoEntrega)}</div></div>` : ''}
       ${dItem('Previsão de entrega', pv.dataPrevista || '')}
       ${dItem('Contato', esc(pv.contatoEntrega))}
@@ -4807,8 +4807,11 @@ function buildInfoSections(op, opId) {
       }).join('');
       return d.numSerie ? dItem('Nº de Série', d.numSerie) : '';
     })();
+    // Só repete o endereço aqui se for diferente do endereço de entrega do pedido
+    // (evita mostrar o mesmo endereço duas vezes no modal).
+    const endTranspDif = d.enderecoEntrega && d.enderecoEntrega.trim() !== (pv?.enderecoEntrega||'').trim();
     let entHtml = `<div class="detail-grid">
-      ${d.enderecoEntrega ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(d.enderecoEntrega)}</div></div>` : ''}
+      ${endTranspDif ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">${icon('map-pin',10,'color:var(--text3)')} Endereço (transporte)</div><div class="detail-value" style="font-size:12px;font-weight:400">${esc(d.enderecoEntrega)}</div></div>` : ''}
       ${dItem('Motorista / Transportadora', esc(d.tecnico))}
       ${(d.carro||d.placa) ? dItem('Carro / Placa', [d.carro, d.placa].filter(Boolean).join(' · ')) : ''}
       ${d.volumes||d.peso ? dItem('Volumes / Peso', [d.volumes&&d.volumes+' vol', d.peso&&d.peso+' kg'].filter(Boolean).join(' · ')) : ''}
@@ -5083,7 +5086,19 @@ function openInfoModal(opId) {
 
 
   // ── STATUS HEADER ─────────────────────────────────────────────────
-  const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${e}</span>`).join('');
+  const equipList = (op.equipamentos||[op.equipamento]).map(e => `<span class="equip-chip">${esc(typeof e==='object'?e.name:e)}</span>`).join('');
+  const prazoTxt  = prazoData(op);                 // data prevista (dd/mm/aa)
+  const aberturaTxt = op.dataAbertura ? fmtDate(op.dataAbertura) : (op.pedidoVenda?.data || '');
+  const metaLinha = [
+    op.vendedorCanal||op.vendedorName||'-',
+    aberturaTxt && 'Aberta em ' + aberturaTxt,
+    (op.status!=='entregue' && !op.cancelada && prazoTxt) && 'Previsão ' + prazoTxt,
+  ].filter(Boolean).map(esc).join(' · ');
+  // Quando cancelada, mostra o motivo/quem/quando (antes só aparecia o selo).
+  const cancelHtml = op.cancelada ? `<div style="margin-top:8px;background:var(--red-bg);border:1px solid rgba(220,38,38,.25);border-radius:var(--radius);padding:8px 10px;font-size:12px;color:var(--text)">
+      <strong style="color:var(--red)">Cancelada</strong>${op.cancelada.by?` por ${esc(op.cancelada.by)}`:''}${op.cancelada.ts?` · ${esc(op.cancelada.ts)}`:''}
+      ${op.cancelada.motivo?`<div style="color:var(--text2);margin-top:2px">${esc(op.cancelada.motivo)}</div>`:''}
+    </div>` : '';
   const statusHeader = `
     <div class="op-info-block" style="margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
@@ -5093,9 +5108,10 @@ function openInfoModal(opId) {
         ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">
-        <span>${op.vendedorCanal||op.vendedorName||'-'}</span>
+        <span>${metaLinha}</span>
       </div>
       <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">${equipList}</div>
+      ${cancelHtml}
     </div>`;
 
   const activeView = getActiveView();

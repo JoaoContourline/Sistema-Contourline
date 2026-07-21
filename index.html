@@ -11,7 +11,7 @@
 :root {
   --bg: #f0f3f7; --surface: #ffffff; --surface2: #f0f4f8;
   --border: #dde3ed; --border2: #c8d3e3;
-  --text: #0f1f35; --text2: #3d5170; --text3: #8096b3;
+  --text: #0f1f35; --text2: #3d5170; --text3: #5f7391;
   --accent: #2672B8; --accent2: #162C45;
   --azul-claro: #91B0DC; --azul-noturno: #162C45;
   --green: #16a34a; --green-bg: rgba(22,163,74,.08);
@@ -255,6 +255,10 @@ main { padding: 24px; }
   font-family: 'Inter', sans-serif; outline: none; transition: border-color .15s; width: 100%;
 }
 .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(38,114,184,.1); }
+/* Foco de teclado visível em tudo que é clicável (acessibilidade). */
+:where(button, a, input, select, textarea, [tabindex], [role="button"]):focus-visible {
+  outline: 2px solid var(--accent) !important; outline-offset: 2px; border-radius: 6px;
+}
 .form-textarea { resize: vertical; min-height: 68px; }
 .form-select option { background: var(--surface); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -4212,7 +4216,7 @@ function renderTodas(el) {
         <span class="badge ${badgeCls}" style="font-size:9px;padding:1px 6px">${colOps.length}</span>
       </div>
       <div class="kanban-col-body">
-        ${colOps.length ? colOps.map((op,i)=>card(op,false,i,true)).join('') : '<div class="kanban-empty">-</div>'}
+        ${colOps.length ? colOps.map((op,i)=>card(op,false,i,true)).join('') : `<div class="kanban-empty">${icon('package',18,'color:var(--text3);opacity:.5')}<div style="margin-top:4px">Nenhuma OP</div></div>`}
       </div>
     </div>`;
   }).join('');
@@ -4286,7 +4290,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
 
   // Equipment chips — mostra no máx. 3 para o card não crescer; o resto vira "+N"
   const equipArr  = op.equipamentos?.length ? op.equipamentos : [op.equipamento||'-'];
-  const equipList = equipArr.slice(0,3).map(e=>`<span class="equip-chip">${e}</span>`).join('')
+  const equipList = equipArr.slice(0,3).map(e=>`<span class="equip-chip">${esc(typeof e==='object'?e.name:e)}</span>`).join('')
     + (equipArr.length > 3 ? `<span class="equip-chip">+${equipArr.length-3}</span>` : '');
 
   let footer = '';
@@ -4307,7 +4311,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-top">
       <div>
         <div class="card-op">OP ${numOp(op)}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura) + (op.vendedorCanal||op.vendedorName ? ' · ' + (op.vendedorCanal||op.vendedorName) : '')}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}${op.vendedorCanal||op.vendedorName ? ' · ' + esc(op.vendedorCanal||op.vendedorName) : ''}</div>
       </div>
       <div class="card-flags">
         ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
@@ -4319,11 +4323,9 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-meta">
       <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
       ${op.status!=='entregue' ? `<span class="sema ${sem.cls}">${sem.icon?sem.icon+' ':''}${sem.label}</span>` : ''}
-      ${skippedFin ? `<span class="skip-badge">Financeiro dispensado</span>` : ''}
     </div>
     <div class="pipe-bar">${dots}</div>
-    ${isEntregue && !op.stepData?.transito?.fotos?.length ? `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);font-style:italic;margin-top:2px">${icon('image',10,'color:var(--text3)')} sem foto de entrega</div>` : ''}
-    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${lastEvt.actorName}:</span> ${(lastEvt.action||lastEvt.note||'').substring(0,64)}</div>` : ''}
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${esc(lastEvt.actorName)}:</span> ${esc((lastEvt.action||lastEvt.note||'').substring(0,64))}</div>` : ''}
     ${footer}
   </div>`;
 }
@@ -6368,11 +6370,21 @@ function setStatus(id, msg, type) {
 }
 
 function showToast(msg, type = 'ok') {
+  // Container fixo empilha os toasts (não se sobrepõem no mesmo ponto).
+  let box = document.getElementById('toast-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'toast-box';
+    box.style.cssText = 'position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;max-width:min(360px,90vw)';
+    document.body.appendChild(box);
+  }
+  const ok = type === 'ok';
   const t = document.createElement('div');
-  t.textContent = msg;
-  t.style.cssText = `position:fixed;bottom:22px;right:22px;background:${type==='ok'?'var(--green)':'var(--red)'};color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:toastIn .2s ease;pointer-events:none`;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  t.style.cssText = `display:flex;align-items:center;gap:8px;background:${ok?'var(--green)':'var(--red)'};color:#fff;padding:10px 14px;border-radius:var(--radius);font-size:12.5px;font-weight:600;box-shadow:0 6px 18px rgba(15,31,53,.22);animation:toastIn .2s ease`;
+  t.innerHTML = `${icon(ok?'check-circle':'alert-triangle',15,'color:#fff;flex-shrink:0')}<span></span>`;
+  t.querySelector('span').textContent = msg; // texto seguro (sem HTML)
+  box.appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .25s, transform .25s'; t.style.opacity = '0'; t.style.transform = 'translateX(8px)'; setTimeout(() => t.remove(), 250); }, 3200);
 }
 
 async function lookupCEP(rawVal, targetId, statusId) {

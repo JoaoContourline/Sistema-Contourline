@@ -1482,21 +1482,34 @@ function dbSaveOp(op, _semTrava) {
 }
 
 // ─── NOTIFICAÇÕES + SOM ─────────────────────────────────────────────
+// "Plin" estilo iPhone: duas notas curtas e brilhantes tipo marimba/sino
+// (fundamental + harmônico, ataque rápido e decaimento suave).
 function playNotifSound() {
   try {
-    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-    const osc  = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(660, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.08);
-    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.25);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
+    const ctx    = new (window.AudioContext || window.webkitAudioContext)();
+    const now    = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0.9;
+    master.connect(ctx.destination);
+
+    const nota = (freq, delay) => {
+      const t  = now + delay;
+      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.value = freq;
+      const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 2; // brilho de sino
+      const g  = ctx.createGain();
+      const gh = ctx.createGain(); gh.gain.value = 0.16;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.006); // ataque rápido
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42); // decaimento tipo marimba
+      o1.connect(g); o2.connect(gh); gh.connect(g); g.connect(master);
+      o1.start(t); o2.start(t);
+      o1.stop(t + 0.5); o2.stop(t + 0.5);
+    };
+
+    nota(1318.51, 0.00); // E6
+    nota(1760.00, 0.11); // A6
+
+    setTimeout(() => { try { ctx.close(); } catch {} }, 900);
   } catch {}
 }
 

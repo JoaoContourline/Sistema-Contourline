@@ -117,6 +117,9 @@ header {
 .tab-btn.active::after { background: var(--accent); }
 .tab-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 7px; font-size: 10px; font-family: 'DM Mono', monospace; }
 .tab-btn.active .tab-count { background: var(--accent); border-color: var(--accent); color: #fff; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(220,38,38,.55); animation: notifPulse 1.6s infinite; }
+@keyframes notifPulse { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.55); } 70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); } }
+@media (prefers-reduced-motion: reduce) { .notif-dot { animation: none; } }
 
 /* MAIN */
 main { padding: 24px; }
@@ -738,7 +741,7 @@ body.kanban-mode .kanban-col-body {
       <span id="fl-active-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--accent);border:1.5px solid var(--surface)"></span>
     </span>
   </button>
-  <button class="tab-btn active" data-tab="fila" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span></button>
+  <button class="tab-btn active" data-tab="fila" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span><span class="notif-dot" id="pending-dot" style="display:none"></span></button>
   <button class="tab-btn"        data-tab="concluidas" onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        data-tab="todas" onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
   <button class="tab-btn" id="btn-tab-rastreio" data-tab="rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
@@ -1497,8 +1500,19 @@ function playNotifSound() {
   } catch {}
 }
 
+// Bolinha vermelha na aba Pendentes: acende quando chega algo novo na fila do
+// setor e some ao abrir a aba (ver setTab).
+let _pendingAlert = false;
+function setPendingDot(show) {
+  _pendingAlert = show;
+  const d = document.getElementById('pending-dot');
+  if (d) d.style.display = show ? 'inline-block' : 'none';
+}
+
 function sendNotif(title, body) {
-  if (getUser()?.role !== 'gestor') playNotifSound();
+  // Toca para todos, inclusive o gestor (a chamada já é filtrada pelo setor
+  // ativo/simulado: só dispara quando a OP entra na fila do setor visualizado).
+  playNotifSound();
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     const n = new Notification(title, { body, icon: '/Logo-Contourline-Azul-2048x597 (2).webp' });
     setTimeout(() => n.close(), 7000);
@@ -1527,6 +1541,7 @@ function startRealtime() {
           if (step?.owner === view?.role) {
             showToast(`Nova OP na fila: ${newOp.cliente}`, 'ok');
             sendNotif('Nova OP na fila', `${newOp.cliente} - ${(newOp.equipamentos||[newOp.equipamento||'']).join(', ')}`);
+            if (currentTab !== 'fila') setPendingDot(true);
           }
         }
       } else if (payload.eventType === 'UPDATE') {
@@ -1539,6 +1554,7 @@ function startRealtime() {
           if (prev && prev.status !== updated.status && step?.owner === view?.role) {
             showToast(`OP ${updated.numero} - ${updated.cliente} entrou na sua fila`, 'ok');
             sendNotif(`OP ${updated.numero} na sua fila`, `${updated.cliente} - ${step?.label || updated.status}`);
+            if (currentTab !== 'fila') setPendingDot(true);
           }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
@@ -6892,6 +6908,7 @@ ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
 // setUser removido - autenticação agora via login screen
 function setTab(tab, btn) {
   currentTab = tab;
+  if (tab === 'fila') setPendingDot(false); // abriu Pendentes → some a bolinha
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.body.classList.toggle('kanban-mode', tab === 'todas');

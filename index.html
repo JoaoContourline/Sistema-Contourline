@@ -6661,16 +6661,24 @@ async function submitNovaOP() {
   const newId  = Number(rows[0].id);
   const pedidoProtheus = (g('nova-numPedido')?.value || '').trim();
 
-  // Numeração sequencial por ano — lê o banco (não o array local) para evitar race condition
+  // Numeração sequencial por ano. Preferência: sequência ATÔMICA no servidor
+  // (RPC next_op_seq) — evita duas OPs com o mesmo número em criações simultâneas.
+  // Fallback (enquanto a migração 2026-07-21 não estiver aplicada): melhor esforço
+  // lendo o MAX do banco.
   const anoAtual = new Date().getFullYear();
-  // O número tem o formato "12/2026" (ou "12/2026 - PV 000029") — a sequência vem
-  // ANTES da barra. Filtrar por "2026/%" nunca casava e toda OP nascia como 1/2026.
-  const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null);
-  const _maxSeq = (_numRows || []).reduce((mx, r) => {
-    const m = String(r.numero || '').match(/^(\d+)\//);
-    return m ? Math.max(mx, parseInt(m[1], 10)) : mx;
-  }, 0);
-  const seqNum = _maxSeq + 1;
+  let seqNum;
+  try {
+    const { data: seqData, error: seqErr } = await sb.rpc('next_op_seq', { p_ano: anoAtual });
+    if (seqErr || seqData == null) throw seqErr || new Error('sem retorno');
+    seqNum = Number(seqData);
+  } catch {
+    const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null);
+    const _maxSeq = (_numRows || []).reduce((mx, r) => {
+      const m = String(r.numero || '').match(/^(\d+)\//);
+      return m ? Math.max(mx, parseInt(m[1], 10)) : mx;
+    }, 0);
+    seqNum = _maxSeq + 1;
+  }
   const baseNum = `${seqNum}/${anoAtual}`;
   const numero  = pedidoProtheus ? `${baseNum} - PV ${pedidoProtheus}` : baseNum;
   opData.id     = newId;

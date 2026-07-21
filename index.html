@@ -3361,12 +3361,20 @@ function renderMain() {
   // Não reconstrói o #main enquanto uma observação está sendo digitada (senão o
   // realtime/outro save apagaria o texto ainda não confirmado). Fica pendente.
   if (_editandoObs) { _renderMainPendente = true; return; }
-  if (verCancelados)                    return renderCancelados(el);
-  if      (currentTab === 'fila')       renderQueue(view, el);
-  else if (currentTab === 'concluidas') renderConcluidas(view, el);
-  else if (currentTab === 'logistica')  renderLogistica(el);
-  else if (currentTab === 'rastreio')   renderRastreio(el);
-  else                                  renderTodas(el);
+  // try/catch: se um render falhar, o #main NÃO pode ficar com o conteúdo da aba
+  // anterior (era isso que deixava "Entregas" aceso mostrando os Pendentes).
+  try {
+    if      (verCancelados)               renderCancelados(el);
+    else if (currentTab === 'fila')       renderQueue(view, el);
+    else if (currentTab === 'concluidas') renderConcluidas(view, el);
+    else if (currentTab === 'logistica')  renderLogistica(el);
+    else if (currentTab === 'rastreio')   renderRastreio(el);
+    else                                  renderTodas(el);
+  } catch (e) {
+    console.error('renderMain falhou:', e);
+    el.innerHTML = `<div class="empty"><div class="empty-icon">${icon('alert-triangle',32,'color:var(--red)')}</div><div class="empty-title">Não foi possível carregar esta aba</div><div class="empty-desc">${(e&&e.message)||'Erro inesperado'} — tente recarregar a página.</div></div>`;
+  }
+  syncActiveTab(); // a aba destacada SEMPRE reflete o conteúdo mostrado
 }
 
 // ═══════════════════════════════════════════════════════════════════

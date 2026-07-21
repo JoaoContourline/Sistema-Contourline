@@ -5,7 +5,7 @@
 // Env vars: PROTHEUS_BASE, PROTHEUS_USER, PROTHEUS_PASS
 
 import https from 'node:https';
-import { requireAuth, cors } from './_auth.js';
+import { requireSectors, cors } from './_auth.js';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
 const PAGE_SIZE = 500;
@@ -44,7 +44,8 @@ function fetchPage(base, auth, page) {
 export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAuth(req, res)) return; // catálogo de produtos = informação comercial
+  // Catálogo de produtos (usado na criação da OP) = informação comercial.
+  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
 
   const base = process.env.PROTHEUS_BASE;
   const user = process.env.PROTHEUS_USER;

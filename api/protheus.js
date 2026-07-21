@@ -5,7 +5,7 @@
 // Tempo total ≈ duração de 1 página (~5-6s), independente de quantas páginas.
 
 import https from 'https';
-import { requireAuth, cors } from './_auth.js';
+import { requireSectors, cors } from './_auth.js';
 
 const agent   = new https.Agent({ rejectUnauthorized: false });
 const N_FIRST = 12;   // primeiras páginas (clientes antigos)
@@ -60,7 +60,8 @@ async function getMeta(sbUrl, sbKey) {
 export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAuth(req, res)) return; // busca cliente por CPF/CNPJ
+  // Busca cliente por CPF/CNPJ (PII) — restrito ao comercial/gestor.
+  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
 
   const { cpfCnpj } = req.query;
   if (!cpfCnpj) return res.status(400).json({ error: 'Parâmetro cpfCnpj é obrigatório' });
@@ -94,7 +95,9 @@ export default async function handler(req, res) {
   }
 
   const pages = [...pageSet];
-  console.log(`Buscando ${digits} em ${pages.length} páginas (last_page=${lastPage}, last_code=${meta.last_code})`);
+  // Não logar o CPF/CNPJ inteiro (PII em log retido) — só os 3 últimos dígitos.
+  const digitsMask = digits.length > 3 ? '***' + digits.slice(-3) : '***';
+  console.log(`Buscando ${digitsMask} em ${pages.length} páginas (last_page=${lastPage})`);
 
   try {
     const results  = await Promise.all(pages.map(p => fetchPage(base, auth, p)));

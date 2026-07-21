@@ -10,7 +10,7 @@
 //   PEDIDOS_PASS  — senha do Protheus   (fallback: PROTHEUS_PASS)
 
 import https from 'node:https';
-import { requireAuth, cors } from './_auth.js';
+import { requireSectors, cors } from './_auth.js';
 
 const agent = new https.Agent({ rejectUnauthorized: false });
 
@@ -47,7 +47,8 @@ function fetchByCode(base, auth, code) {
 export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAuth(req, res)) return; // devolve dado pessoal de cliente — exige sessão
+  // Dado pessoal de cliente: só quem cadastra/consulta comercialmente.
+  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
 
   const code = String(req.query.code || '').trim();
   const loja = String(req.query.loja || '').trim();

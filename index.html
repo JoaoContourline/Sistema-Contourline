@@ -1500,8 +1500,8 @@ function playNotifSound() {
   } catch {}
 }
 
-// Bolinha vermelha na aba Pendentes: acende quando chega algo novo na fila do
-// setor e some ao abrir a aba (ver setTab).
+// Bolinha vermelha na aba Pendentes: acende quando há pendente não visto no
+// setor que está sendo visualizado; some ao abrir a aba Pendentes.
 let _pendingAlert = false;
 function setPendingDot(show) {
   _pendingAlert = show;
@@ -1509,10 +1509,37 @@ function setPendingDot(show) {
   if (d) d.style.display = show ? 'inline-block' : 'none';
 }
 
+// Chaves por SETOR (roleKey:id): assim, no gestor, cada setor tem sua própria
+// contagem de "já visto" — trocar de setor mostra a bolinha se aquele setor tem
+// pendente que você ainda não abriu, e o som toca só quando surge pendente novo
+// no MESMO setor (não na carga inicial nem ao trocar de setor).
+let _seenPending    = new Set();  // pendentes já vistos (só zera ao abrir Pendentes)
+let _soundedPending = new Set();  // pendentes que já dispararam som (evita repetir)
+let _pendingViewRole = null;      // setor da última verificação
+let _pendingSeeded   = false;     // já rodou uma vez (não alerta na 1ª)
+function refreshPendingAlert() {
+  const view    = getActiveView();
+  const roleKey = view ? (view.role || view.id || '') : '';
+  const ids     = view ? getQueue(view).map(o => o.id) : [];
+  const key     = id => roleKey + ':' + id;
+
+  // Som: pendente novo (nunca sinalizado) no MESMO setor já semeado.
+  const novos = ids.filter(id => !_soundedPending.has(key(id)));
+  const tocar = _pendingSeeded && roleKey === _pendingViewRole && novos.length > 0;
+  ids.forEach(id => _soundedPending.add(key(id)));
+  _pendingViewRole = roleKey;
+  _pendingSeeded   = true;
+
+  // Bolinha: some ao ver Pendentes; senão acende se há pendente ainda não visto.
+  if (currentTab === 'fila') { ids.forEach(id => _seenPending.add(key(id))); setPendingDot(false); }
+  else                       { setPendingDot(ids.some(id => !_seenPending.has(key(id)))); }
+
+  if (tocar) playNotifSound();
+}
+
 function sendNotif(title, body) {
-  // Toca para todos, inclusive o gestor (a chamada já é filtrada pelo setor
-  // ativo/simulado: só dispara quando a OP entra na fila do setor visualizado).
-  playNotifSound();
+  // O som é disparado por refreshPendingAlert (evita tocar duas vezes). Aqui só a
+  // notificação do sistema operacional quando a aba está em segundo plano.
   if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
     const n = new Notification(title, { body, icon: '/Logo-Contourline-Azul-2048x597 (2).webp' });
     setTimeout(() => n.close(), 7000);
@@ -1541,7 +1568,6 @@ function startRealtime() {
           if (step?.owner === view?.role) {
             showToast(`Nova OP na fila: ${newOp.cliente}`, 'ok');
             sendNotif('Nova OP na fila', `${newOp.cliente} - ${(newOp.equipamentos||[newOp.equipamento||'']).join(', ')}`);
-            if (currentTab !== 'fila') setPendingDot(true);
           }
         }
       } else if (payload.eventType === 'UPDATE') {
@@ -1554,7 +1580,6 @@ function startRealtime() {
           if (prev && prev.status !== updated.status && step?.owner === view?.role) {
             showToast(`OP ${updated.numero} - ${updated.cliente} entrou na sua fila`, 'ok');
             sendNotif(`OP ${updated.numero} na sua fila`, `${updated.cliente} - ${step?.label || updated.status}`);
-            if (currentTab !== 'fila') setPendingDot(true);
           }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
@@ -3360,7 +3385,8 @@ function renderCounts() {
   // Se ligou o modo mas não há mais cancelados, desliga sozinho
   if (verCancelados && !nCanc) { verCancelados = false; aplicarEstiloCancelados(); }
 
-  syncActiveTab(); // mantém o botão destacado igual ao conteúdo (currentTab)
+  syncActiveTab();      // mantém o botão destacado igual ao conteúdo (currentTab)
+  refreshPendingAlert(); // bolinha + som conforme os pendentes do setor visualizado
 }
 
 // Destaca o botão de aba correspondente ao currentTab. Sem isto, ao trocar de

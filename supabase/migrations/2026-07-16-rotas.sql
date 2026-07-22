@@ -28,5 +28,13 @@ create policy rotas_all on rotas
   for all to authenticated
   using (true) with check (true);
 
--- Realtime para a tabela rotas.
-alter publication supabase_realtime add table rotas;
+-- Realtime para a tabela rotas (idempotente — não erra se já estiver na publicação).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'rotas'
+  ) then
+    alter publication supabase_realtime add table rotas;
+  end if;
+end $$;

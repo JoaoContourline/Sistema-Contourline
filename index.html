@@ -746,7 +746,28 @@ body.kanban-mode .kanban-col-body {
       </div>
     </div>
 
-
+    <!-- PAINEL 3: Definir nova senha (senha expirada / temporária) -->
+    <div class="login-card-body" id="loginNewPassPanel" style="display:none">
+      <div style="font-size:13px;color:var(--text);line-height:1.5;background:var(--yellow-bg);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px">
+        <b>Defina uma nova senha</b> para continuar.
+      </div>
+      <div class="login-field">
+        <label class="login-label">Nova senha</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          <input class="login-input" id="np-new" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">Confirmar nova senha</label>
+        <div class="login-input-wrap">
+          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          <input class="login-input" id="np-confirm" type="password" placeholder="repita a nova senha" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvarSenhaForcada()">
+        </div>
+      </div>
+      <div id="np-err" class="login-error"></div>
+      <button class="login-btn" id="np-save" onclick="salvarSenhaForcada()">Salvar e entrar</button>
+    </div>
 
     <div class="login-card-footer">Rede interna · Acesso restrito</div>
   </div>
@@ -1732,16 +1753,55 @@ let _forcedPwd = false; // true = senha expirada, modal não pode ser fechado
 
 // Chamado após o login. Se nunca teve data, define agora (carência). Se passou de
 // 90 dias, força a troca antes de usar o sistema.
-async function checkSenhaExpira() {
-  const u = _cachedUser; if (!u) return;
-  if (!u.password_changed_at) {
-    const iso = new Date().toISOString();
-    await sb.from('profiles').update({ password_changed_at: iso }).eq('id', u.uid);
-    u.password_changed_at = iso;
-    return;
-  }
-  const dias = (Date.now() - new Date(u.password_changed_at).getTime()) / 86400000;
-  if (dias >= SENHA_VALIDADE_DIAS) openChangePassword(true);
+// Expirou (passou de 90 dias desde a última troca)?
+function senhaExpirada() {
+  const u = _cachedUser;
+  return !!(u && u.password_changed_at && (Date.now() - new Date(u.password_changed_at).getTime()) / 86400000 >= SENHA_VALIDADE_DIAS);
+}
+// Nunca teve data → define agora (carência de 90 dias a partir daqui).
+async function garantirDataSenha() {
+  const u = _cachedUser; if (!u || u.password_changed_at) return;
+  const iso = new Date().toISOString();
+  await sb.from('profiles').update({ password_changed_at: iso }).eq('id', u.uid);
+  u.password_changed_at = iso;
+}
+// Entra no app OU, se a senha expirou/foi resetada, mostra a tela de nova senha.
+function entrarOuTrocarSenha() {
+  if (senhaExpirada()) { showForcedPasswordScreen(); return; }
+  showApp();
+  garantirDataSenha();
+}
+
+// Tela de "definir nova senha" reaproveitando o visual do login (sem entrar no app).
+function showForcedPasswordScreen() {
+  document.getElementById('appContainer').style.display = 'none';
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('loginCredPanel').style.display = 'none';
+  document.getElementById('loginResetPanel').style.display = 'none';
+  document.getElementById('loginNewPassPanel').style.display = '';
+  document.getElementById('np-err').textContent = '';
+  const nn = document.getElementById('np-new'); if (nn) nn.value = '';
+  const nc = document.getElementById('np-confirm'); if (nc) nc.value = '';
+  setTimeout(() => document.getElementById('np-new')?.focus(), 0);
+}
+
+async function salvarSenhaForcada() {
+  const err = document.getElementById('np-err');
+  const n = document.getElementById('np-new')?.value || '';
+  const c = document.getElementById('np-confirm')?.value || '';
+  err.textContent = '';
+  if (n.length < 8) { err.textContent = 'A senha deve ter ao menos 8 caracteres.'; return; }
+  if (n !== c)      { err.textContent = 'As senhas não conferem.'; return; }
+  const btn = document.getElementById('np-save'); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  const { error } = await sb.auth.updateUser({ password: n });
+  if (error) { err.textContent = /different from the old/i.test(error.message) ? 'A nova senha deve ser diferente da senha atual.' : error.message; if (btn) { btn.disabled = false; btn.textContent = 'Salvar e entrar'; } return; }
+  const iso = new Date().toISOString();
+  if (_cachedUser) { await sb.from('profiles').update({ password_changed_at: iso }).eq('id', _cachedUser.uid); _cachedUser.password_changed_at = iso; }
+  document.getElementById('loginNewPassPanel').style.display = 'none';
+  document.getElementById('loginCredPanel').style.display = '';
+  showApp();
+  showToast('Senha alterada com sucesso', 'ok');
 }
 
 function openChangePassword(forced = false) {
@@ -1989,8 +2049,7 @@ async function doLogin() {
     btn.disabled = false; btn.innerHTML = _loginIcon + ' Entrar';
     return;
   }
-  showApp();
-  checkSenhaExpira(); // força a troca se a senha passou de 90 dias
+  entrarOuTrocarSenha(); // entra, ou mostra a tela de nova senha se expirou/foi resetada
 }
 
 
@@ -2055,7 +2114,7 @@ async function checkSession() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     await fetchUserProfile();
-    if (_cachedUser) { showApp(); checkSenhaExpira(); return; } // também força troca no F5/retorno
+    if (_cachedUser) { entrarOuTrocarSenha(); return; } // entra ou força troca (inclusive no F5)
   }
   // sem sessão válida — oculta loading e exibe login
   document.getElementById('loadingScreen').style.display = 'none';

@@ -48,7 +48,7 @@ export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   // Dado pessoal de cliente: só quem cadastra/consulta comercialmente.
-  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
+  if (!await requireSectors(req, res, ['comercial', 'gestor', 'adm'])) return;
 
   const code = String(req.query.code || '').trim();
   const loja = String(req.query.loja || '').trim();

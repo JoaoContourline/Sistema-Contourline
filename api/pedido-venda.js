@@ -80,7 +80,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   // Expõe CPF/RG/endereço e política comercial. Comercial cria a OP; a logística
   // re-puxa dados de série/rastreio no transporte; gestor tem visão total.
-  if (!await requireSectors(req, res, ['comercial', 'gestor', 'logistica'])) return;
+  if (!await requireSectors(req, res, ['comercial', 'gestor', 'adm', 'logistica'])) return;
 
   const pedido = String(req.query.pedido || '').trim();
   if (!pedido) return res.status(400).json({ error: 'Parâmetro "pedido" é obrigatório' });

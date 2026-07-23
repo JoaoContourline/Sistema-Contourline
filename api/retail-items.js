@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   // Catálogo de produtos (usado na criação da OP) = informação comercial.
-  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
+  if (!await requireSectors(req, res, ['comercial', 'gestor', 'adm'])) return;
 
   const base = process.env.PROTHEUS_BASE;
   const user = process.env.PROTHEUS_USER;

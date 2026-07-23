@@ -745,6 +745,7 @@ body.kanban-mode .kanban-col-body {
       <span id="fl-active-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--accent);border:1.5px solid var(--surface)"></span>
     </span>
   </button>
+  <button class="tab-btn" id="btn-tab-dashboard" data-tab="dashboard" style="display:none" onclick="setTab('dashboard',this)">Dashboard</button>
   <button class="tab-btn active" data-tab="fila" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span><span class="notif-dot" id="pending-dot" style="display:none"></span></button>
   <button class="tab-btn"        data-tab="concluidas" onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        data-tab="todas" onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
@@ -1217,17 +1218,18 @@ const SECTORS = [
   { id:'financeiro', name:'Financeiro', role:'financeiro', av:'FIN', desc:'Valida pagamentos' },
   { id:'logistica',  name:'Logística',  role:'logistica',  av:'LOG', desc:'Solicita NF, despacho e entregas' },
   { id:'fiscal',     name:'Fiscal',     role:'fiscal',     av:'FIS', desc:'Emite notas fiscais' },
-  { id:'gestor',     name:'Gestor',     role:'gestor',     av:'GES', desc:'Visão completa' },
+  { id:'gestor',     name:'Gestor',     role:'gestor',     av:'GES', desc:'Dashboard e visão geral' },
+  { id:'adm',        name:'ADM',        role:'adm',        av:'ADM', desc:'Visão completa (todos os setores)' },
 ];
 
 
-// Visão simulada pelo gestor - inicia como 'comercial'
-let gestorViewAs = 'comercial';
+// Setor que o ADM está visualizando — inicia no Gestor (dashboard).
+let gestorViewAs = 'gestor';
 
 function getActiveView() {
   const user = getUser();
   if (!user) return null;
-  if (user.id === 'gestor' && gestorViewAs) {
+  if (user.id === 'adm' && gestorViewAs) {
     return SECTORS.find(s => s.id === gestorViewAs) || user;
   }
   return user;
@@ -1235,6 +1237,9 @@ function getActiveView() {
 
 function setGestorView(sectorId) {
   gestorViewAs = sectorId;
+  // Entrando no Gestor → abre o Dashboard; saindo dele → volta para Pendentes.
+  if (sectorId === 'gestor') currentTab = 'dashboard';
+  else if (currentTab === 'dashboard') currentTab = 'fila';
   renderAll();
 }
 
@@ -1645,7 +1650,7 @@ function startRealtime() {
 // APP STATE
 // ═══════════════════════════════════════════════════════════════════
 
-let currentTab    = 'fila';
+let currentTab    = 'dashboard'; // ADM abre no Dashboard; demais setores caem em 'fila' (renderCounts)
 let verCancelados = false; // modo "ver OPs canceladas" (botão ban no topo)
 let _editandoObs  = false; // enquanto true, renderMain não reconstrói o #main (não perde a observação sendo digitada)
 let _renderMainPendente = false; // render adiada durante edição da observação
@@ -1671,7 +1676,9 @@ async function fetchUserProfile() {
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
   // qualquer usuário se declarar 'gestor'.
-  const sectorId = profile?.sector_id;
+  // O antigo super-usuário 'gestor' virou 'adm' (o 'gestor' agora é a visão de
+  // dashboard). Mapeia perfis existentes para não travar o acesso.
+  const sectorId = profile?.sector_id === 'gestor' ? 'adm' : profile?.sector_id;
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
   _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
@@ -1707,7 +1714,8 @@ async function doLogin() {
   // 2. Busca setor + nome no profiles. Sem fallback para user_metadata: aquele
   // campo é auto-editável pelo dono da conta e permitia virar 'gestor' sozinho.
   const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
-  const sectorId = profile?.sector_id;
+  // 'gestor' (perfil antigo do super-usuário) → 'adm'.
+  const sectorId = profile?.sector_id === 'gestor' ? 'adm' : profile?.sector_id;
   if (!sectorId || !SECTORS.find(s => s.id === sectorId)) {
     errEl.textContent = 'Setor não configurado. Contate o administrador.';
     await sb.auth.signOut();
@@ -1841,7 +1849,7 @@ function _opsFiltered() {
 
 function getQueue(user) {
   const base = _opsFiltered();
-  if (user.role === 'gestor')   return [];
+  if (user.role === 'gestor' || user.role === 'adm')   return [];
   if (user.role === 'vendedor') return base.filter(o => o.status !== 'entregue');
   if (user.role === 'logistica') return base.filter(o =>
     o.status === 'aguard_nf' || o.status === 'aguard_despacho' || o.status === 'transito'
@@ -1860,7 +1868,7 @@ function getQueue(user) {
 
 function getCompleted(user) {
   const base = _opsFiltered();
-  if (user.role === 'gestor')   return base.filter(o => o.status === 'entregue');
+  if (user.role === 'gestor' || user.role === 'adm')   return base.filter(o => o.status === 'entregue');
   if (user.role === 'vendedor') return base.filter(o => o.status === 'entregue');
   const queue = getQueue(user);
   return base.filter(op => {
@@ -3365,20 +3373,18 @@ function renderAll() {
 function renderRoles() {
   const user = getUser();
   if (!user) return;
-  // Botão Nova OP: só gestor e comercial
-  const canCreate = user.id === 'gestor' || user.id === 'comercial';
+  // Botão Nova OP: só ADM e comercial
+  const canCreate = user.id === 'adm' || user.id === 'comercial';
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 
-  // Centro do header: switcher de visão só para gestor
+  // Centro do header: switcher de visão só para o ADM (inclui o setor Gestor).
   const center = document.getElementById('headerCenter');
   if (center) {
-    center.innerHTML = user.id === 'gestor' ? `
+    const vb = (id, label) => `<button class="view-btn ${gestorViewAs === id ? 'active' : ''}" onclick="setGestorView('${id}')">${label}</button>`;
+    center.innerHTML = user.id === 'adm' ? `
       <div class="view-switcher">
-        <button class="view-btn ${gestorViewAs === 'comercial'  ? 'active' : ''}" onclick="setGestorView('comercial')">Comercial</button>
-        <button class="view-btn ${gestorViewAs === 'financeiro' ? 'active' : ''}" onclick="setGestorView('financeiro')">Financeiro</button>
-        <button class="view-btn ${gestorViewAs === 'logistica'  ? 'active' : ''}" onclick="setGestorView('logistica')">Logística</button>
-        <button class="view-btn ${gestorViewAs === 'fiscal'     ? 'active' : ''}" onclick="setGestorView('fiscal')">Fiscal</button>
+        ${vb('gestor','Gestor')}${vb('comercial','Comercial')}${vb('financeiro','Financeiro')}${vb('logistica','Logística')}${vb('fiscal','Fiscal')}
       </div>` : '';
   }
 
@@ -3426,6 +3432,14 @@ function renderCounts() {
     if (!canLog && currentTab === 'logistica') currentTab = 'fila';
   }
 
+  // Aba Dashboard: só na visão Gestor.
+  const dashBtn = document.getElementById('btn-tab-dashboard');
+  if (dashBtn) {
+    const canDash = view?.role === 'gestor';
+    dashBtn.style.display = canDash ? '' : 'none';
+    if (!canDash && currentTab === 'dashboard') currentTab = 'fila';
+  }
+
   // Botão de cancelados: badge com a contagem (só aparece se houver alguma)
   const nCanc = ops.filter(o => o.cancelada).length;
   const cntC  = document.getElementById('cnt-cancelados');
@@ -3455,6 +3469,7 @@ function renderMain() {
   // anterior (era isso que deixava "Entregas" aceso mostrando os Pendentes).
   try {
     if      (verCancelados)               renderCancelados(el);
+    else if (currentTab === 'dashboard')  { view?.role === 'gestor' ? renderDashboard(el) : renderQueue(view, el); }
     else if (currentTab === 'fila')       renderQueue(view, el);
     else if (currentTab === 'concluidas') renderConcluidas(view, el);
     else if (currentTab === 'logistica')  renderLogistica(el);
@@ -4049,9 +4064,118 @@ function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) 
   </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD EXECUTIVO (só na visão Gestor)
+// ═══════════════════════════════════════════════════════════════════
+function renderDashboard(el) {
+  const ativos      = ops.filter(o => !o.cancelada);
+  const emAndamento = ativos.filter(o => o.status !== 'entregue');
+  const entregues   = ativos.filter(o => o.status === 'entregue');
+  const bloqueadas  = ativos.filter(o => o.status === 'bloqueada').length;
+
+  // Faturamento do mês (OPs abertas no mês corrente).
+  const now = new Date();
+  const ym  = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const fatMes = ativos.filter(o => (o.dataAbertura || '').startsWith(ym))
+    .reduce((s, o) => s + (parseFloat(o.pedidoVenda?.valorLiquido || o.pedidoVenda?.valorTotal || 0) || 0), 0);
+
+  // Entregas no prazo x atrasadas (entre as já entregues).
+  let noPrazo = 0, foraPrazo = 0;
+  entregues.forEach(o => {
+    const dEnt  = o.stepData?.transito?.dataEntrega;
+    const dPrev = parseBRDate(o.pedidoVenda?.dataPrevista);
+    if (dEnt && dPrev) (new Date(dEnt + 'T12:00:00') <= dPrev) ? noPrazo++ : foraPrazo++;
+    else noPrazo++;
+  });
+  const pctPrazo = entregues.length ? Math.round(noPrazo / entregues.length * 100) : 100;
+
+  // Atrasadas AGORA (em andamento com semáforo vermelho).
+  const atrasadasAgora = emAndamento.filter(o => semaforo(o).cls === 'b-red').length;
+
+  // Dias parado por OP (desde a última alteração no banco = updated_at).
+  const diasParado = o => { const t = o._loadedAt ? new Date(o._loadedAt).getTime() : 0; return t ? Math.floor((Date.now() - t) / 86400000) : 0; };
+
+  // Funil por etapa.
+  const etapas = ['aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
+  const funil  = etapas.map(st => ({ label: STEPS[st]?.label || st, n: ativos.filter(o => o.status === st).length }));
+  const maxF   = Math.max(1, ...funil.map(f => f.n));
+
+  // Gargalos / SLA: em andamento paradas há ≥ 3 dias, mais antigas primeiro.
+  const gargalos = emAndamento.map(o => ({ o, dias: diasParado(o), owner: STEPS[o.status]?.owner }))
+    .filter(g => g.dias >= 3).sort((a, b) => b.dias - a.dias).slice(0, 15);
+
+  // Tempo médio parado por setor (das OPs em andamento agora).
+  const porSetor = {};
+  emAndamento.forEach(o => { const r = STEPS[o.status]?.owner; if (!r) return; (porSetor[r] = porSetor[r] || []).push(diasParado(o)); });
+  const setores = Object.entries(porSetor).map(([role, arr]) => ({
+    nome: SECTORS.find(s => s.role === role)?.name || role,
+    med: arr.reduce((a, b) => a + b, 0) / arr.length, n: arr.length,
+  })).sort((a, b) => b.med - a.med);
+  const maxMed = Math.max(1, ...setores.map(s => s.med));
+
+  const kpi = (label, valor, cor, sub) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700">${label}</div>
+      <div style="font-size:24px;font-weight:800;color:${cor||'var(--text)'};margin-top:4px;line-height:1.1">${valor}</div>
+      ${sub ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+    </div>`;
+
+  const barra = (label, n, max, cor) => `
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px">
+      <div style="width:150px;flex-shrink:0;color:var(--text2)">${esc(label)}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:6px;height:22px;position:relative;overflow:hidden">
+        <div style="width:${Math.round(n/max*100)}%;background:${cor};height:100%;border-radius:6px;min-width:${n?'2px':'0'};transition:width .3s"></div>
+      </div>
+      <div style="width:38px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums">${n}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="step-header"><div class="step-title">Dashboard</div><div class="step-desc">Visão executiva da operação — ${ativos.length} OPs ativas</div></div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
+      ${kpi('Em andamento', emAndamento.length, 'var(--accent)', bloqueadas ? bloqueadas + ' bloqueada(s)' : 'no fluxo')}
+      ${kpi('Faturamento do mês', fatMes ? fmtBRL(fatMes) : 'R$ 0,00', 'var(--green)', 'OPs abertas em ' + now.toLocaleDateString('pt-BR',{month:'long'}))}
+      ${kpi('Entregas no prazo', pctPrazo + '%', pctPrazo>=80?'var(--green)':pctPrazo>=50?'var(--orange)':'var(--red)', noPrazo + ' no prazo · ' + foraPrazo + ' fora')}
+      ${kpi('Atrasadas agora', atrasadasAgora, atrasadasAgora?'var(--red)':'var(--green)', 'em andamento vencidas')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">Funil por etapa</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${funil.map(f => barra(f.label, f.n, maxF, 'var(--accent)')).join('')}
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px">Tempo parado por setor <span style="font-weight:400;color:var(--text3);font-size:11px">(dias, em andamento)</span></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${setores.length ? setores.map(s => barra(`${s.nome} (${s.n})`, Math.round(s.med), Math.round(maxMed), s.med>=3?'var(--red)':s.med>=1?'var(--orange)':'var(--green)')).join('') : '<div style="font-size:12px;color:var(--text3)">Sem OPs em andamento</div>'}
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
+      <div style="font-size:13px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+        ${icon('alert-triangle',15,'color:var(--orange)')} Gargalos — OPs paradas há 3+ dias
+        <span class="tab-count">${gargalos.length}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Precisam de atenção / escalonamento</div>
+      ${gargalos.length ? `<div style="display:flex;flex-direction:column">
+        ${gargalos.map(g => `<div onclick="openInfoModal(${g.o.id})" title="Abrir OP" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid var(--border);cursor:pointer;font-size:12px">
+          <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent);width:70px">OP ${esc(numOp(g.o).split(' - ')[0])}</span>
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.o.cliente)}</span>
+          <span style="color:var(--text3);width:130px">${esc(STEPS[g.o.status]?.label||g.o.status)}</span>
+          <span class="sema ${g.dias>=7?'b-red':'b-yellow'}" style="font-weight:700">há ${g.dias}d</span>
+        </div>`).join('')}
+      </div>` : `<div style="font-size:12px;color:var(--text3);padding:8px 0">Nenhuma OP parada há mais de 3 dias 🎉</div>`}
+    </div>
+  `;
+}
+
 function renderQueue(user, el) {
   // ── GESTOR ───────────────────────────────────────────────────────
-  if (user.role === 'gestor') {
+  if (user.role === 'gestor' || user.role === 'adm') {
     el.innerHTML = `<div class="step-header"><div class="step-title">Sem pendências</div><div class="step-desc">Você tem acesso de visualização. Use "Todas as OPs" para o painel completo.</div></div>
       <div class="empty"><div class="empty-icon">${icon('eye',32,'color:var(--text3)')}</div><div class="empty-title">Acesso de visualização</div><div class="empty-desc">Use "Todas as OPs" para o painel completo.</div></div>`;
     return;

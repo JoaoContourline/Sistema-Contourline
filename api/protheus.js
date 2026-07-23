@@ -61,7 +61,7 @@ export default async function handler(req, res) {
   if (cors(req, res, 'GET, OPTIONS')) return;
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   // Busca cliente por CPF/CNPJ (PII) — restrito ao comercial/gestor.
-  if (!await requireSectors(req, res, ['comercial', 'gestor'])) return;
+  if (!await requireSectors(req, res, ['comercial', 'gestor', 'adm'])) return;
 
   const { cpfCnpj } = req.query;
   if (!cpfCnpj) return res.status(400).json({ error: 'Parâmetro cpfCnpj é obrigatório' });

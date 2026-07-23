@@ -2007,25 +2007,24 @@ function numOp(op) {
 function semaforo(op) {
   if (op.status === 'entregue') return { cls:'b-gray', label:'Entregue', icon:'' };
 
-  // Usa dataPrevista quando disponível (prazo real calculado na abertura)
-  const prev = parseBRDate(op.pedidoVenda?.dataPrevista);
-  if (prev) {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const dias  = Math.ceil((prev - today) / 86400000);
-    if (dias > 3)  return { cls:'b-green',  label:`${dias}d restantes`,       icon:'●' };
-    if (dias >= 1) return { cls:'b-yellow', label:`${dias}d restantes`,       icon:'▲' };
-    if (dias === 0) return { cls:'b-orange', label:'Entrega hoje!',           icon:'▲' };
-    return { cls:'b-red', label:`${Math.abs(dias)}d atrasada`, icon:'!' };
+  const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Data-alvo: previsão de entrega (real). Sem ela, estima abertura + 20 dias.
+  let target = parseBRDate(op.pedidoVenda?.dataPrevista);
+  if (!target) {
+    if (!op.dataAbertura || isNaN(new Date(op.dataAbertura))) return { cls:'b-gray', label:'sem prazo', icon:'' };
+    target = new Date(op.dataAbertura + 'T12:00:00');
+    target.setDate(target.getDate() + 20);
   }
 
-  // Sem data prevista E sem abertura válida → neutro (evita "NaNd crítico")
-  if (!op.dataAbertura || isNaN(new Date(op.dataAbertura))) return { cls:'b-gray', label:'sem prazo', icon:'' };
-  // Fallback: janela fixa desde a abertura (sem data prevista definida)
-  const d = daysSince(op.dataAbertura);
-  if (d <= 16) return { cls:'b-green',  label:`${20-d}d restantes`, icon:'●' };
-  if (d <= 20) return { cls:'b-yellow', label:`${20-d}d p/ ótima`,  icon:'▲' };
-  if (d <= 30) return { cls:'b-red',    label:`${d-20}d atrasada`,  icon:'!' };
-  return { cls:'b-red', label:`${d-30}d crítico`, icon:'!!' };
+  // O rótulo é sempre a DATA (dd/mm/aaaa); a COR e o ícone indicam a urgência.
+  const dias  = Math.ceil((target - today) / 86400000);
+  const label = fmt(target);
+  if (dias > 3)   return { cls:'b-green',  label, icon:'●' };
+  if (dias >= 1)  return { cls:'b-yellow', label, icon:'▲' };
+  if (dias === 0) return { cls:'b-orange', label, icon:'▲' };
+  return { cls:'b-red', label, icon:'!' };
 }
 
 function stepBadge(status, op) {

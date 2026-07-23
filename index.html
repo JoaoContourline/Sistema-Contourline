@@ -707,6 +707,43 @@ body.kanban-mode .kanban-col-body {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
         Entrar
       </button>
+      <button type="button" onclick="showResetPanel()" style="background:none;border:none;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Esqueci minha senha</button>
+    </div>
+
+    <!-- PAINEL 2: Recuperar senha por código de e-mail -->
+    <div class="login-card-body" id="loginResetPanel" style="display:none">
+      <!-- Etapa 1: e-mail -->
+      <div id="resetStep1">
+        <div class="login-field">
+          <label class="login-label">E-mail da conta</label>
+          <div class="login-input-wrap">
+            <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            <input class="login-input" id="resetEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username" onkeydown="if(event.key==='Enter')enviarCodigoReset()">
+          </div>
+        </div>
+        <div id="resetError" class="login-error"></div>
+        <button class="login-btn" id="resetSendBtn" onclick="enviarCodigoReset()">Enviar código</button>
+        <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Voltar ao login</button>
+      </div>
+      <!-- Etapa 2: código + nova senha -->
+      <div id="resetStep2" style="display:none">
+        <div style="font-size:12.5px;color:var(--text2);line-height:1.5">Enviamos um código para <b id="resetEmailShow"></b>. Digite-o abaixo e defina a nova senha.</div>
+        <div class="login-field">
+          <label class="login-label">Código do e-mail</label>
+          <div class="login-input-wrap"><input class="login-input" id="resetCode" inputmode="numeric" placeholder="000000" autocomplete="one-time-code" style="letter-spacing:3px"></div>
+        </div>
+        <div class="login-field">
+          <label class="login-label">Nova senha</label>
+          <div class="login-input-wrap"><input class="login-input" id="resetNew" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password"></div>
+        </div>
+        <div class="login-field">
+          <label class="login-label">Confirmar nova senha</label>
+          <div class="login-input-wrap"><input class="login-input" id="resetConfirm" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')redefinirComCodigo()"></div>
+        </div>
+        <div id="resetError2" class="login-error"></div>
+        <button class="login-btn" id="resetSaveBtn" onclick="redefinirComCodigo()">Redefinir senha</button>
+        <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Cancelar</button>
+      </div>
     </div>
 
 
@@ -1761,6 +1798,66 @@ const _loginSpinner = `<svg width="16" height="16" viewBox="0 0 24 24" fill="non
 const _loginIcon   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`;
 const _checkIcon   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
+
+// ─── Esqueci minha senha (código por e-mail) ───────────────────────
+let _resetEmail = '';
+function showResetPanel() {
+  document.getElementById('loginCredPanel').style.display = 'none';
+  document.getElementById('loginResetPanel').style.display = '';
+  document.getElementById('resetStep1').style.display = '';
+  document.getElementById('resetStep2').style.display = 'none';
+  document.getElementById('resetError').textContent = '';
+  const em = (document.getElementById('loginEmail').value || '').trim();
+  if (em) document.getElementById('resetEmail').value = em;
+  setTimeout(() => document.getElementById('resetEmail')?.focus(), 0);
+}
+function showLoginPanel() {
+  document.getElementById('loginResetPanel').style.display = 'none';
+  document.getElementById('loginCredPanel').style.display = '';
+}
+async function enviarCodigoReset() {
+  const err = document.getElementById('resetError');
+  const email = (document.getElementById('resetEmail').value || '').trim().toLowerCase();
+  err.textContent = '';
+  if (!email || !email.includes('@')) { err.textContent = 'Informe um e-mail válido.'; return; }
+  const btn = document.getElementById('resetSendBtn'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  btn.disabled = false; btn.textContent = 'Enviar código';
+  if (error) { err.textContent = /rate|seconds|too many/i.test(error.message) ? 'Muitas tentativas. Aguarde um minuto e tente novamente.' : error.message; return; }
+  _resetEmail = email;
+  document.getElementById('resetEmailShow').textContent = email;
+  document.getElementById('resetStep1').style.display = 'none';
+  document.getElementById('resetStep2').style.display = '';
+  setTimeout(() => document.getElementById('resetCode')?.focus(), 0);
+}
+async function redefinirComCodigo() {
+  const err = document.getElementById('resetError2');
+  const code = (document.getElementById('resetCode').value || '').replace(/\D/g, '');
+  const n = document.getElementById('resetNew').value || '';
+  const c = document.getElementById('resetConfirm').value || '';
+  err.textContent = '';
+  if (code.length < 6) { err.textContent = 'Informe o código de 6 dígitos do e-mail.'; return; }
+  if (n.length < 8)    { err.textContent = 'A senha deve ter ao menos 8 caracteres.'; return; }
+  if (n !== c)         { err.textContent = 'As senhas não conferem.'; return; }
+  const btn = document.getElementById('resetSaveBtn'); btn.disabled = true; btn.textContent = 'Redefinindo…';
+  const reset = () => { btn.disabled = false; btn.textContent = 'Redefinir senha'; };
+  const { error: vErr } = await sb.auth.verifyOtp({ email: _resetEmail, token: code, type: 'recovery' });
+  if (vErr) { err.textContent = /expired|invalid|token/i.test(vErr.message) ? 'Código inválido ou expirado.' : vErr.message; reset(); return; }
+  const { error: uErr } = await sb.auth.updateUser({ password: n });
+  if (uErr) { err.textContent = /different from the old/i.test(uErr.message) ? 'A nova senha deve ser diferente da atual.' : uErr.message; reset(); return; }
+  await fetchUserProfile();
+  if (_cachedUser) {
+    const iso = new Date().toISOString();
+    await sb.from('profiles').update({ password_changed_at: iso }).eq('id', _cachedUser.uid);
+    _cachedUser.password_changed_at = iso;
+    showApp();
+    showToast('Senha redefinida com sucesso', 'ok');
+  } else {
+    await sb.auth.signOut();
+    showLoginPanel();
+    showToast('Senha redefinida. Faça login com a nova senha.', 'ok');
+  }
+}
 
 async function doLogin() {
   const email = (document.getElementById('loginEmail').value || '').trim().toLowerCase();

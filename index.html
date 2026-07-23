@@ -4273,11 +4273,13 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   const sem      = semaforo(op);
   const isBlocked = op.status === 'bloqueada';
 
-  const dots = PIPELINE_ORDER.map(s => {
+  // Barra de progresso das 6 etapas do processo (o estágio final "entregue" não é
+  // um traço: quando a OP é entregue, TODOS os traços ficam verdes = concluída).
+  const dots = PIPELINE_ORDER.filter(s => s !== 'entregue').map(s => {
     const sIdx   = STEPS[s]?.pipelineIdx ?? 0;
     const curIdx = isBlocked ? 1 : (step?.pipelineIdx ?? 0);
-    if (sIdx < curIdx)  return `<div class="pipe-dot done"></div>`;
-    if (sIdx === curIdx) return `<div class="pipe-dot ${isBlocked?'blocked':'current'}"></div>`;
+    if (op.status === 'entregue' || sIdx < curIdx) return `<div class="pipe-dot done"></div>`;
+    if (sIdx === curIdx)             return `<div class="pipe-dot ${isBlocked?'blocked':'current'}"></div>`;
     return `<div class="pipe-dot"></div>`;
   }).join('');
 

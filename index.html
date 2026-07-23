@@ -1671,7 +1671,10 @@ function getUser() { return _cachedUser; }
 async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
-  const { data: profile } = await sb.from('profiles').select('name,sector_id,password_changed_at').eq('id', user.id).single();
+  let { data: profile, error: _pErr } = await sb.from('profiles').select('name,sector_id,password_changed_at').eq('id', user.id).single();
+  // A coluna password_changed_at pode ainda não existir (migração não rodada) — se
+  // o select falhar por isso, refaz sem ela para o login não quebrar.
+  if (_pErr) { ({ data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single()); }
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
   // qualquer usuário se declarar 'gestor'.

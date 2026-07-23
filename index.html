@@ -134,7 +134,7 @@ main { padding: 24px; }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  border-radius: var(--radius-lg); padding: 12px 13px;
+  border-radius: var(--radius-lg); padding: 16px;
   cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s;
   animation: cardIn .25s ease both;
 }
@@ -147,7 +147,7 @@ main { padding: 24px; }
 .card.entregue { border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.025); }
 .card.entregue:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(22,163,74,.1); }
 
-.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
 .card-flags { display: flex; gap: 3px; flex-wrap: wrap; }
 .flag { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; font-family: 'DM Mono', monospace; }
@@ -155,11 +155,11 @@ main { padding: 24px; }
 .flag-div   { background: rgba(220,38,38,.1);  color: var(--red);    border: 1px solid rgba(220,38,38,.25); }
 .flag-multi { background: rgba(124,58,237,.1); color: var(--purple); border: 1px solid rgba(124,58,237,.25); }
 
-.card-client { font-size: 13px; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
-.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; min-width: 0; }
-.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-client { font-size: 14px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
+.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.equip-chip { display: inline-block; padding: 2px 8px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); }
 
-.card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 
 /* BADGE */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .2px; }
@@ -177,17 +177,17 @@ main { padding: 24px; }
 .sema { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: 'DM Mono', monospace; }
 
 /* PIPELINE BAR */
-.pipe-bar { display: flex; gap: 3px; margin-bottom: 6px; }
+.pipe-bar { display: flex; gap: 3px; margin-bottom: 10px; }
 .pipe-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); }
 .pipe-dot.done    { background: var(--green); }
 .pipe-dot.current { background: var(--accent); }
 .pipe-dot.blocked { background: var(--red); }
 
 /* CARD LAST EVENT */
-.card-last-event { margin-top: 6px; font-size: 10px; color: var(--text3); line-height: 1.35; border-top: 1px solid var(--border); padding-top: 6px; }
+.card-last-event { margin-top: 8px; font-size: 11px; color: var(--text3); line-height: 1.4; border-top: 1px solid var(--border); padding-top: 8px; }
 
 /* CARD FOOTER */
-.card-footer { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.card-footer { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .btn-action { width: 100%; padding: 9px; border-radius: var(--radius); background: var(--accent); border: none; color: #fff; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
 .btn-action:hover { background: var(--accent2); }
 .btn-action.danger { background: transparent; border: 1px solid rgba(220,38,38,.25); color: var(--red); }
@@ -464,9 +464,9 @@ main { padding: 24px; }
 }
 .kanban-board {
   display: flex; gap: 8px; align-items: flex-start; padding: 2px 1px;
+  min-width: calc(6 * 210px + 5 * 8px);
 }
-/* 6 colunas dividem a largura disponível (encolhem para caber sem scroll horizontal). */
-.kanban-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.kanban-col { flex: 1 0 210px; max-width: 320px; min-width: 180px; display: flex; flex-direction: column; }
 .kanban-col-head {
   padding: 8px 11px 7px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
@@ -622,6 +622,7 @@ body.kanban-mode .kanban-col-body {
    RESPONSIVIDADE
    ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
+  .kanban-col { flex: 1 0 190px; }
   main { padding: 16px; }
 }
 @media (max-width: 680px) {
@@ -638,6 +639,7 @@ body.kanban-mode .kanban-col-body {
   main { padding: 12px; }
   .step-title { font-size: 15px; }
   .card-grid { grid-template-columns: 1fr; gap: 10px; }
+  .kanban-col { flex: 1 0 200px; }
   .form-row { grid-template-columns: 1fr !important; }
   .modal-overlay { padding: 6px; align-items: flex-end; }
   .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 92vh; }
@@ -651,6 +653,7 @@ body.kanban-mode .kanban-col-body {
   .card-grid .card { animation: none; }
 }
 @media (max-width: 420px) {
+  .kanban-col { flex: 1 0 180px; }
   main { padding: 8px; }
   .modal-overlay { padding: 0; }
   .modal { border-radius: 16px 16px 0 0; }
@@ -4296,7 +4299,7 @@ function renderCancelados(el) {
     </div>`;
   }).join('');
 
-  el.innerHTML = header + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px">${cards}</div>`;
+  el.innerHTML = header + `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">${cards}</div>`;
 }
 
 /** Abre o modal pedindo o motivo do cancelamento. */
@@ -4708,10 +4711,10 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   const skippedFin = op.history.some(h => h.note?.includes('Validação financeira pulada'));
   const lastEvt    = op.history[op.history.length-1];
 
-  // Equipment chips — mostra no máx. 3 para o card não crescer; o resto vira "+N"
-  const equipArr  = op.equipamentos?.length ? op.equipamentos : [op.equipamento||'-'];
-  const equipList = equipArr.slice(0,3).map(e=>`<span class="equip-chip">${esc(typeof e==='object'?e.name:e)}</span>`).join('')
-    + (equipArr.length > 3 ? `<span class="equip-chip">+${equipArr.length-3}</span>` : '');
+  // Equipment chips
+  const equipList = op.equipamentos?.length
+    ? op.equipamentos.map(e=>`<span class="equip-chip">${esc(typeof e==='object'?e.name:e)}</span>`).join('')
+    : `<span class="equip-chip">${esc(op.equipamento||'-')}</span>`;
 
   let footer = '';
   if (needsSF) {
@@ -4729,11 +4732,9 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   return `
   <div class="card ${(canAct||needsSF)&&!infoOnly?'actionable':''} ${isBlocked?'blocked':''} ${isEntregue?'entregue':''}" style="animation-delay:${animIdx*.04}s" onclick="${infoOnly?`openInfoModal(${op.id})`:`openCard(${op.id})`}">
     <div class="card-top">
-      <div style="min-width:0">
-        <div class="card-op">OP ${numOp(op).split(' - ')[0]}</div>
-        ${numOp(op).includes(' - ') ? `<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(numOp(op).split(' - ')[1])}</div>` : ''}
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}</div>
-        ${op.vendedorCanal||op.vendedorName ? `<div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(op.vendedorCanal||op.vendedorName)}</div>` : ''}
+      <div>
+        <div class="card-op">OP ${numOp(op)}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}${op.vendedorCanal||op.vendedorName ? ' · ' + esc(op.vendedorCanal||op.vendedorName) : ''}</div>
       </div>
       <div class="card-flags">
         ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
@@ -4747,7 +4748,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
       ${op.status!=='entregue' ? `<span class="sema ${sem.cls}">${sem.icon?sem.icon+' ':''}${sem.label}</span>` : ''}
     </div>
     <div class="pipe-bar">${dots}</div>
-    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${esc(lastEvt.actorName)}:</span> ${esc((lastEvt.action||lastEvt.note||'').substring(0,64))}</div>` : ''}
+    ${lastEvt ? `<div class="card-last-event"><span style="color:var(--text2)">${esc(lastEvt.actorName)}:</span> ${esc((lastEvt.action||lastEvt.note||'').substring(0,90))}</div>` : ''}
     ${footer}
   </div>`;
 }

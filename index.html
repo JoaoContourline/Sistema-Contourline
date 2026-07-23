@@ -3434,27 +3434,39 @@ function renderRoles() {
   }
 
   // Widget: [Sair] [Avatar + nome]
+  const mItem = `display:flex;align-items:center;gap:9px;width:100%;padding:9px 12px;background:none;border:none;font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;text-align:left;border-radius:8px`;
   document.getElementById('roleSelector').innerHTML = `
-    <div class="user-widget">
-      <button class="logout-btn" onclick="openChangePassword(false)" title="Alterar senha">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Senha
-      </button>
-      <button class="logout-btn" onclick="doLogout()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Sair
-      </button>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+    <div class="user-widget" id="userMenuWrap" style="position:relative">
+      <button onclick="toggleUserMenu(event)" title="Minha conta" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:2px 4px">
         <div class="user-avatar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
-        <div class="user-widget-name">${user.userName || user.name}</div>
+        <div class="user-widget-name">${esc(user.userName || user.name)}</div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="userMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:190px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(15,31,53,.18);padding:6px;z-index:50">
+        <div style="padding:8px 12px 6px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);margin-bottom:4px"><div style="font-weight:700;color:var(--text2);font-size:12px">${esc(user.userName || user.name)}</div>${esc(user.name || user.id)}</div>
+        <button onclick="document.getElementById('userMenu').style.display='none';openChangePassword(false)" style="${mItem}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Alterar senha
+        </button>
+        <button onclick="doLogout()" style="${mItem};color:var(--red)" onmouseover="this.style.background='var(--red-bg)'" onmouseout="this.style.background='none'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sair
+        </button>
       </div>
     </div>`;
 }
+
+// Abre/fecha o menu suspenso do perfil.
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('userMenu');
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+// Fecha ao clicar fora.
+document.addEventListener('click', e => {
+  const menu = document.getElementById('userMenu');
+  if (menu && menu.style.display !== 'none' && !e.target.closest('#userMenuWrap')) menu.style.display = 'none';
+});
 
 function renderCounts() {
   const view = getActiveView();

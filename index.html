@@ -4073,10 +4073,10 @@ function renderDashboard(el) {
   const entregues   = ativos.filter(o => o.status === 'entregue');
   const bloqueadas  = ativos.filter(o => o.status === 'bloqueada').length;
 
-  // Faturamento do mês (OPs abertas no mês corrente).
+  // Faturamento do mês — conta só OPs com NF emitida no mês corrente (data de emissão).
   const now = new Date();
   const ym  = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  const fatMes = ativos.filter(o => (o.dataAbertura || '').startsWith(ym))
+  const fatMes = ativos.filter(o => (o.stepData?.aguard_emissao?.dataEmissao || '').startsWith(ym))
     .reduce((s, o) => s + (parseFloat(o.pedidoVenda?.valorLiquido || o.pedidoVenda?.valorTotal || 0) || 0), 0);
 
   // Entregas no prazo x atrasadas (entre as já entregues).
@@ -4099,10 +4099,6 @@ function renderDashboard(el) {
   const etapas = ['aguard_financeiro','aguard_nf','aguard_emissao','aguard_despacho','transito','entregue'];
   const funil  = etapas.map(st => ({ label: STEPS[st]?.label || st, n: ativos.filter(o => o.status === st).length }));
   const maxF   = Math.max(1, ...funil.map(f => f.n));
-
-  // Gargalos / SLA: em andamento paradas há ≥ 3 dias, mais antigas primeiro.
-  const gargalos = emAndamento.map(o => ({ o, dias: diasParado(o), owner: STEPS[o.status]?.owner }))
-    .filter(g => g.dias >= 3).sort((a, b) => b.dias - a.dias).slice(0, 15);
 
   // Tempo médio parado por setor (das OPs em andamento agora).
   const porSetor = {};
@@ -4134,7 +4130,7 @@ function renderDashboard(el) {
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
       ${kpi('Em andamento', emAndamento.length, 'var(--accent)', bloqueadas ? bloqueadas + ' bloqueada(s)' : 'no fluxo')}
-      ${kpi('Faturamento do mês', fatMes ? fmtBRL(fatMes) : 'R$ 0,00', 'var(--green)', 'OPs abertas em ' + now.toLocaleDateString('pt-BR',{month:'long'}))}
+      ${kpi('Faturamento do mês', fatMes ? fmtBRL(fatMes) : 'R$ 0,00', 'var(--green)', 'NF emitida em ' + now.toLocaleDateString('pt-BR',{month:'long'}))}
       ${kpi('Entregas no prazo', pctPrazo + '%', pctPrazo>=80?'var(--green)':pctPrazo>=50?'var(--orange)':'var(--red)', noPrazo + ' no prazo · ' + foraPrazo + ' fora')}
       ${kpi('Atrasadas agora', atrasadasAgora, atrasadasAgora?'var(--red)':'var(--green)', 'em andamento vencidas')}
     </div>
@@ -4153,22 +4149,6 @@ function renderDashboard(el) {
           ${setores.length ? setores.map(s => barra(`${s.nome} (${s.n})`, Math.round(s.med), Math.round(maxMed), s.med>=3?'var(--red)':s.med>=1?'var(--orange)':'var(--green)')).join('') : '<div style="font-size:12px;color:var(--text3)">Sem OPs em andamento</div>'}
         </div>
       </div>
-    </div>
-
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px">
-      <div style="font-size:13px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px">
-        ${icon('alert-triangle',15,'color:var(--orange)')} Gargalos — OPs paradas há 3+ dias
-        <span class="tab-count">${gargalos.length}</span>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Precisam de atenção / escalonamento</div>
-      ${gargalos.length ? `<div style="display:flex;flex-direction:column">
-        ${gargalos.map(g => `<div onclick="openInfoModal(${g.o.id})" title="Abrir OP" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid var(--border);cursor:pointer;font-size:12px">
-          <span style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent);width:70px">OP ${esc(numOp(g.o).split(' - ')[0])}</span>
-          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.o.cliente)}</span>
-          <span style="color:var(--text3);width:130px">${esc(STEPS[g.o.status]?.label||g.o.status)}</span>
-          <span class="sema ${g.dias>=7?'b-red':'b-yellow'}" style="font-weight:700">há ${g.dias}d</span>
-        </div>`).join('')}
-      </div>` : `<div style="font-size:12px;color:var(--text3);padding:8px 0">Nenhuma OP parada há mais de 3 dias 🎉</div>`}
     </div>
   `;
 }

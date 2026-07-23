@@ -4388,7 +4388,8 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-top">
       <div>
         <div class="card-op">OP ${numOp(op)}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}${op.vendedorCanal||op.vendedorName ? ' · ' + esc(op.vendedorCanal||op.vendedorName) : ''}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}</div>
+        ${op.vendedorCanal||op.vendedorName ? `<div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(op.vendedorCanal||op.vendedorName)}</div>` : ''}
       </div>
       <div class="card-flags">
         ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}

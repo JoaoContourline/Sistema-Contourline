@@ -6,6 +6,8 @@
     { "source": "/api/protheus",      "destination": "/api/protheus"      },
     { "source": "/api/rastreio",      "destination": "/api/rastreio"      },
     { "source": "/api/qrcode",        "destination": "/api/qrcode"        },
+    { "source": "/api/admin-users",   "destination": "/api/admin-users"   },
+    { "source": "/api/admin-reset-senha", "destination": "/api/admin-reset-senha" },
     { "source": "/(.*)",              "destination": "/index.html"        }
   ]
 }

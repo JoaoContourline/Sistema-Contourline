@@ -55,7 +55,9 @@ export async function sectorOf(req, userId) {
 export async function requireSectors(req, res, allowed) {
   const user = await requireAuth(req, res);
   if (!user) return null;
-  const sector = await sectorOf(req, user.id);
+  // Normaliza a caixa (ex.: "ADM" → "adm") e trata 'gestor' como 'adm'.
+  let sector = (await sectorOf(req, user.id) || '').trim().toLowerCase();
+  if (sector === 'gestor') sector = 'adm';
   if (sector && !allowed.includes(sector)) {
     res.status(403).json({ error: 'Seu setor não tem acesso a este recurso' });
     return null;

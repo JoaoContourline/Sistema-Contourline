@@ -5058,17 +5058,26 @@ function buildInfoSections(op, opId) {
 
   // ── HISTÓRICO ────────────────────────────────────────────────────
   const histHtml = op.history.length
-    ? op.history.map(h => {
-        const acao = h.action || (() => {
-          const isReject = h.note && (h.note.startsWith('Bloqueado') || h.note.startsWith('Solicitar Re'));
-          return isReject
-            ? (HIST_REJECT[h.step] || 'Bloqueado')
-            : (HIST_ACTION[h.step] || 'Ação');
-        })();
-        return `<div class="history-item"><div class="history-ts">${h.ts}</div><div class="history-text"><span class="history-author">${h.actorName||h.actor}</span> - ${acao}</div></div>`;
-      }).join('')
+    ? `<div style="border-left:2px solid var(--border);margin-left:5px;padding-left:18px;display:flex;flex-direction:column;gap:14px">
+        ${op.history.map((h, i) => {
+          const acao = h.action || (() => {
+            const isReject = h.note && (h.note.startsWith('Bloqueado') || h.note.startsWith('Solicitar Re'));
+            return isReject ? (HIST_REJECT[h.step] || 'Bloqueado') : (HIST_ACTION[h.step] || 'Ação');
+          })();
+          const cor  = `var(--${STEPS[h.step]?.color || 'blue'})`;
+          const last = i === op.history.length - 1;
+          const note = h.note && h.note.trim() && h.note.trim() !== acao
+            ? `<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:pre-line">${esc(h.note)}</div>` : '';
+          return `<div style="position:relative">
+            <div style="position:absolute;left:-24px;top:1px;width:11px;height:11px;border-radius:50%;background:${last?cor:'var(--surface)'};border:2px solid ${cor};box-shadow:0 0 0 2px var(--surface)"></div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${esc(acao)}</div>
+            <div style="font-size:11px;color:var(--text3)"><span style="color:var(--text2);font-weight:600">${esc(h.actorName||h.actor)}</span> · ${esc(h.ts)}</div>
+            ${note}
+          </div>`;
+        }).join('')}
+      </div>`
     : `<div style="font-size:12px;color:var(--text3)">Nenhum evento registrado.</div>`;
-  sections.push(infoAcc('Histórico', 'clock', `<div style="display:flex;flex-direction:column;gap:10px">${histHtml}</div>`));
+  sections.push(infoAcc('Histórico', 'clock', histHtml));
 
   return sections.join('');
 }

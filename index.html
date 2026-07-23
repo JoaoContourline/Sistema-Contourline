@@ -1671,7 +1671,7 @@ function getUser() { return _cachedUser; }
 async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
-  const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('name,sector_id,password_changed_at').eq('id', user.id).single();
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
   // qualquer usuário se declarar 'gestor'.
@@ -1680,11 +1680,79 @@ async function fetchUserProfile() {
   const sectorId = String(profile?.sector_id || '').trim().toLowerCase();
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
-  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
+  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id, password_changed_at: profile?.password_changed_at || null };
   return _cachedUser;
 }
 
 function clearSession() { _cachedUser = null; }
+
+// ─── SENHA: expiração (90 dias) + troca self-service ───────────────
+const SENHA_VALIDADE_DIAS = 90;
+let _forcedPwd = false; // true = senha expirada, modal não pode ser fechado
+
+// Chamado após o login. Se nunca teve data, define agora (carência). Se passou de
+// 90 dias, força a troca antes de usar o sistema.
+async function checkSenhaExpira() {
+  const u = _cachedUser; if (!u) return;
+  if (!u.password_changed_at) {
+    const iso = new Date().toISOString();
+    await sb.from('profiles').update({ password_changed_at: iso }).eq('id', u.uid);
+    u.password_changed_at = iso;
+    return;
+  }
+  const dias = (Date.now() - new Date(u.password_changed_at).getTime()) / 86400000;
+  if (dias >= SENHA_VALIDADE_DIAS) openChangePassword(true);
+}
+
+function openChangePassword(forced = false) {
+  _forcedPwd = !!forced;
+  const m = document.getElementById('modal');
+  m.classList.remove('wide', 'xwide', 'split');
+  m.innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">${forced ? 'Senha expirada' : 'Alterar senha'}</div>
+        <div class="modal-subtitle">${forced ? `Sua senha passou de ${SENHA_VALIDADE_DIAS} dias. Defina uma nova para continuar.` : 'Defina uma nova senha de acesso'}</div>
+      </div>
+      ${forced ? '' : `<button class="close-btn" onclick="closeModal()">${icon('x',14)}</button>`}
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Nova senha *</label>
+        <input class="form-input" id="cp-new" type="password" autocomplete="new-password" placeholder="mínimo 8 caracteres"></div>
+      <div class="form-group"><label class="form-label">Confirmar nova senha *</label>
+        <input class="form-input" id="cp-confirm" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvarNovaSenha(${forced})"></div>
+      <div id="cp-err" style="font-size:12px;color:var(--red);min-height:14px"></div>
+    </div>
+    <div class="modal-footer">
+      ${forced ? '' : `<button class="btn-cancel" onclick="closeModal()">Cancelar</button>`}
+      <button class="btn-primary" id="cp-save" onclick="salvarNovaSenha(${forced})">${icon('check',13,'color:#fff')} Salvar senha</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(() => document.getElementById('cp-new')?.focus(), 0);
+}
+
+async function salvarNovaSenha(forced) {
+  const err = document.getElementById('cp-err');
+  const n = document.getElementById('cp-new')?.value || '';
+  const c = document.getElementById('cp-confirm')?.value || '';
+  if (n.length < 8) { err.textContent = 'A senha deve ter ao menos 8 caracteres.'; return; }
+  if (n !== c)      { err.textContent = 'As senhas não conferem.'; return; }
+  const btn = document.getElementById('cp-save'); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  const { error } = await sb.auth.updateUser({ password: n });
+  if (error) {
+    err.textContent = /different from the old/i.test(error.message) ? 'A nova senha deve ser diferente da atual.' : error.message;
+    if (btn) { btn.disabled = false; btn.innerHTML = icon('check',13,'color:#fff') + ' Salvar senha'; }
+    return;
+  }
+  const iso = new Date().toISOString();
+  if (_cachedUser) {
+    await sb.from('profiles').update({ password_changed_at: iso }).eq('id', _cachedUser.uid);
+    _cachedUser.password_changed_at = iso;
+  }
+  _forcedPwd = false;
+  closeModal();
+  showToast('Senha alterada com sucesso', 'ok');
+}
 
 const _loginSpinner = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
 const _loginIcon   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`;
@@ -1732,6 +1800,7 @@ async function doLogin() {
     return;
   }
   showApp();
+  checkSenhaExpira(); // força a troca se a senha passou de 90 dias
 }
 
 
@@ -3364,6 +3433,10 @@ function renderRoles() {
   // Widget: [Sair] [Avatar + nome]
   document.getElementById('roleSelector').innerHTML = `
     <div class="user-widget">
+      <button class="logout-btn" onclick="openChangePassword(false)" title="Alterar senha">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Senha
+      </button>
       <button class="logout-btn" onclick="doLogout()">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
@@ -5240,6 +5313,7 @@ function openInfoModal(opId) {
 }
 
 function closeModal() {
+  if (_forcedPwd) return; // senha expirada: não deixa sair sem trocar
   document.getElementById('overlay').classList.remove('open');
   const _cm = document.getElementById('modal');
   _cm.classList.remove('wide', 'split', 'xwide');

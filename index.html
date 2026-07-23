@@ -3744,11 +3744,17 @@ function renderCounts() {
   }
 
   // Aba Dashboard: só na visão Gestor.
+  const isGestor = view?.role === 'gestor';
   const dashBtn = document.getElementById('btn-tab-dashboard');
   if (dashBtn) {
-    const canDash = view?.role === 'gestor';
-    dashBtn.style.display = canDash ? '' : 'none';
-    if (!canDash && currentTab === 'dashboard') currentTab = 'fila';
+    dashBtn.style.display = isGestor ? '' : 'none';
+    if (!isGestor && currentTab === 'dashboard') currentTab = 'fila';
+  }
+  // Aba Pendentes: o Gestor não tem fila pessoal → esconde (fica no Dashboard).
+  const filaBtn = document.querySelector('.tab-btn[data-tab="fila"]');
+  if (filaBtn) {
+    filaBtn.style.display = isGestor ? 'none' : '';
+    if (isGestor && currentTab === 'fila') currentTab = 'dashboard';
   }
 
   // Botão de cancelados: badge com a contagem (só aparece se houver alguma)

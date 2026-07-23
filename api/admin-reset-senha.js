@@ -26,10 +26,13 @@ export default async function handler(req, res) {
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
   const userId      = String(body?.userId || '').trim();
   const forceChange = body?.forceChange !== false; // default: exigir troca
+  const custom      = String(body?.password || '');
   if (!userId) return res.status(400).json({ error: 'userId é obrigatório' });
+  if (custom && custom.length < 8) return res.status(400).json({ error: 'A senha digitada deve ter ao menos 8 caracteres' });
 
   const h = { apikey: SERVICE, Authorization: `Bearer ${SERVICE}`, 'Content-Type': 'application/json' };
-  const temp = gerarSenha();
+  // Usa a senha digitada pelo ADM, ou gera uma forte.
+  const temp = custom || gerarSenha();
 
   try {
     // Define a senha temporária

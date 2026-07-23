@@ -1767,7 +1767,9 @@ function openChangePassword(forced = false) {
       ${forced ? '' : `<button class="btn-cancel" onclick="closeModal()">Cancelar</button>`}
       <button class="btn-primary" id="cp-save" onclick="salvarNovaSenha(${forced})">${icon('check',13,'color:#fff')} Salvar senha</button>
     </div>`;
-  document.getElementById('overlay').classList.add('open');
+  const ov = document.getElementById('overlay');
+  ov.classList.add('open');
+  ov.style.background = forced ? 'var(--bg)' : ''; // forçado: cobre o app por completo
   setTimeout(() => document.getElementById('cp-new')?.focus(), 0);
 }
 
@@ -1837,21 +1839,34 @@ function admConfirmReset(userId) {
     <div style="font-size:13px">Redefinir a senha de <b>${esc(u.name || u.email)}</b>?</div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:4px">${esc(u.email)}</div>
     <label style="display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="adm-manual" style="width:16px;height:16px;cursor:pointer;flex-shrink:0" onchange="document.getElementById('adm-pass-wrap').style.display=this.checked?'block':'none';if(this.checked)document.getElementById('adm-pass').focus()">
+      Digitar a senha manualmente <span style="color:var(--text3)">(se desmarcado, gera aleatória)</span>
+    </label>
+    <div id="adm-pass-wrap" style="display:none">
+      <input class="form-input" id="adm-pass" type="text" placeholder="mínimo 8 caracteres" autocomplete="off">
+    </div>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer">
       <input type="checkbox" id="adm-force" checked style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
       Exigir que o usuário troque a senha no próximo login
     </label>
     <div id="adm-err" style="font-size:12px;color:var(--red);min-height:14px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn-cancel" onclick="renderAdmUserList()">Voltar</button>
-      <button class="btn-primary" id="adm-gen" onclick="admDoReset('${u.id}')">Gerar senha temporária</button>
+      <button class="btn-primary" id="adm-gen" onclick="admDoReset('${u.id}')">${icon('check',13,'color:#fff')} Redefinir senha</button>
     </div>`;
 }
 async function admDoReset(userId) {
-  const force = document.getElementById('adm-force')?.checked !== false;
-  const btn = document.getElementById('adm-gen'); if (btn) { btn.disabled = true; btn.textContent = 'Gerando…'; }
-  const err = document.getElementById('adm-err');
+  const force  = document.getElementById('adm-force')?.checked !== false;
+  const manual = document.getElementById('adm-manual')?.checked === true;
+  const err = document.getElementById('adm-err'); if (err) err.textContent = '';
+  let custom = '';
+  if (manual) {
+    custom = document.getElementById('adm-pass')?.value || '';
+    if (custom.length < 8) { if (err) err.textContent = 'A senha digitada deve ter ao menos 8 caracteres.'; return; }
+  }
+  const btn = document.getElementById('adm-gen'); if (btn) { btn.disabled = true; btn.textContent = 'Redefinindo…'; }
   try {
-    const r = await apiFetch('/api/admin-reset-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, forceChange: force }) });
+    const r = await apiFetch('/api/admin-reset-senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, forceChange: force, password: custom }) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Falha ao redefinir');
     const u = _admUsers.find(x => x.id === userId);
@@ -2040,7 +2055,7 @@ async function checkSession() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     await fetchUserProfile();
-    if (_cachedUser) { showApp(); return; }
+    if (_cachedUser) { showApp(); checkSenhaExpira(); return; } // também força troca no F5/retorno
   }
   // sem sessão válida — oculta loading e exibe login
   document.getElementById('loadingScreen').style.display = 'none';
@@ -5504,7 +5519,9 @@ function openInfoModal(opId) {
 
 function closeModal() {
   if (_forcedPwd) return; // senha expirada: não deixa sair sem trocar
-  document.getElementById('overlay').classList.remove('open');
+  const _ov = document.getElementById('overlay');
+  _ov.classList.remove('open');
+  _ov.style.background = ''; // restaura o fundo translúcido (caso tenha sido opaco)
   const _cm = document.getElementById('modal');
   _cm.classList.remove('wide', 'split', 'xwide');
   _cm.style.height = '';

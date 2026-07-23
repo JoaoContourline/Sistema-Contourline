@@ -156,8 +156,8 @@ main { padding: 24px; }
 .flag-multi { background: rgba(124,58,237,.1); color: var(--purple); border: 1px solid rgba(124,58,237,.25); }
 
 .card-client { font-size: 13px; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
-.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
-.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text2); }
+.equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; min-width: 0; }
+.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 
@@ -464,9 +464,9 @@ main { padding: 24px; }
 }
 .kanban-board {
   display: flex; gap: 8px; align-items: flex-start; padding: 2px 1px;
-  min-width: calc(6 * 210px + 5 * 8px);
 }
-.kanban-col { flex: 1 0 210px; max-width: 320px; min-width: 180px; display: flex; flex-direction: column; }
+/* 6 colunas dividem a largura disponível (encolhem para caber sem scroll horizontal). */
+.kanban-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .kanban-col-head {
   padding: 8px 11px 7px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
@@ -622,7 +622,6 @@ body.kanban-mode .kanban-col-body {
    RESPONSIVIDADE
    ═══════════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .kanban-col { flex: 1 0 190px; }
   main { padding: 16px; }
 }
 @media (max-width: 680px) {
@@ -639,7 +638,6 @@ body.kanban-mode .kanban-col-body {
   main { padding: 12px; }
   .step-title { font-size: 15px; }
   .card-grid { grid-template-columns: 1fr; gap: 10px; }
-  .kanban-col { flex: 1 0 200px; }
   .form-row { grid-template-columns: 1fr !important; }
   .modal-overlay { padding: 6px; align-items: flex-end; }
   .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 92vh; }
@@ -653,7 +651,6 @@ body.kanban-mode .kanban-col-body {
   .card-grid .card { animation: none; }
 }
 @media (max-width: 420px) {
-  .kanban-col { flex: 1 0 180px; }
   main { padding: 8px; }
   .modal-overlay { padding: 0; }
   .modal { border-radius: 16px 16px 0 0; }

@@ -1676,10 +1676,9 @@ async function fetchUserProfile() {
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
   // qualquer usuário se declarar 'gestor'.
-  // Normaliza a caixa (ex.: "ADM" → "adm") e mapeia o antigo super-usuário
-  // 'gestor' → 'adm' (o 'gestor' agora é a visão de dashboard).
-  const raw      = String(profile?.sector_id || '').trim().toLowerCase();
-  const sectorId = raw === 'gestor' ? 'adm' : raw;
+  // Normaliza a caixa (ex.: "ADM" → "adm"). 'gestor' e 'adm' são papéis distintos:
+  // gestor = só Dashboard/visão geral; adm = tudo + switcher de setores.
+  const sectorId = String(profile?.sector_id || '').trim().toLowerCase();
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
   _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id };
@@ -1715,9 +1714,7 @@ async function doLogin() {
   // 2. Busca setor + nome no profiles. Sem fallback para user_metadata: aquele
   // campo é auto-editável pelo dono da conta e permitia virar 'gestor' sozinho.
   const { data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single();
-  // Normaliza a caixa e mapeia o antigo 'gestor' → 'adm'.
-  const _raw     = String(profile?.sector_id || '').trim().toLowerCase();
-  const sectorId = _raw === 'gestor' ? 'adm' : _raw;
+  const sectorId = String(profile?.sector_id || '').trim().toLowerCase();
   if (!sectorId || !SECTORS.find(s => s.id === sectorId)) {
     errEl.textContent = 'Setor não configurado. Contate o administrador.';
     await sb.auth.signOut();
@@ -3425,10 +3422,11 @@ function renderCounts() {
     if (!canRastreio && currentTab === 'rastreio') currentTab = 'fila';
   }
 
-  // Aba Entregas (painel de logística): só para logística e gestor
+  // Aba Entregas (painel operacional da logística): só a logística (o ADM vê ao
+  // simular Logística). O Gestor tem visão gerencial, não opera entregas.
   const logBtn = document.getElementById('btn-tab-logistica');
   if (logBtn) {
-    const canLog = view?.role === 'logistica' || view?.role === 'gestor';
+    const canLog = view?.role === 'logistica';
     logBtn.style.display = canLog ? '' : 'none';
     document.getElementById('cnt-logistica').textContent = canLog ? logisticaOps().length : 0;
     if (!canLog && currentTab === 'logistica') currentTab = 'fila';

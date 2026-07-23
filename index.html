@@ -230,7 +230,7 @@ main { padding: 24px; }
 /* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s; display: grid; place-items: center; padding: 20px; }
 .modal-overlay.open { opacity: 1; pointer-events: all; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 480px; transform: scale(.97) translateY(8px); transition: transform .2s; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 100%; max-width: 480px; transform: scale(.97) translateY(8px); transition: transform .2s; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
 .modal-overlay.open .modal { transform: scale(1) translateY(0); }
 .modal.wide { max-width: 620px; }
 .modal.xwide { max-width: 920px; }
@@ -239,7 +239,7 @@ main { padding: 24px; }
 .modal-subtitle { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
 .close-btn { width: 26px; height: 26px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; transition: all .15s; }
 .close-btn:hover { background: var(--border); color: var(--text); }
-.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .modal-footer { padding: 14px 22px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
 
 .op-info-block { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
@@ -2482,70 +2482,45 @@ function openFileBlob(btn) {
     .catch(() => showToast('Não foi possível abrir o arquivo.', 'err'));
 }
 
-// Gera HTML de link para visualizar/baixar arquivo armazenado
+// Uma linha uniforme por arquivo: miniatura/ícone + nome + tamanho + Visualizar + Baixar.
 function fileLinkHtml(f, compact = false) {
   if (!f) return '-';
   if (typeof f === 'string') {
-    // legado: apenas nome sem dataUrl
-    return `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px;color:var(--text3)">${icon('paperclip',11,'color:var(--text3)')} ${esc(f)}</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">${icon('paperclip',13,'color:var(--text3)')} ${esc(f)}</div>`;
   }
-  const kb          = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
-  const fileUrl     = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
-  const safeDataUrl = fileUrl;
-  const safeName    = (f.name || 'arquivo').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-  const isImage     = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || fileUrl.startsWith('data:image/');
-  const btnBase     = `display:inline-flex;align-items:center;gap:4px;font-size:${compact?'10':'11'}px;text-decoration:none;
-    padding:3px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);
-    transition:border-color .1s;cursor:pointer;font-family:inherit;border-style:solid`;
+  const kb       = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
+  const fileUrl  = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
+  const safeName = (f.name || 'arquivo').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  const isImage  = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || fileUrl.startsWith('data:image/');
+  const isPdf    = /\.pdf$/i.test(f.name || '');
+  const canLight = isImage || (isPdf && (f.url || fileUrl.startsWith('data:application/pdf')));
+  const btn      = `display:inline-flex;align-items:center;gap:4px;font-size:11px;text-decoration:none;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:inherit;white-space:nowrap`;
 
-  if (isImage && safeDataUrl) {
-    const h = compact ? '44' : '60';
-    return `<span style="display:inline-flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
-      <img src="${safeDataUrl}" alt="${safeName}"
-        onclick="showLightbox(this.src,'${safeName}')"
-        title="Clique para ampliar"
-        style="height:${h}px;width:auto;max-width:130px;border-radius:5px;border:1px solid var(--border);cursor:zoom-in;object-fit:cover;flex-shrink:0">
-      <span style="display:flex;flex-direction:column;gap:4px;padding-top:2px">
-        <span style="font-size:${compact?'10':'11'}px;color:var(--text2);display:inline-flex;align-items:center;gap:4px">
-          ${icon('image',10,'color:var(--text3)')} ${esc(f.name)}
-          ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
-        </span>
-        <a href="${safeDataUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
-          onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-          ${icon('download',11,'color:var(--text2)')} Baixar
-        </a>
-      </span>
-    </span>`;
-  }
+  const thumb = (isImage && fileUrl)
+    ? `<img src="${fileUrl}" alt="${safeName}" onclick="showLightbox(this.src,'${safeName}')" title="Ampliar" style="width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;flex-shrink:0">`
+    : `<span style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon(isPdf?'file-text':'paperclip',15,'color:var(--text3)')}</span>`;
 
-  const isPdf     = /\.pdf$/i.test(f.name || '');
-  const canPreview = isPdf && (f.url || safeDataUrl.startsWith('data:application/pdf'));
-  const vizAction  = canPreview
+  const vizAction = canLight
     ? `onclick="showLightbox('${fileUrl.replace(/'/g,"\\'")}','${safeName}')"`
-    : `data-fileurl="${safeDataUrl}" data-filename="${safeName}" onclick="openFileBlob(this)"`;
+    : `data-fileurl="${fileUrl}" data-filename="${safeName}" onclick="openFileBlob(this)"`;
 
-  return `<span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">
-    <span style="font-size:${compact?'11':'12'}px;color:var(--text);display:inline-flex;align-items:center;gap:4px">
-      ${icon(isPdf?'file-text':'paperclip',12,'color:var(--text3)')} ${f.name}
-      ${kb ? `<span style="color:var(--text3);font-size:9px">${kb}</span>` : ''}
-    </span>
-    <button type="button" style="${btnBase};color:var(--accent)"
-      ${vizAction}
-      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      ${icon('eye',11,'color:var(--accent)')} Visualizar
-    </button>
-    <a href="${fileUrl}" download="${safeName}" style="${btnBase};color:var(--text2)"
-      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      ${icon('download',11,'color:var(--text2)')} Baixar
-    </a>
-  </span>`;
+  return `<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid var(--border)">
+    ${thumb}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div>
+      ${kb ? `<div style="font-size:10px;color:var(--text3)">${kb}</div>` : ''}
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      ${fileUrl ? `<button type="button" style="${btn};color:var(--accent)" ${vizAction}>${icon('eye',12,'color:var(--accent)')} Visualizar</button>` : ''}
+      ${fileUrl ? `<a href="${fileUrl}" download="${safeName}" style="${btn};color:var(--text2)">${icon('download',12,'color:var(--text2)')} Baixar</a>` : ''}
+    </div>
+  </div>`;
 }
 
 function fileLinksHtml(files) {
   if (!files || !files.length) return '';
-  return `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${
-    (Array.isArray(files) ? files : [files]).map(f => fileLinkHtml(f)).join('')
-  }</div>`;
+  const arr = Array.isArray(files) ? files : [files];
+  return `<div style="display:flex;flex-direction:column;border-bottom:1px solid var(--border);margin-top:4px">${arr.map(f => fileLinkHtml(f)).join('')}</div>`;
 }
 
 async function addMultiFile(input, key) {
@@ -2719,7 +2694,7 @@ function refreshMultiFileList(key) {
     <div class="multi-file-item">
       <span class="multi-file-item-name" style="display:flex;align-items:center;gap:5px;overflow:hidden">
         ${icon('paperclip',12,'color:var(--text3);flex-shrink:0')}
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span>
       </span>
       <span class="multi-file-item-size">${(f.size/1024).toFixed(0)} KB</span>
       <button class="multi-file-remove" type="button" onclick="removeMultiFile('${key}',${i})" title="Remover">${icon('x',12)}</button>

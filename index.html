@@ -7176,8 +7176,13 @@ function printPedidoVenda(opId) {
     return d && m && y ? `${d}/${m}/${y}` : pv.data || '-';
   })();
 
-  // Solicitante = usuário que criou a OP (primeiro registro do histórico)
-  const solicitante = (op.history?.[0]?.actorName || pv.vendedorCanal || pv.analista || '-').toUpperCase();
+  // Vendedores do pedido de venda (canal + adicionais)
+  const vendedores = (() => {
+    const all = [];
+    if (pv.vendedorCanal) all.push(pv.vendedorCanal);
+    (pv.vendedores || []).forEach(v => { if (v && v !== pv.vendedorCanal) all.push(v); });
+    return all.length ? all.join(' | ').toUpperCase() : (pv.analista || op.history?.[0]?.actorName || '-').toUpperCase();
+  })();
 
   // Endereço principal
   const endereco = [pv.endRua, pv.endNumero ? 'nº ' + pv.endNumero : ''].filter(Boolean).join(', ') || pv.enderecoCliente || '';
@@ -7244,19 +7249,50 @@ function printPedidoVenda(opId) {
   if (tesUniq.length) obsParts.push(tesUniq.join(', '));
   const obsText = obsParts.join('\n');
 
-  // Linhas de pagamento
-  let payRows;
-  if (!pv.tipoContrato || liqVal === 0) {
-    payRows = '<tr><td>-</td><td>-</td><td>-</td><td>-</td></tr>';
+  // Tabela de parcelas / condições de pagamento
+  let parcHtml;
+  const _pagamentos = Array.isArray(pv.pagamentos) ? pv.pagamentos.filter(pg => pg && pg.valor > 0) : [];
+  if (_pagamentos.length > 0) {
+    const toOrd = s => { const [d,m,y] = (s||'').split('/').map(Number); return (y||0)*10000+(m||0)*100+(d||0); };
+    const sorted = [..._pagamentos].sort((a,b) => toOrd(a.venc) - toOrd(b.venc));
+    const groups = new Map();
+    sorted.forEach(pg => {
+      const key = `${pg.forma||''}||${pg.valor}`;
+      if (!groups.has(key)) groups.set(key, { valor: pg.valor, vencs: [] });
+      groups.get(key).vencs.push(pg.venc || '');
+    });
+    const parcRows = [...groups.values()].map(g => {
+      const qty = g.vencs.length;
+      return `<tr>
+        <td style="text-align:center">${qty}</td>
+        <td style="text-align:right">${fmtBRL(g.valor)}</td>
+        <td style="text-align:center">${g.vencs[0]||'-'}</td>
+        <td style="text-align:center">${qty > 1 ? g.vencs[qty-1] : '-'}</td>
+      </tr>`;
+    }).join('');
+    parcHtml = `<table class="pay">
+      <thead><tr>
+        <th>Qtda Parcelas</th><th>Valor da parcela</th>
+        <th>Data de Vencimento</th><th>Data do &uacute;ltimo vencimento</th>
+      </tr></thead>
+      <tbody>${parcRows}</tbody>
+    </table>`;
   } else {
-    const payDesc = [pv.tipoContrato, pv.detalhesPagamento].filter(Boolean).join(' — ');
-    payRows = `<tr><td colspan="4" style="text-align:left;padding:4px 8px">${payDesc}</td></tr>`;
-  }
-  if (pv.simulador && parseFloat(pv.simulador) > 0) {
-    payRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Valor do simulador: ${fmtBRL(pv.simulador)}</td></tr>`;
-  }
-  if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0) {
-    payRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;
+    let textRows = '';
+    if (pv.tipoContrato || pv.detalhesPagamento) {
+      textRows += `<tr><td colspan="4" style="text-align:left;padding:4px 8px">${esc([pv.tipoContrato, pv.detalhesPagamento].filter(Boolean).join(' — '))}</td></tr>`;
+    }
+    if (pv.simulador && parseFloat(pv.simulador) > 0) {
+      textRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Valor do simulador: ${fmtBRL(pv.simulador)}</td></tr>`;
+    }
+    if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0) {
+      textRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;
+    }
+    if (!textRows) textRows = '<tr><td colspan="4">-</td></tr>';
+    parcHtml = `<table class="pay">
+      <thead><tr><th colspan="4" style="text-align:center">CONDI&Ccedil;&Otilde;ES DE PAGAMENTO</th></tr></thead>
+      <tbody>${textRows}</tbody>
+    </table>`;
   }
 
   // Campos preenchidos automaticamente no bloco de expedição:
@@ -7293,6 +7329,7 @@ table.prod{width:100%;border-collapse:collapse;border:1px solid #000;border-top:
 table.prod th{border:1px solid #000;padding:3px 5px;font-size:9px;font-weight:bold;text-align:center;background:#f5f5f5}
 table.prod td{border:1px solid #000;padding:3px 5px;vertical-align:middle}
 .bonif-lbl{border:1px solid #000;border-top:0;padding:2px 8px;font-weight:bold;font-size:9px}
+.contrato-hdr{border:1px solid #000;border-top:0;padding:4px 8px;font-weight:bold;font-size:10px}
 /* obs */
 .obs-hdr{border:1px solid #000;border-top:0;padding:2px 6px;font-weight:bold;font-size:9px;text-transform:uppercase;background:#f5f5f5}
 .obs-body{border:1px solid #000;border-top:0;padding:6px 8px;min-height:58px;white-space:pre-wrap;line-height:1.55;font-size:10px}
@@ -7333,7 +7370,7 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
 <table class="meta">
   <tr><td class="lbl lbl-col">PEDIDO DE VENDA N&ordm;:</td><td>${pvNum}</td></tr>
   <tr><td class="lbl lbl-col">DATA:</td><td>${dataCriacao}</td></tr>
-  <tr><td class="lbl lbl-col">SOLICITANTE:</td><td>${solicitante}</td></tr>
+  <tr><td class="lbl lbl-col">VENDEDOR(A):</td><td>${vendedores}</td></tr>
 </table>
 
 <!-- DADOS FINANCEIROS -->
@@ -7409,18 +7446,14 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
   </tbody>
 </table>
 ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
+${(pv.numContrato||pv.tipoContrato)?`<div class="contrato-hdr">CONTRATO ${esc(pv.numContrato||pv.tipoContrato)}</div>`:''}
 
 <!-- OBSERVAÇÕES GERAIS -->
 <div class="obs-hdr">OBSERVA&Ccedil;&Otilde;ES GERAIS:</div>
 <div class="obs-body">${esc(obsText)||' '}</div>
 
 <!-- PAGAMENTOS -->
-<table class="pay">
-  <thead><tr>
-    <th colspan="4" style="text-align:center">CONDI&Ccedil;&Otilde;ES DE PAGAMENTO</th>
-  </tr></thead>
-  <tbody>${payRows}</tbody>
-</table>
+${parcHtml}
 
 <!-- SEPARAÇÃO, CONFERÊNCIA E EXPEDIÇÃO -->
 <table class="sep">

@@ -7245,6 +7245,8 @@ function printPedidoVenda(opId) {
     obsParts.push(ps);
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
+  if (pv.instagram)   obsParts.push(`Instagram: ${pv.instagram}`);
+  if (pv.simulador && parseFloat(pv.simulador) > 0) obsParts.push(`Simulador: ${fmtBRL(pv.simulador)}`);
   const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${e.tes}${e.tesDesc?' ('+e.tesDesc+')':''}`))];
   if (tesUniq.length) obsParts.push(tesUniq.join(', '));
   const obsText = obsParts.join('\n');
@@ -7281,9 +7283,6 @@ function printPedidoVenda(opId) {
     let textRows = '';
     if (pv.tipoContrato || pv.detalhesPagamento) {
       textRows += `<tr><td colspan="4" style="text-align:left;padding:4px 8px">${esc([pv.tipoContrato, pv.detalhesPagamento].filter(Boolean).join(' — '))}</td></tr>`;
-    }
-    if (pv.simulador && parseFloat(pv.simulador) > 0) {
-      textRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Valor do simulador: ${fmtBRL(pv.simulador)}</td></tr>`;
     }
     if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0) {
       textRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;

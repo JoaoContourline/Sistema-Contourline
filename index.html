@@ -4005,7 +4005,7 @@ function setEntregaSubtab(id) { _entregaSubtab = id; renderMain(); }
 
 function enderecoOP(op) {
   const pv = op.pedidoVenda || {};
-  return (pv.enderecoEntrega || [pv.endRua, pv.endNumero].filter(Boolean).join(', ') || '').trim();
+  return (pv.enderecoEntrega || [pv.endRua, pv.endNumero, pv.endComplemento].filter(Boolean).join(', ') || '').trim();
 }
 function equipOP(op) { return (op.equipamentos || [op.equipamento]).filter(Boolean).slice(0, 2).join(', '); }
 
@@ -4798,7 +4798,7 @@ function buildContextPanel(op) {
         ${details.map(d=>`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
       </div>`;
     }).join('');
-    const addrParts  = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const addrParts  = [[pv.endRua, pv.endNumero, pv.endComplemento].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
     const payRows = [];
@@ -5143,7 +5143,7 @@ function buildInfoSections(op, opId) {
         ${details.map(d=>`<div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:1px">${d}</div>`).join('')}
       </div>`;
     }).join('') || `<div style="font-size:12px">${esc((op.equipamentos||[]).join(', '))}</div>`;
-    const addrParts = [[pv.endRua, pv.endNumero].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
+    const addrParts = [[pv.endRua, pv.endNumero, pv.endComplemento].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
     let pvHtml = `
@@ -6077,6 +6077,8 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Número</label>
               <input class="form-input" id="nova-endNumero"></div>
           </div>
+          <div class="form-group"><label class="form-label">Complemento <span style="font-size:10px;color:var(--text3)">(apto, bloco, sala...)</span></label>
+            <input class="form-input" id="nova-endComplemento" placeholder="Ex: Apto 165, Bloco B"></div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Bairro</label>
               <input class="form-input" id="nova-endBairro"></div>
@@ -6677,7 +6679,7 @@ function toggleSameAddress(checked) {
 // ═══════════════════════════════════════════════════════════════════
 
 function clearClientFields() {
-  ['nova-cliente','nova-endRua','nova-endNumero','nova-endBairro','nova-endCidade',
+  ['nova-cliente','nova-endRua','nova-endNumero','nova-endComplemento','nova-endBairro','nova-endCidade',
    'nova-cep-cliente','nova-tel','nova-email','nova-rg'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -6957,6 +6959,7 @@ async function submitNovaOP() {
   const numDocumento     = v('nova-numDocumento') || 'N/A';
   const endRua           = v('nova-endRua');
   const endNumero        = v('nova-endNumero');
+  const endComplemento   = v('nova-endComplemento');
   const endBairro        = v('nova-endBairro');
   const endCidade        = v('nova-endCidade');
   const endEstado        = g('nova-endEstado')?.value;
@@ -6998,7 +7001,7 @@ async function submitNovaOP() {
   const comprovanteEntrada   = (tempFilesData['comprovanteEntrada'] || []).length
     ? tempFilesData['comprovanteEntrada'] : null;
 
-  const enderecoCliente = [[endRua, endNumero].filter(Boolean).join(', '), endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
+  const enderecoCliente = [[endRua, endNumero, endComplemento].filter(Boolean).join(', '), endBairro, [endCidade, endEstado].filter(Boolean).join('/'), endCEP].filter(Boolean).join(', ');
 
   if (!vendedorCanal) { highlightError('nova-vendedorCanal'); return; }
   if (!cliente)       { highlightError('nova-cliente');       return; }
@@ -7051,7 +7054,7 @@ async function submitNovaOP() {
       numContrato, frete: 'EMPRESA',
       cliente: cliente.toUpperCase(),
       dn: fmtD(dn), cpf, rg, email, profissao, numDocumento,
-      endRua, endNumero, endBairro, endCidade, endEstado, endCEP, enderecoCliente, tel,
+      endRua, endNumero, endComplemento, endBairro, endCidade, endEstado, endCEP, enderecoCliente, tel,
       tipoContrato, detalhesPagamento,
       simulador: simulador || '',
       valorTotal, valorDesconto, valorLiquido,
@@ -7185,7 +7188,7 @@ function printPedidoVenda(opId) {
   })();
 
   // Endereço principal
-  const endereco = [pv.endRua, pv.endNumero ? 'nº ' + pv.endNumero : ''].filter(Boolean).join(', ') || pv.enderecoCliente || '';
+  const endereco = [pv.endRua, pv.endNumero ? 'nº ' + pv.endNumero : '', pv.endComplemento || ''].filter(Boolean).join(', ') || pv.enderecoCliente || '';
 
   // Logo via URL da origem
   const logoSrc = window.location.origin + '/Logo-Contourline-Azul-2048x597%20(2).webp';
@@ -7445,7 +7448,7 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
   </tbody>
 </table>
 ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
-${(pv.numContrato||pv.tipoContrato)?`<div class="contrato-hdr">CONTRATO ${esc(pv.numContrato||pv.tipoContrato)}</div>`:''}
+<div class="contrato-hdr">CONTRATO ${esc(pv.numContrato||pv.tipoContrato||'')}</div>
 
 <!-- OBSERVAÇÕES GERAIS -->
 <div class="obs-hdr">OBSERVA&Ccedil;&Otilde;ES GERAIS:</div>

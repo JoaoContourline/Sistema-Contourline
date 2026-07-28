@@ -128,22 +128,39 @@ async function rottaConsultar({ cnpj, numeroNF }) {
   return json.data?.[0] || null;
 }
 
+// Extrai URL de href e limpa HTML das descrições de eventos da Rotta.
+// Quando entregue, o campo "descricao" vem como tag <a> com o link do comprovante.
+function rottaParseEvento(e) {
+  const raw = e.descricao || '';
+  // Detecta se há markup HTML (tag <a ...>)
+  if (!raw.includes('<')) return { descricao: raw, urlPod: null };
+  const hrefMatch = raw.match(/href=['"]([^'"]+)['"]/);
+  const urlPod    = hrefMatch ? hrefMatch[1] : null;
+  // Extrai texto puro da tag ou usa "Entregue" como fallback
+  const textMatch = raw.match(/>([^<]+)</);
+  const descricao = textMatch ? textMatch[1].trim() : 'Entregue';
+  return { descricao, urlPod };
+}
+
 function rottaNormalize(data, cnpj, numeroNF) {
   if (!data) return null;
 
   const todos = Array.isArray(data.dados) ? data.dados : [];
   const eventos = todos
     .filter(e => !/previs[ãa]o de entrega/i.test(e.descricao || ''))
-    .map(e => ({
-      ts:           e.data || null,
-      codigo:       '',
-      descricao:    e.descricao || '',
-      local:        '',
-      lat:          null,
-      lng:          null,
-      urlPod:       null,
-      urlInsucesso: null,
-    }));
+    .map(e => {
+      const { descricao, urlPod } = rottaParseEvento(e);
+      return {
+        ts:           e.data || null,
+        codigo:       '',
+        descricao,
+        local:        '',
+        lat:          null,
+        lng:          null,
+        urlPod,
+        urlInsucesso: null,
+      };
+    });
 
   const ultimo   = eventos[eventos.length - 1] || {};
   const entregue = !!data.comprovante || /\bentregue\b/i.test(ultimo.descricao || '');

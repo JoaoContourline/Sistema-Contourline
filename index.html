@@ -5317,9 +5317,13 @@ function buildInfoSections(op, opId) {
       </div>`;
     }
 
+    if (d.rastreioPod) {
+      const _ext = (d.rastreioPod.match(/\.(jpe?g|png|gif|webp)(\?.*)?$/i) || [])[1] || 'jpeg';
+      confHtml += `<div style="margin-top:8px">${fileLinkHtml({ name: `Comprovante Transportadora.${_ext}`, url: d.rastreioPod })}</div>`;
+    }
     if (d.fotos?.length) {
-      confHtml += `<div style="margin-top:8px">${fileLinksHtml(d.fotos)}</div>`;
-    } else if (op.status === 'entregue') {
+      confHtml += `<div style="margin-top:${d.rastreioPod ? 0 : 8}px">${fileLinksHtml(d.fotos)}</div>`;
+    } else if (!d.rastreioPod && op.status === 'entregue') {
       confHtml += `<div style="margin-top:8px;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);font-style:italic">
         ${icon('image',11,'color:var(--text3)')} Nenhuma foto anexada
       </div>`;

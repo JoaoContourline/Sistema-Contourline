@@ -204,11 +204,11 @@ export default async function handler(req, res) {
   if (transp === 'rotta') {
     if (!cnpj || !numeroNF) return res.status(400).json({ error: 'Informe cnpj e numeroNF para Rotta Master' });
   } else {
-    if (!chaveNfe && !awb && !pedido) return res.status(400).json({ error: 'Informe chaveNfe, awb ou pedido' });
+    if (!chaveNfe && !awb && !pedido && !numeroNF) return res.status(400).json({ error: 'Informe chaveNfe, awb, pedido ou numeroNF' });
   }
 
   try {
-    const dados = await carrier({ chaveNfe, awb, pedido, cnpj, numeroNF });
+    const dados = await carrier({ chaveNfe, awb, pedido: pedido || numeroNF, cnpj, numeroNF });
     if (!dados) return res.status(404).json({ error: 'Nenhum rastreio encontrado para este código' });
     return res.status(200).json(dados);
   } catch (err) {

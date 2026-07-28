@@ -1213,7 +1213,6 @@ const STEPS = {
     actionLabel: 'Confirmar Emissão da Nota Fiscal',
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
-      { key: 'chaveNfe',    label: 'Chave da NFe (44 díg.)', type: 'text' },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
       { key: 'arquivoNF',   label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
       { key: 'descricao',   label: 'Observações',             type: 'textarea',
@@ -2243,12 +2242,12 @@ function advanceOP(opId, formData) {
   if (next === 'transito') cadastrarEquipamentosQR(op);
 
   // Ao entrar em trânsito (logística confirmou o despacho da NF), dispara o
-  // 1º rastreio automático quando a transportadora tem integração + chave NFe.
+  // 1º rastreio automático quando a transportadora tem integração.
   if (RASTREIO_ATIVO
       && next === 'transito'
       && op.stepData?.aguard_nf?.envioTipo === 'transportadora'
       && RASTREAVEIS.has(op.stepData?.aguard_nf?.transportadora)
-      && (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '').length >= 44) {
+      && op.stepData?.aguard_emissao?.numeroNF) {
     atualizarRastreio(op.id, true);
   }
 }
@@ -2970,14 +2969,9 @@ async function autoPreencherNota(file) {
     }
     // Só preenche campo vazio: não sobrescreve o que o operador já digitou.
     const setVal = (id, v) => { const el = document.getElementById(id); if (el && v && !el.value.trim()) el.value = v; };
-    setVal('f-chaveNfe', dados.chave);
     setVal('f-numeroNF', dados.numero);
     setVal('f-dataEmissao', dados.dataEmissao);
-    if (dados.chave && !dados.chaveValida) {
-      showToast(`NF ${dados.numero || '?'} lida, mas confira a chave (dígito verificador não bateu)`, 'err');
-    } else {
-      showToast(`Nota lida: NF ${dados.numero || '?'}${dados.chave ? ' · chave preenchida' : ''}`, 'ok');
-    }
+    showToast(`Nota lida: NF ${dados.numero || '?'}`, 'ok');
   } catch (e) {
     showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
   }
@@ -3433,23 +3427,18 @@ async function atualizarRastreio(opId, silent) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
   const transp   = op.stepData?.aguard_nf?.transportadora;
-  const chaveNfe = (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '');
   const numeroNF = (op.stepData?.aguard_emissao?.numeroNF || '').trim();
   const cnpj     = (op.pedidoVenda?.cpf || '').replace(/\D/g, '');
   if (!RASTREAVEIS.has(transp)) { if (!silent) showToast('Transportadora sem integração de rastreio', 'err'); return; }
-  if (transp === 'rotta') {
-    if (!cnpj)    { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
-    if (!numeroNF){ if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
-  } else {
-    if (!chaveNfe || chaveNfe.length < 44) { if (!silent) showToast('Chave da NFe (44 díg.) não informada na emissão', 'err'); return; }
-  }
+  if (!numeroNF) { if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
+  if (transp === 'rotta' && !cnpj) { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
 
   op._rastreioLoading = true; op._rastreioErro = null;
   if (currentTab === 'rastreio') renderMain();
   try {
     const resp = await apiFetch('/api/rastreio', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transportadora: transp, chaveNfe, cnpj, numeroNF }),
+      body: JSON.stringify({ transportadora: transp, pedido: numeroNF, cnpj, numeroNF }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Falha ao consultar rastreio');
@@ -3519,7 +3508,7 @@ function rastPrevBadge(vm) {
 function rastCardHtml(vm) {
   const op = vm.op;
   const cliente = op.cliente || op.pedidoVenda?.cliente || '—';
-  const codigo  = op.rastreio?.awb ? `AWB ${op.rastreio.awb}` : (op.stepData?.aguard_emissao?.chaveNfe ? `NF …${String(op.stepData.aguard_emissao.chaveNfe).slice(-6)}` : '');
+  const codigo  = op.rastreio?.awb ? `AWB ${op.rastreio.awb}` : (op.stepData?.aguard_emissao?.numeroNF ? `NF ${op.stepData.aguard_emissao.numeroNF}` : '');
   const live    = !vm.entregue && vm.r && !vm._stale ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:rastPulse 1.6s ease-in-out infinite"></span>ao vivo</span>` : '';
   const loadBtn = vm._rastreioLoading || op._rastreioLoading
     ? `<span style="font-size:11px;color:var(--text3)">atualizando…</span>`
@@ -5011,10 +5000,6 @@ function openActionModal(opId, mode) {
         <input class="form-input" id="f-numeroNF" value="${esc(emData.numeroNF||'')}">
       </div>
       <div class="form-group">
-        <label class="form-label">Chave da NFe (44 díg.)</label>
-        <input class="form-input" id="f-chaveNfe" value="${esc(emData.chaveNfe||'')}">
-      </div>
-      <div class="form-group">
         <label class="form-label">Data de Emissão *</label>
         <input class="form-input" id="f-dataEmissao" type="date" value="${emData.dataEmissao||''}">
       </div>
@@ -5272,7 +5257,6 @@ function buildInfoSections(op, opId) {
     const d = sd.aguard_emissao;
     let nfeHtml = `<div class="detail-grid">
       ${dItem('Número NF', esc(d.numeroNF))}
-      ${d.chaveNfe ? dItem('Chave NFe', esc(d.chaveNfe)) : ''}
       ${d.dataEmissao ? dItem('Data de Emissão', fmtDate(d.dataEmissao)) : ''}
       ${dItem('Observações', esc(d.descricao))}
     </div>`;
@@ -5850,7 +5834,6 @@ function submitModal() {
     if (!addr)  { err('f-reNF_enderecoEntrega'); return; }
     const ev    = collectEnvio(); if (!ev) return; // motorista+carro+placa ou transportadora
     const numNF = document.getElementById('f-numeroNF')?.value?.trim();
-    const chvNF = document.getElementById('f-chaveNfe')?.value?.trim();
     const dtNF  = document.getElementById('f-dataEmissao')?.value;
     const descNF= document.getElementById('f-descricao')?.value?.trim();
     if (!numNF) { err('f-numeroNF');              return; }
@@ -5873,7 +5856,7 @@ function submitModal() {
     // Re-emissão concluída: limpa o pedido de re-emissão para o aviso vermelho
     // "RE-EMISSÃO SOLICITADA" não ficar preso na OP (inclusive já entregue).
     delete op.stepData.aguard_despacho_reject;
-    advanceOP(activeOpId, { numeroNF: numNF, chaveNfe: chvNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
+    advanceOP(activeOpId, { numeroNF: numNF, dataEmissao: dtNF, arquivoNF: fileNF, descricao: descNF });
     closeModal(); return;
   }
 

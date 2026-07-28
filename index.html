@@ -1396,7 +1396,12 @@ function startRotasRealtime() {
         if (payload.eventType === 'DELETE') rotas = rotas.filter(r => r.id !== Number(payload.old.id));
         else { const r = rowToRota(payload.new); if (r) { const i = rotas.findIndex(x => x.id === r.id); if (i >= 0) rotas[i] = r; else rotas.unshift(r); } }
         if (currentTab === 'logistica' && !_editandoObs) renderMain();
-      }).subscribe();
+      }).subscribe(status => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn('[Realtime rotas] canal perdido (' + status + ') — reconectando em 5s');
+          setTimeout(startRotasRealtime, 5000);
+        }
+      });
   } catch (e) { console.warn('Realtime de rotas indisponível:', e.message); }
 }
 async function saveRota(rota) {
@@ -1696,6 +1701,14 @@ function startRealtime() {
           }
           const idx = ops.findIndex(o => o.id === updated.id);
           if (idx >= 0) ops[idx] = updated; else ops.unshift(updated);
+          // Atualiza o modal se a OP alterada estiver aberta
+          if (activeOpId === updated.id && document.getElementById('overlay')?.classList.contains('open')) {
+            if (modalMode) {
+              showToast('Esta OP foi atualizada por outro usuário — revise antes de confirmar', 'err');
+            } else {
+              openInfoModal(updated.id); // info modal: recarrega silenciosamente
+            }
+          }
         } else {
           // payload sem data (REPLICA IDENTITY não está FULL) - re-busca do servidor
           sb.from('ops').select('id,data,updated_at').eq('id', payload.new.id).single()
@@ -2220,10 +2233,19 @@ function advanceOP(opId, formData) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
   const step = STEPS[op.status];
+  if (!step) { console.warn(`[advanceOP] status "${op.status}" não existe em STEPS — ignorado`); return; }
+  // Guarda de papel: só o setor dono do passo pode avançar (defesa client-side)
+  const _view = getActiveView();
+  if (step.owner && _view && step.owner !== _view.role) {
+    showToast('Ação não permitida para o seu setor', 'err'); return;
+  }
   const next = step.getNext(op);
   if (!next) return;
 
-  if (formData && Object.keys(formData).length) op.stepData[op.status] = { ...formData };
+  // Merge em vez de replace — preserva campos anteriores (ex.: comprovante do financeiro em resubmissão)
+  if (formData && Object.keys(formData).length) {
+    op.stepData[op.status] = { ...(op.stepData[op.status] || {}), ...formData };
+  }
 
   // Porta dupla: registra a aprovação do financeiro; só avança se o SF também estiver pronto
   if (op.status === 'aguard_financeiro') {
@@ -2269,6 +2291,7 @@ function rejectOP(opId, formData) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
   const step = STEPS[op.status];
+  if (!step) { console.warn(`[rejectOP] status "${op.status}" não existe em STEPS — ignorado`); return; }
   if (!step.getReject) return;
   // Defesa: bloquear/rejeitar limpa a aprovação do financeiro, para a OP não
   // voltar "aprovada" ao ser desbloqueada.
@@ -2723,7 +2746,11 @@ function refreshEquipList() {
 
 function parseBRL(val) {
   if (!val && val !== 0) return 0;
-  return parseFloat(String(val).replace(/\./g, '').replace(',', '.')) || 0;
+  const s = String(val).trim().replace(/^R\$\s*/, '');
+  // Notação inglesa: ponto como decimal ("1500.00", "1,500.00") — detecta pelo padrão \d+\.\d{1,2}$
+  if (/\.\d{1,2}$/.test(s) && !s.includes(',')) return parseFloat(s.replace(/,/g, '')) || 0;
+  // Notação pt-BR: ponto como milhar, vírgula como decimal ("1.500,00")
+  return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
 }
 
 function brlFormat(input) {
@@ -3439,6 +3466,7 @@ function rastreioVM(op) {
 async function atualizarRastreio(opId, silent) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
+  if (op._rastreioLoading) { if (!silent) showToast('Rastreio já em andamento', 'ok'); return; }
   const transp   = op.stepData?.aguard_nf?.transportadora;
   const numeroNF = (op.stepData?.aguard_emissao?.numeroNF || '').trim();
   const cnpj     = (op.pedidoVenda?.cpf || '').replace(/\D/g, '');
@@ -4349,6 +4377,8 @@ function doCancelarOP(opId) {
   }
   const op = ops.find(o => o.id === opId);
   if (!op) return;
+  if (op.status === 'entregue') { showToast('OP já entregue — não pode ser cancelada', 'err'); closeModal(); return; }
+  if (op.cancelada) { showToast('OP já está cancelada', 'err'); closeModal(); return; }
   const user = getUser();
   op.cancelada = { motivo, ts: nowTs(), by: user?.userName || user?.name || getActiveView()?.role || '', statusAnterior: op.status };
   // Sai de qualquer rota (senão o motorista é roteirizado para uma OP cancelada).
@@ -4839,7 +4869,6 @@ function buildContextPanel(op) {
       cRow('Instagram', pv.instagram),
       cRow('Endereço do cliente', endDisplay),
       ...payRows,
-      (pv.simulador && parseFloat(pv.simulador) > 0) ? cRow('Simulador', fmtBRL(pv.simulador)) : '',
       pv.enderecoEntrega ? cRow('Endereço de entrega', pv.enderecoEntrega) : '',
       cRow('Contato responsável', pv.contatoEntrega),
       pv.dataPrevista  ? cRow('Previsão de entrega', pv.dataPrevista) : '',
@@ -5980,18 +6009,21 @@ function showLightbox(src, name) {
       border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;line-height:1;
       display:flex;align-items:center;justify-content:center">×</button>`;
 
+  // Escapa src e name para uso em atributos HTML (previne XSS com nomes de arquivo maliciosos)
+  const safeSrc  = src.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const safeName = (name||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   if (isPdf) {
     lb.onclick = null; // iframe consome o clique - usa só o botão X e o Esc
     lb.innerHTML = `
       ${closeBtn}
-      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
-      <iframe src="${src}" style="width:min(960px,95vw);height:calc(100vh - 130px);border:none;border-radius:6px;background:#fff"></iframe>`;
+      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${safeName}</div>
+      <iframe src="${safeSrc}" style="width:min(960px,95vw);height:calc(100vh - 130px);border:none;border-radius:6px;background:#fff"></iframe>`;
   } else {
     lb.onclick = () => { lb.style.display = 'none'; };
     lb.innerHTML = `
       ${closeBtn}
-      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${name}</div>
-      <img src="${src}" alt="${name}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out" onclick="document.getElementById('img-lightbox').style.display='none'">
+      <div style="color:#fff;font-size:11px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${safeName}</div>
+      <img src="${safeSrc}" alt="${safeName}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out" onclick="document.getElementById('img-lightbox').style.display='none'">
       <div style="color:#fff;font-size:10px;margin-top:10px;opacity:.45">Clique na imagem ou Esc para fechar</div>`;
   }
   lb.style.display = 'flex';
@@ -7507,6 +7539,7 @@ ${parcelasHtml}
 // setUser removido - autenticação agora via login screen
 function setTab(tab, btn) {
   currentTab = tab;
+  _editandoObs = false; // reseta flag ao trocar aba — evita #main congelado se saiu sem blur
   if (tab === 'fila') setPendingDot(false); // abriu Pendentes → some a bolinha
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');

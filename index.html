@@ -1367,9 +1367,15 @@ async function apiFetch(url, opts = {}) {
 }
 
 function rowToOp(row) {
-  if (!row || !row.data || !row.data.status || !row.data.cliente) return null;
+  if (!row || !row.data || !row.data.status) {
+    if (row?.id) console.warn(`[rowToOp] OP id=${row.id} ignorada — campo "status" ausente no banco`);
+    return null;
+  }
+  if (!row.data.cliente) {
+    console.warn(`[rowToOp] OP id=${row.id} sem campo "cliente" — usando placeholder`);
+  }
   // _loadedAt = carimbo da linha quando lemos; usado pela trava otimista do dbSaveOp
-  return { ...row.data, id: Number(row.id), _loadedAt: row.updated_at || null };
+  return { ...row.data, cliente: row.data.cliente || '(sem cliente)', id: Number(row.id), _loadedAt: row.updated_at || null };
 }
 
 // ── ROTAS: camada de dados (tabela rotas, mesmo padrão de ops) ──────
@@ -1513,11 +1519,16 @@ function dbSaveOp(op, _semTrava) {
   delete payload._qrEnviando;
   delete payload._saving;
   delete payload._saveDirty;
+  delete payload._sizeWarned;
 
   const json = JSON.stringify(payload);
   const kb   = (json.length / 1024).toFixed(0);
   if (json.length > 5 * 1024 * 1024) {
     console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB - considere reduzir arquivos anexados`);
+    if (!op._sizeWarned) {
+      op._sizeWarned = true;
+      showToast(`OP muito grande (${kb} KB) — pode travar sincronização para outros usuários. Remova anexos desnecessários.`, 'err');
+    }
   }
 
   setSaveIndicator('saving');
@@ -1552,13 +1563,15 @@ function dbSaveOp(op, _semTrava) {
       return;
     }
 
-    op._loadedAt = data?.[0]?.updated_at || op._loadedAt; // próxima gravação usa o novo carimbo
+    const newLoadedAt = data?.[0]?.updated_at || op._loadedAt;
+    op._loadedAt = newLoadedAt;
     setSaveIndicator('ok');
     const idx = ops.findIndex(o => o.id === op.id);
     if (idx >= 0) {
-      const curTs   = ops[idx].history?.at(-1)?.ts || '';
-      const savedTs = op.history?.at(-1)?.ts || '';
-      if (savedTs >= curTs) ops[idx] = op;
+      // Compara pelos timestamps ISO do banco (monotônicos) — evita bug de virada de ano
+      // com strings "dd/mm HH:MM" onde "01/01" < "31/12" lexicograficamente.
+      const curLoaded  = ops[idx]._loadedAt || '';
+      if (!curLoaded || newLoadedAt >= curLoaded) ops[idx] = op;
     }
     renderAll();
     finalizar();
@@ -4352,6 +4365,7 @@ function reativarOP(opId) {
   if (!op || !op.cancelada) return;
   const etapa = op.cancelada.statusAnterior;
   const user  = getUser();
+  if (etapa && STEPS[etapa]) op.status = etapa; // restaura explicitamente — não depende de invariante implícita
   delete op.cancelada;
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Reativada', note: '' });
   dbSaveOp(op);
@@ -4953,8 +4967,8 @@ function openActionModal(opId, mode) {
   let algoNote = '';
   if (op.status === 'aberta' && mode === 'advance') {
     algoNote = op.entrada === 'pendente'
-      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> - esta OP irá para <strong>Validação Financeira</strong> antes de prosseguir.</span></div>`
-      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> - validação financeira será <strong>pulada</strong>. OP irá direto para Logística.</span></div>`;
+      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> — esta OP exige aprovação do <strong>Financeiro</strong> e Simples Faturamento do <strong>Fiscal</strong> antes de ir para Logística.</span></div>`
+      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — aprovação financeira não necessária. OP avança para Logística assim que o <strong>Fiscal lançar o Simples Faturamento</strong>.</span></div>`;
   }
 
   const dirNote = '';
@@ -5742,6 +5756,7 @@ function saveSimplesFaturamento(opId) {
 
   // Porta dupla: se o gate do financeiro já está satisfeito, avança para aguard_nf
   if (op.status === 'aguard_financeiro' && finDone(op)) {
+    op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '-', ts: nowTs(), action: 'Gate duplo concluído — avançado para Logística', note: '' });
     op.status = 'aguard_nf';
     dbSaveOp(op);
     showToast('Simples faturamento salvo! OP avançada para Logística.', 'ok');
@@ -5793,9 +5808,9 @@ function confirmDelay() {
   _pendingAdvance = null;
   formData.motivoAtraso = reason;
   formData.descricao = (formData.descricao ? formData.descricao + '\n' : '') + '[Atraso] ' + reason;
-  // Registra no histórico como ação extra
+  // Registra no histórico como ação extra (só se a OP não foi entregue por outro usuário enquanto o modal estava aberto)
   const op = ops.find(o => o.id === opId);
-  if (op) {
+  if (op && op.status !== 'entregue') {
     const user = getUser();
     op.history.push({ step: op.status, actor: getActiveView()?.role || 'logistica', actorName: user?.userName || user?.name || '', ts: nowTs(), action: 'Atraso: ' + reason, note: reason });
   }
@@ -6969,9 +6984,9 @@ async function submitNovaOP() {
   if (entrada === 'pendente' && !(valorEntradaRaw > 0)) {
     highlightError('nova-valorEntrada'); showToast('Informe o valor da entrada', 'err'); return;
   }
-  const valorTotal       = g('nova-valorTotal')?.value;
-  const valorDesconto    = g('nova-valorDesconto')?.value;
-  const valorLiquido     = g('nova-valorLiquido')?.value;
+  const valorTotal       = g('nova-valorTotal')?.value    || '0';
+  const valorDesconto    = g('nova-valorDesconto')?.value || '0';
+  const valorLiquido     = g('nova-valorLiquido')?.value  || '0';
   const enderecoEntrega  = v('nova-enderecoEntrega');
   const contatoEntrega   = v('nova-contatoEntrega');
   const previsaoISO      = g('nova-previsaoEntrega')?.value || '';
@@ -7002,6 +7017,10 @@ async function submitNovaOP() {
   if (!analistaId)    { highlightError('nova-analista'); showToast('Selecione o analista', 'err'); return; }
   if (!entrada)       { highlightError('nova-entrada'); showToast('Selecione a entrada (com ou sem)', 'err'); return; }
   if (email && !email.includes('@')) { highlightError('nova-email'); showToast('E-mail inválido', 'err'); return; }
+  const _cpfDigits = cpf.replace(/\D/g, '');
+  if (_cpfDigits.length > 0 && _cpfDigits.length !== 11 && _cpfDigits.length !== 14) {
+    highlightError('nova-cpf'); showToast('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos', 'err'); return;
+  }
   if (!tempEquipList.length) {
     const el = g('equip-list-items');
     if (el) { el.style.outline='2px solid var(--red)'; el.style.borderRadius='6px'; }
@@ -7019,7 +7038,6 @@ async function submitNovaOP() {
 
   const vUser = VENDEDORES.find(vv => vv.id === analistaId);
   const initialStatus = STEPS.aberta.getNext({ entrada, liberadoDiretoria: false });
-  const pulou = initialStatus === 'aguard_nf';
   const equipNames = tempEquipList.map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
   const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 
@@ -7066,7 +7084,7 @@ async function submitNovaOP() {
     },
     history: [{
       step: 'aberta', actor: 'vendedor', actorName: (getUser()?.userName || getUser()?.name || vendedorCanal || ''), ts: nowTs(),
-      action: 'OP Criada' + (pulou ? ' - Fin. pulado' : ''),
+      action: 'OP Criada',
       note: descricao || '',
     }],
     obs: '',
@@ -7105,12 +7123,18 @@ async function submitNovaOP() {
     if (seqErr || seqData == null) throw seqErr || new Error('sem retorno');
     seqNum = Number(seqData);
   } catch {
-    const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null);
+    // Exclui a própria linha (recém inserida com PENDENTE) para não inflar o MAX
+    const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null).neq('id', newId);
+    const existingNums = new Set((_numRows || []).map(r => String(r.numero || '')));
     const _maxSeq = (_numRows || []).reduce((mx, r) => {
       const m = String(r.numero || '').match(/^(\d+)\//);
       return m ? Math.max(mx, parseInt(m[1], 10)) : mx;
     }, 0);
     seqNum = _maxSeq + 1;
+    // Garante unicidade: pula qualquer número já usado (protege contra corrida)
+    while (existingNums.has(`${seqNum}/${anoAtual}`) || existingNums.has(`${seqNum}/${anoAtual} - PV`)) {
+      seqNum++;
+    }
   }
   const baseNum = `${seqNum}/${anoAtual}`;
   const numero  = pedidoProtheus ? `${baseNum} - PV ${pedidoProtheus}` : baseNum;

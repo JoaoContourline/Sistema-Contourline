@@ -116,33 +116,99 @@ function azulNormalize(value, codigoConsulta) {
   };
 }
 
-// Registry de adaptadores — adicionar transportadora nova = uma entrada aqui
+// ─── Rotta Master ───────────────────────────────────────────────────────────
+
+async function rottaConsultar({ cnpj, numeroNF }) {
+  const url = `https://suatransportadora.com.br/e/rottamasterst.php?t=${Date.now()}&cnpj=${encodeURIComponent(cnpj)}&nota=${encodeURIComponent(numeroNF)}`;
+  const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok || json.status !== 1) {
+    throw new Error(json.message || `Falha ao consultar Rotta Master (HTTP ${resp.status})`);
+  }
+  return json.data?.[0] || null;
+}
+
+function rottaNormalize(data, cnpj, numeroNF) {
+  if (!data) return null;
+
+  const todos = Array.isArray(data.dados) ? data.dados : [];
+  const eventos = todos
+    .filter(e => !/previs[ãa]o de entrega/i.test(e.descricao || ''))
+    .map(e => ({
+      ts:           e.data || null,
+      codigo:       '',
+      descricao:    e.descricao || '',
+      local:        '',
+      lat:          null,
+      lng:          null,
+      urlPod:       null,
+      urlInsucesso: null,
+    }));
+
+  const ultimo   = eventos[eventos.length - 1] || {};
+  const entregue = !!data.comprovante || /\bentregue\b/i.test(ultimo.descricao || '');
+
+  let previsao = null;
+  if (data.prev_entrega) {
+    const [d, m, y] = data.prev_entrega.split('/');
+    if (y && m && d) previsao = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  return {
+    transportadora: 'rotta',
+    codigo:         numeroNF,
+    awb:            null,
+    previsao,
+    emissao:        eventos[0]?.ts || null,
+    dataEntrega:    entregue ? (ultimo.ts || null) : null,
+    entregue,
+    insucesso:      false,
+    destino:        '',
+    statusLabel:    ultimo.descricao || '—',
+    local:          '',
+    pod:            data.comprovante || null,
+    eventos,
+    fetchedAt:      new Date().toISOString(),
+  };
+}
+
+// ─── Registry de adaptadores ─────────────────────────────────────────────────
+// Adicionar transportadora nova = uma entrada aqui
+
 const CARRIERS = {
   async azul(codigos) {
     const value = await azulConsultar(codigos);
     return azulNormalize(value, codigos.chaveNfe || codigos.awb || codigos.pedido);
+  },
+  async rotta(codigos) {
+    const data = await rottaConsultar(codigos);
+    return rottaNormalize(data, codigos.cnpj, codigos.numeroNF);
   },
 };
 
 export default async function handler(req, res) {
   if (cors(req, res, 'POST, OPTIONS')) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!await requireAuth(req, res)) return; // consome a conta da Contourline na Azul
+  if (!await requireAuth(req, res)) return;
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
-  const { transportadora, chaveNfe, awb, pedido } = body || {};
+  const { transportadora, chaveNfe, awb, pedido, cnpj, numeroNF } = body || {};
 
-  const carrier = CARRIERS[String(transportadora || '').toLowerCase()];
+  const transp  = String(transportadora || '').toLowerCase();
+  const carrier = CARRIERS[transp];
   if (!carrier) {
     return res.status(400).json({ error: `Transportadora "${transportadora}" sem integração de rastreio` });
   }
-  if (!chaveNfe && !awb && !pedido) {
-    return res.status(400).json({ error: 'Informe chaveNfe, awb ou pedido' });
+
+  if (transp === 'rotta') {
+    if (!cnpj || !numeroNF) return res.status(400).json({ error: 'Informe cnpj e numeroNF para Rotta Master' });
+  } else {
+    if (!chaveNfe && !awb && !pedido) return res.status(400).json({ error: 'Informe chaveNfe, awb ou pedido' });
   }
 
   try {
-    const dados = await carrier({ chaveNfe, awb, pedido });
+    const dados = await carrier({ chaveNfe, awb, pedido, cnpj, numeroNF });
     if (!dados) return res.status(404).json({ error: 'Nenhum rastreio encontrado para este código' });
     return res.status(200).json(dados);
   } catch (err) {

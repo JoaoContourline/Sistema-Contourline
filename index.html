@@ -3338,12 +3338,12 @@ async function _cadastrarEquipamentosQR(op) {
 // ═══════════════════════════════════════════════════════════════════
 
 const TRANSPORTADORAS = { azul: 'Azul Cargo', jamef: 'Jamef', correios: 'Correios', rotta: 'Rotta Master', loggica: 'Loggica' };
-const RASTREAVEIS     = new Set(['azul']); // com integração de API hoje (demais entram ao ter API)
+const RASTREAVEIS     = new Set(['azul', 'rotta']); // com integração de API hoje (demais entram ao ter API)
 
 // DESLIGADO temporariamente até a API de rastreio da transportadora ficar pronta.
 // Com false: aba Rastreamento, seção no detalhe, disparo automático e os textos
 // de "rastreio automático" somem. Todo o código continua aqui — religar = true.
-const RASTREIO_ATIVO  = false;
+const RASTREIO_ATIVO  = true;
 
 const RAST_STAGES = ['Coletado', 'Em transferência', 'Saiu para entrega', 'Entregue'];
 
@@ -3434,15 +3434,22 @@ async function atualizarRastreio(opId, silent) {
   if (!op) return;
   const transp   = op.stepData?.aguard_nf?.transportadora;
   const chaveNfe = (op.stepData?.aguard_emissao?.chaveNfe || '').replace(/\D/g, '');
+  const numeroNF = (op.stepData?.aguard_emissao?.numeroNF || '').trim();
+  const cnpj     = (op.pedidoVenda?.cpf || '').replace(/\D/g, '');
   if (!RASTREAVEIS.has(transp)) { if (!silent) showToast('Transportadora sem integração de rastreio', 'err'); return; }
-  if (!chaveNfe || chaveNfe.length < 44) { if (!silent) showToast('Chave da NFe (44 díg.) não informada na emissão', 'err'); return; }
+  if (transp === 'rotta') {
+    if (!cnpj)    { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
+    if (!numeroNF){ if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
+  } else {
+    if (!chaveNfe || chaveNfe.length < 44) { if (!silent) showToast('Chave da NFe (44 díg.) não informada na emissão', 'err'); return; }
+  }
 
   op._rastreioLoading = true; op._rastreioErro = null;
   if (currentTab === 'rastreio') renderMain();
   try {
     const resp = await apiFetch('/api/rastreio', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transportadora: transp, chaveNfe }),
+      body: JSON.stringify({ transportadora: transp, chaveNfe, cnpj, numeroNF }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Falha ao consultar rastreio');

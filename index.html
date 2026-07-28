@@ -7249,13 +7249,23 @@ function printPedidoVenda(opId) {
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
   if (pv.instagram)   obsParts.push(`Instagram: ${pv.instagram}`);
-  if (pv.simulador && parseFloat(pv.simulador) > 0) obsParts.push(`Simulador: ${fmtBRL(pv.simulador)}`);
   const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${e.tes}${e.tesDesc?' ('+e.tesDesc+')':''}`))];
   if (tesUniq.length) obsParts.push(tesUniq.join(', '));
   const obsText = obsParts.join('\n');
 
-  // Tabela de parcelas / condições de pagamento
-  let parcHtml;
+  // FORMA DE PAGAMENTO — bloco de texto sempre presente
+  const formaParts = [];
+  if (pv.tipoContrato)    formaParts.push(pv.tipoContrato);
+  if (pv.detalhesPagamento) formaParts.push(pv.detalhesPagamento);
+  if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0)
+    formaParts.push(`Entrada: ${fmtBRL(pv.valorEntrada)}`);
+  if (pv.simulador && parseFloat(pv.simulador) > 0)
+    formaParts.push(`Simulador: ${fmtBRL(pv.simulador)}`);
+  const formaHtml = `<div class="obs-hdr">FORMA DE PAGAMENTO:</div>
+<div class="obs-body" style="min-height:36px">${esc(formaParts.join('\n'))||' '}</div>`;
+
+  // TABELA DE PARCELAS — só quando há dados estruturados do Protheus
+  let parcelasHtml = '';
   const _pagamentos = Array.isArray(pv.pagamentos) ? pv.pagamentos.filter(pg => pg && pg.valor > 0) : [];
   if (_pagamentos.length > 0) {
     const toOrd = s => { const [d,m,y] = (s||'').split('/').map(Number); return (y||0)*10000+(m||0)*100+(d||0); };
@@ -7275,25 +7285,12 @@ function printPedidoVenda(opId) {
         <td style="text-align:center">${qty > 1 ? g.vencs[qty-1] : '-'}</td>
       </tr>`;
     }).join('');
-    parcHtml = `<table class="pay">
+    parcelasHtml = `<table class="pay">
       <thead><tr>
         <th>Qtda Parcelas</th><th>Valor da parcela</th>
         <th>Data de Vencimento</th><th>Data do &uacute;ltimo vencimento</th>
       </tr></thead>
       <tbody>${parcRows}</tbody>
-    </table>`;
-  } else {
-    let textRows = '';
-    if (pv.tipoContrato || pv.detalhesPagamento) {
-      textRows += `<tr><td colspan="4" style="text-align:left;padding:4px 8px">${esc([pv.tipoContrato, pv.detalhesPagamento].filter(Boolean).join(' — '))}</td></tr>`;
-    }
-    if (pv.entrada && pv.entrada !== 'sem' && parseFloat(pv.valorEntrada||0) > 0) {
-      textRows += `<tr><td colspan="4" style="text-align:left;font-size:9px;color:#555;padding:3px 8px">Entrada: ${fmtBRL(pv.valorEntrada)}</td></tr>`;
-    }
-    if (!textRows) textRows = '<tr><td colspan="4">-</td></tr>';
-    parcHtml = `<table class="pay">
-      <thead><tr><th colspan="4" style="text-align:center">CONDI&Ccedil;&Otilde;ES DE PAGAMENTO</th></tr></thead>
-      <tbody>${textRows}</tbody>
     </table>`;
   }
 
@@ -7450,12 +7447,15 @@ table.sep .sep-hdr-cell{font-weight:bold;font-size:9px;text-transform:uppercase;
 ${hasBonif?'<div class="bonif-lbl">BONIFICA&Ccedil;&Atilde;O</div>':''}
 <div class="contrato-hdr">CONTRATO ${esc(pv.numContrato||pv.tipoContrato||'')}</div>
 
+<!-- FORMA DE PAGAMENTO -->
+${formaHtml}
+
 <!-- OBSERVAÇÕES GERAIS -->
 <div class="obs-hdr">OBSERVA&Ccedil;&Otilde;ES GERAIS:</div>
 <div class="obs-body">${esc(obsText)||' '}</div>
 
-<!-- PAGAMENTOS -->
-${parcHtml}
+<!-- TABELA DE PARCELAS (quando disponível) -->
+${parcelasHtml}
 
 <!-- SEPARAÇÃO, CONFERÊNCIA E EXPEDIÇÃO -->
 <table class="sep">

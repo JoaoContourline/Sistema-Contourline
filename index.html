@@ -490,17 +490,21 @@ body.kanban-mode main {
   height: calc(100vh - 58px - 42px);
   padding: 24px 24px 0;
   overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
 }
 body.kanban-mode .kanban-wrap {
+  flex: 1;
   min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
 }
 body.kanban-mode .kanban-board {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   align-items: stretch;
 }
 body.kanban-mode .kanban-col { height: 100%; }
@@ -4116,10 +4120,10 @@ function renderCounts() {
     if (!canChat) { const p = document.getElementById('chat-panel'); if (p) p.classList.remove('open'); }
   }
 
-  // Aba Admin: exclusivo para adm
+  // Aba Admin: exclusivo para adm — usa _cachedUser (role real), não a view atual
   const adminBtn = document.getElementById('btn-tab-admin');
   if (adminBtn) {
-    const canAdmin = view?.role === 'adm';
+    const canAdmin = _cachedUser?.role === 'adm';
     adminBtn.style.display = canAdmin ? '' : 'none';
     if (!canAdmin && currentTab === 'admin') currentTab = 'fila';
   }
@@ -8103,8 +8107,7 @@ function renderAdminLogs() {
 }
 
 function renderAdmin(el) {
-  const view = getActiveView();
-  const canAdmin = view?.role === 'adm';
+  const canAdmin = _cachedUser?.role === 'adm';
   if (!canAdmin) { el.innerHTML = `<div class="empty"><div class="empty-title">Acesso negado</div></div>`; return; }
 
   const toggle = (key, label, desc) => {

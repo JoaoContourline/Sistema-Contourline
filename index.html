@@ -8395,7 +8395,7 @@ async function _chatOpenConv(userId, userName, userRole) {
   panel.innerHTML = `
     <div class="cp-header">
       <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>
-      <div class="cp-header-icon" style="background:${roleColor(userRole)}33">${roleIcon(userRole, 15, 'color:'+roleColor(userRole))}</div>
+      <div class="cp-header-icon" style="background:${roleColor(userRole)};font-size:15px;font-weight:800;color:#fff;letter-spacing:-.3px">${(userName[0]||'?').toUpperCase()}</div>
       <div style="flex:1;min-width:0">
         <div class="cp-title">${esc(userName)}</div>
         <div class="cp-subtitle">${sec.name || userRole || ''}</div>

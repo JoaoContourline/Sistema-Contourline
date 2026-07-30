@@ -1172,8 +1172,26 @@ function icon(name, size = 16, style = '') {
     'filter':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
     'filter-x':       `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.013 3H2l8 9.46V19l4 2v-8.54l.9-1.055"/><path d="m16 6 5 5"/><path d="m21 6-5 5"/></svg>`,
     'refresh-cw':     `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+    'dollar-sign':    `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+    'bar-chart-2':    `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+    'shield':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    'shopping-cart':  `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`,
+    'receipt':        `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>`,
   };
   return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
+}
+
+function roleIcon(role, size = 16, extraStyle = '') {
+  const map = {
+    vendedor:   'shopping-cart',
+    comercial:  'shopping-cart',
+    financeiro: 'dollar-sign',
+    logistica:  'truck',
+    fiscal:     'receipt',
+    gestor:     'bar-chart-2',
+    adm:        'shield',
+  };
+  return icon(map[role] || 'user', size, extraStyle);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8337,7 +8355,7 @@ function _chatRenderUserList() {
       ? new Date(last.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       : '';
     return `<div class="cp-user-item" onclick="_chatOpenConv('${u.id}','${esc(u.name||'Usuário')}','${sec.role||''}')">
-      <div class="cp-avatar" style="background:${color}">${(u.name||'?')[0].toUpperCase()}</div>
+      <div class="cp-avatar" style="background:${color}">${roleIcon(sec.role, 18, 'color:#fff')}</div>
       <div class="cp-user-info">
         <div class="cp-user-name">${esc(u.name||'Usuário')}</div>
         <div class="cp-user-role">${sec.name||''}</div>
@@ -8373,7 +8391,7 @@ async function _chatOpenConv(userId, userName, userRole) {
   panel.innerHTML = `
     <div class="cp-header">
       <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>
-      <div class="cp-header-icon" style="background:${roleColor(userRole)}33">${icon('user',14,'color:'+roleColor(userRole))}</div>
+      <div class="cp-header-icon" style="background:${roleColor(userRole)}33">${roleIcon(userRole, 15, 'color:'+roleColor(userRole))}</div>
       <div style="flex:1;min-width:0">
         <div class="cp-title">${esc(userName)}</div>
         <div class="cp-subtitle">${sec.name || userRole || ''}</div>

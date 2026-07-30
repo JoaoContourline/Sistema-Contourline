@@ -705,86 +705,122 @@ body.kanban-mode .kanban-col-body {
 .btn-export:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
 
 /* ═══════════════════════════════════════════════════
-   CHAT INTERNO
+   CHAT FLUTUANTE — FAB + painel WhatsApp-style
    ═══════════════════════════════════════════════════ */
-.chat-wrap {
-  max-width: 760px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 210px);
-  min-height: 320px;
-}
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px 12px 0 0;
-  scroll-behavior: smooth;
-}
-.chat-footer {
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 12px 12px;
-}
-.chat-input {
-  flex: 1;
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  outline: none;
-  transition: border-color .15s;
-}
-.chat-input:focus { border-color: var(--accent); }
-.chat-send-btn {
-  height: 38px;
-  padding: 0 18px;
+#chat-fab {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
   background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity .15s;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  z-index: 1000;
+  transition: transform .15s, box-shadow .15s;
 }
-.chat-send-btn:hover { opacity: .88; }
-.chat-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
+#chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 26px rgba(0,0,0,.32); }
+#chat-fab-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  min-width: 19px; height: 19px;
+  border-radius: 10px;
+  background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: none; align-items: center; justify-content: center;
+  padding: 0 5px;
+  border: 2px solid var(--bg);
+  pointer-events: none;
 }
-.chat-tab-btn {
-  padding: 5px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
+#chat-panel {
+  position: fixed;
+  bottom: 88px; right: 24px;
+  width: 320px; height: 460px;
   background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  z-index: 999;
+  display: none; flex-direction: column;
+  overflow: hidden;
+  animation: cp-in .18s ease;
+}
+@keyframes cp-in { from { opacity:0; transform:translateY(10px) scale(.97) } to { opacity:1; transform:none } }
+#chat-panel.open { display: flex; }
+.cp-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.cp-back, .cp-close {
+  width: 28px; height: 28px;
+  border-radius: 50%; border: none;
+  background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   color: var(--text3);
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .15s;
 }
-.chat-tab-btn.active {
+.cp-back:hover, .cp-close:hover { background: var(--surface2); }
+.cp-title { font-size: 14px; font-weight: 700; flex: 1; }
+.cp-user-list { flex: 1; overflow-y: auto; }
+.cp-user-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.cp-user-item:hover { background: var(--surface2); }
+.cp-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
   background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
+.cp-user-info { flex: 1; min-width: 0; }
+.cp-user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-user-preview { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.cp-unread {
+  min-width: 20px; height: 20px; border-radius: 10px;
+  background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px; flex-shrink: 0;
+}
+.cp-msgs {
+  flex: 1; overflow-y: auto;
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.cp-msg {
+  max-width: 78%; padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12.5px; line-height: 1.45;
+  word-break: break-word;
+}
+.cp-msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+.cp-msg.other { align-self: flex-start; background: var(--surface2); color: var(--text); border-bottom-left-radius: 3px; }
+.cp-msg-time { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.cp-input-row {
+  padding: 8px 10px; border-top: 1px solid var(--border);
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+.cp-input {
+  flex: 1; height: 34px;
+  border: 1px solid var(--border); border-radius: 17px;
+  padding: 0 13px; font-size: 13px;
+  background: var(--bg); color: var(--text); outline: none;
+  font-family: 'Inter', sans-serif;
+}
+.cp-input:focus { border-color: var(--accent); }
+.cp-send {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--accent); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.cp-send:hover { opacity: .88; }
 @media (max-width: 680px) {
-  .chat-wrap { height: calc(100vh - 160px); }
+  #chat-panel { width: calc(100vw - 20px); right: 10px; bottom: 78px; }
+  #chat-fab   { bottom: 16px; right: 16px; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1009,7 +1045,6 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn"        data-tab="todas" onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
 
   <button class="tab-btn" id="btn-tab-logistica" data-tab="logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
-  <button class="tab-btn" id="btn-tab-chat" data-tab="chat" style="display:none" onclick="setTab('chat',this)">Chat <span class="notif-dot" id="chat-notif-dot" style="display:none"></span></button>
   <button class="tab-btn" id="btn-tab-admin" data-tab="admin" style="display:none" onclick="setTab('admin',this)">Admin</button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
@@ -4020,13 +4055,13 @@ function renderCounts() {
     if (isGestor && currentTab === 'fila') currentTab = 'dashboard';
   }
 
-  // Aba Chat: visível só se o sistema está ativado E o usuário tem permissão individual
-  const chatBtn = document.getElementById('btn-tab-chat');
-  if (chatBtn) {
+  // FAB de chat: visível se sistema ativo E usuário tem permissão (adm sempre tem)
+  const chatFab = document.getElementById('chat-fab');
+  if (chatFab) {
     const u = getUser();
     const canChat = !!_sysConfig.chatEnabled && !!(u?.chatEnabled || u?.role === 'adm');
-    chatBtn.style.display = canChat ? '' : 'none';
-    if (!canChat && currentTab === 'chat') currentTab = isGestor ? 'dashboard' : 'fila';
+    chatFab.style.display = canChat ? 'flex' : 'none';
+    if (!canChat) { const p = document.getElementById('chat-panel'); if (p) p.classList.remove('open'); }
   }
 
   // Aba Admin: exclusivo para adm
@@ -4040,7 +4075,7 @@ function renderCounts() {
   // Botão Export: só fora das abas que não listam OPs
   const exportBtn = document.getElementById('btn-export');
   if (exportBtn) {
-    const noExport = currentTab === 'admin' || currentTab === 'chat';
+    const noExport = currentTab === 'admin';
     exportBtn.style.display = (!!_sysConfig.exportEnabled && !noExport) ? '' : 'none';
   }
 
@@ -4078,7 +4113,7 @@ function renderMain() {
     else if (currentTab === 'concluidas') renderConcluidas(view, el);
     else if (currentTab === 'logistica')  renderLogistica(el);
     else if (currentTab === 'rastreio')   renderTodas(el); // aba removida → redireciona para Todas
-    else if (currentTab === 'chat')       renderChat(el);
+    else if (currentTab === 'chat')       renderTodas(el); // aba removida → chat é FAB flutuante
     else if (currentTab === 'admin')      renderAdmin(el);
     else                                  renderTodas(el);
   } catch (e) {
@@ -4158,7 +4193,7 @@ function logFiltroHtml() {
 // normal (e esconde o funil). Fora dela, restaura o filtro normal.
 function sincronizarTopFiltro() {
   const emLog   = currentTab === 'logistica' && !verCancelados;
-  const semFiltro = currentTab === 'admin' || currentTab === 'chat';
+  const semFiltro = currentTab === 'admin';
   const funnel  = document.getElementById('btn-filter-toggle');
   const fbar    = document.getElementById('filter-bar');
   const lf      = document.getElementById('log-filter');
@@ -8148,127 +8183,246 @@ function exportCSV() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CHAT INTERNO
+// CHAT FLUTUANTE — WhatsApp-style DM entre usuários
 // ═══════════════════════════════════════════════════════════════════
 
-let _chatMessages    = [];
-let _chatChannel     = null;
-let _chatHasUnread   = false;
+let _chatChannel  = null;
+let _chatConvUser = null;   // { id, name, role } da conversa aberta
+let _chatUnread   = {};     // { [userId]: count }
+let _chatLastMsgs = {};     // { [userId]: { content, time } }
+let _chatConvMsgs = [];     // mensagens da conversa aberta
+let _chatAllUsers = [];     // lista de usuários carregada do Supabase
 
-async function _chatLoad() {
-  try {
-    const { data, error } = await sb.from('chat_messages')
-      .select('*').is('op_id', null)
-      .order('created_at', { ascending: true }).limit(150);
-    if (error) throw error;
-    _chatMessages = data || [];
-    _chatRender();
-  } catch(e) {
-    const box = document.getElementById('chat-messages-box');
-    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Tabela de chat não encontrada — execute a migração <code>2026-07-30-admin-chat-logs.sql</code> no Supabase.</div>`;
+function _chatLsKey(uid)   { return 'clk_' + (_cachedUser?.uid||'') + '_' + uid; }
+function _chatLastRead(uid) { return localStorage.getItem(_chatLsKey(uid)) || '1970-01-01'; }
+
+function _chatMarkRead(uid) {
+  localStorage.setItem(_chatLsKey(uid), new Date().toISOString());
+  _chatUnread[uid] = 0;
+  _chatUpdateFab();
+}
+
+function _chatUpdateFab() {
+  const total = Object.values(_chatUnread).reduce((a, b) => a + b, 0);
+  const badge = document.getElementById('chat-fab-badge');
+  if (!badge) return;
+  if (total > 0) { badge.style.display = 'flex'; badge.textContent = total > 99 ? '99+' : total; }
+  else           { badge.style.display = 'none'; }
+}
+
+function toggleChatPanel() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+  } else {
+    _chatConvUser = null;
+    panel.classList.add('open');
+    _chatRenderUserList();
+    _chatLoadUsers();
   }
 }
 
-function _chatRender() {
-  const box = document.getElementById('chat-messages-box');
+async function _chatLoadUsers() {
+  try {
+    const myId = _cachedUser?.uid;
+    if (!myId) return;
+    const { data: users } = await sb.from('profiles').select('id,name,sector_id').neq('id', myId);
+    _chatAllUsers = users || [];
+
+    const { data: msgs } = await sb.from('chat_messages')
+      .select('*')
+      .or(`user_id.eq.${myId},private_to.eq.${myId}`)
+      .is('op_id', null).eq('is_private', true)
+      .order('created_at', { ascending: false }).limit(300);
+
+    _chatLastMsgs = {};
+    _chatUnread   = {};
+    const seenLast = new Set();
+    (msgs || []).forEach(m => {
+      const other = m.user_id === myId ? m.private_to : m.user_id;
+      if (!seenLast.has(other)) {
+        seenLast.add(other);
+        _chatLastMsgs[other] = { content: m.content, time: m.created_at };
+      }
+      if (m.private_to === myId && m.user_id !== myId && m.created_at > _chatLastRead(m.user_id)) {
+        _chatUnread[m.user_id] = (_chatUnread[m.user_id] || 0) + 1;
+      }
+    });
+
+    _chatUpdateFab();
+    _chatRenderUserList();
+  } catch(e) { console.warn('[chat users]', e); }
+}
+
+function _chatRenderUserList() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel || _chatConvUser) return;
+
+  const myId = _cachedUser?.uid;
+  const roleColor = r => ({ financeiro:'var(--yellow)',fiscal:'var(--purple)',logistica:'var(--teal)',comercial:'var(--green)',vendedor:'var(--green)',gestor:'var(--accent)',adm:'var(--accent)' }[r] || 'var(--gray)');
+  const getSector = sid => SECTORS.find(s => s.id == sid) || {};
+
+  const sorted = [..._chatAllUsers].sort((a, b) => {
+    const ua = _chatUnread[a.id] || 0, ub = _chatUnread[b.id] || 0;
+    if (ua !== ub) return ub - ua;
+    return (_chatLastMsgs[b.id]?.time || '').localeCompare(_chatLastMsgs[a.id]?.time || '');
+  });
+
+  const items = sorted.map(u => {
+    const sec     = getSector(u.sector_id);
+    const color   = roleColor(sec.role);
+    const unread  = _chatUnread[u.id] || 0;
+    const last    = _chatLastMsgs[u.id];
+    const preview = last ? esc(last.content.substring(0, 42)) : `<em style="color:var(--text3)">Iniciar conversa</em>`;
+    return `<div class="cp-user-item" onclick="_chatOpenConv('${u.id}','${esc(u.name||'Usuário')}','${sec.role||''}')">
+      <div class="cp-avatar" style="background:${color}">${(u.name||'?')[0].toUpperCase()}</div>
+      <div class="cp-user-info">
+        <div class="cp-user-name">${esc(u.name||'Usuário')}</div>
+        <div class="cp-user-preview">${preview}</div>
+      </div>
+      ${unread > 0 ? `<span class="cp-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+    </div>`;
+  });
+
+  panel.innerHTML = `
+    <div class="cp-header">
+      <span class="cp-title">Chat</span>
+      <button class="cp-close" onclick="toggleChatPanel()" title="Fechar">${icon('x',14)}</button>
+    </div>
+    <div class="cp-user-list">${items.length ? items.join('') : `<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Nenhum usuário encontrado.<br>Execute a migração SQL.</div>`}</div>`;
+}
+
+async function _chatOpenConv(userId, userName, userRole) {
+  _chatConvUser = { id: userId, name: userName, role: userRole };
+  _chatMarkRead(userId);
+
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  panel.innerHTML = `
+    <div class="cp-header">
+      <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>
+      <span class="cp-title">${esc(userName)}</span>
+      <button class="cp-close" onclick="toggleChatPanel()" title="Fechar">${icon('x',14)}</button>
+    </div>
+    <div class="cp-msgs" id="cp-msgs-box">
+      <div style="text-align:center;padding:24px;color:var(--text3)">${icon('loader-circle',18,'color:var(--accent)')} Carregando…</div>
+    </div>
+    <div class="cp-input-row">
+      <input class="cp-input" id="cp-msg-input" type="text" placeholder="Mensagem…"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_chatSendDM()}">
+      <button class="cp-send" onclick="_chatSendDM()">${icon('send',14)}</button>
+    </div>`;
+
+  await _chatLoadConv(userId);
+  setTimeout(() => document.getElementById('cp-msg-input')?.focus(), 60);
+}
+
+async function _chatLoadConv(userId) {
+  try {
+    const myId = _cachedUser?.uid;
+    const { data, error } = await sb.from('chat_messages')
+      .select('*')
+      .or(`and(user_id.eq.${myId},private_to.eq.${userId}),and(user_id.eq.${userId},private_to.eq.${myId})`)
+      .is('op_id', null)
+      .order('created_at', { ascending: true }).limit(100);
+    if (error) throw error;
+    _chatConvMsgs = data || [];
+    _chatRenderConv();
+  } catch(e) {
+    const box = document.getElementById('cp-msgs-box');
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:12px">Tabela não encontrada — execute a migração SQL.</div>`;
+  }
+}
+
+function _chatRenderConv() {
+  const box = document.getElementById('cp-msgs-box');
   if (!box) return;
-  const u = getUser();
-  if (!_chatMessages.length) {
-    box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:40px 16px;font-size:13px">Nenhuma mensagem ainda.<br>Seja o primeiro a escrever! 👋</div>`;
+  const myId = _cachedUser?.uid;
+
+  if (!_chatConvMsgs.length) {
+    box.innerHTML = `<div style="text-align:center;padding:40px 16px;color:var(--text3);font-size:12px">Nenhuma mensagem ainda.<br>Comece a conversa!</div>`;
     return;
   }
-  const sectorColor = r => ({ financeiro:'var(--yellow)',fiscal:'var(--purple)',logistica:'var(--teal)',comercial:'var(--green)',vendedor:'var(--green)',gestor:'var(--accent)',adm:'var(--accent)' }[r] || 'var(--gray)');
+
   let lastDate = '';
-  box.innerHTML = _chatMessages.map(m => {
-    const isMe  = u && m.user_id === u.uid;
+  box.innerHTML = _chatConvMsgs.map(m => {
+    const isMe  = m.user_id === myId;
     const mDate = new Date(m.created_at);
-    const dateStr = mDate.toLocaleDateString('pt-BR', {weekday:'short',day:'2-digit',month:'short'});
-    const timeStr = mDate.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    const color   = sectorColor(m.user_role);
-    const sectorName = SECTORS.find(s=>s.role===m.user_role)?.name || m.user_role;
+    const dStr  = mDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+    const tStr  = mDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     let out = '';
-    if (dateStr !== lastDate) {
-      lastDate = dateStr;
-      out += `<div style="text-align:center;margin:12px 0 8px"><span style="font-size:11px;font-weight:600;color:var(--text3);background:var(--surface2);padding:3px 10px;border-radius:10px">${dateStr}</span></div>`;
+    if (dStr !== lastDate) {
+      lastDate = dStr;
+      out += `<div style="text-align:center;margin:8px 0"><span style="font-size:10px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:8px">${dStr}</span></div>`;
     }
-    out += `<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'};margin-bottom:8px;gap:2px">
-      ${!isMe?`<div style="font-size:10px;color:${color};font-weight:700;padding:0 4px">${esc(m.user_name)} · ${sectorName}</div>`:''}
-      <div style="max-width:80%;background:${isMe?'var(--accent)':'var(--surface)'};color:${isMe?'#fff':'var(--text)'};border:1px solid ${isMe?'transparent':'var(--border)'};border-radius:${isMe?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word">
-        ${esc(m.content)}
-      </div>
-      <div style="font-size:10px;color:var(--text3);padding:0 4px">${timeStr}</div>
+    out += `<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
+      <div class="cp-msg ${isMe?'me':'other'}">${esc(m.content)}</div>
+      <div class="cp-msg-time" style="align-self:${isMe?'flex-end':'flex-start'}">${tStr}</div>
     </div>`;
     return out;
   }).join('');
   box.scrollTop = box.scrollHeight;
 }
 
-async function _chatSend() {
-  const input = document.getElementById('chat-input');
+async function _chatSendDM() {
+  const input = document.getElementById('cp-msg-input');
   if (!input || !input.value.trim()) return;
   const content = input.value.trim();
   input.value = '';
   const u = getUser();
-  if (!u) return;
+  if (!u || !_chatConvUser) return;
   try {
-    await sb.from('chat_messages').insert({
+    const { data, error } = await sb.from('chat_messages').insert({
       op_id: null,
-      user_id: u.uid || null,
+      user_id: u.uid,
       user_name: u.userName || u.role,
       user_role: u.role,
       content,
-      is_private: false,
-    });
-    logSystemEvent('chat_message', { canal: 'geral' });
+      is_private: true,
+      private_to: _chatConvUser.id,
+    }).select().single();
+    if (error) throw error;
+    if (data) {
+      _chatConvMsgs.push(data);
+      _chatLastMsgs[_chatConvUser.id] = { content, time: data.created_at };
+    }
+    _chatRenderConv();
+    logSystemEvent('chat_message', { destinatario: _chatConvUser.name });
   } catch(e) { showToast('Erro ao enviar: ' + e.message, 'err'); }
+}
+
+function _chatBackToList() {
+  _chatConvUser = null;
+  _chatRenderUserList();
+  _chatLoadUsers();
 }
 
 function startChatRealtime() {
   try {
     if (_chatChannel) { try { sb.removeChannel(_chatChannel); } catch {} _chatChannel = null; }
-    _chatChannel = sb.channel('chat-rt')
+    _chatChannel = sb.channel('chat-dm-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
         const msg = payload.new;
-        if (msg.op_id != null) return; // só canal geral por enquanto
-        _chatMessages.push(msg);
-        if (_chatMessages.length > 200) _chatMessages = _chatMessages.slice(-200);
-        if (currentTab === 'chat') {
-          _chatRender();
-        } else {
-          const dot = document.getElementById('chat-notif-dot');
-          if (dot) dot.style.display = 'inline-block';
-          _chatHasUnread = true;
+        if (!msg.is_private || msg.op_id != null) return;
+        const myId = _cachedUser?.uid;
+        if (!myId) return;
+
+        if (msg.private_to === myId && msg.user_id !== myId) {
+          _chatLastMsgs[msg.user_id] = { content: msg.content, time: msg.created_at };
+          const panel = document.getElementById('chat-panel');
+          if (_chatConvUser?.id === msg.user_id) {
+            _chatConvMsgs.push(msg);
+            _chatRenderConv();
+            _chatMarkRead(msg.user_id);
+          } else {
+            _chatUnread[msg.user_id] = (_chatUnread[msg.user_id] || 0) + 1;
+            _chatUpdateFab();
+            if (panel?.classList.contains('open') && !_chatConvUser) _chatRenderUserList();
+          }
         }
       }).subscribe();
   } catch(e) { console.warn('[Realtime chat]', e.message); }
-}
-
-function renderChat(el) {
-  // Limpa notificação ao entrar no chat
-  const dot = document.getElementById('chat-notif-dot');
-  if (dot) dot.style.display = 'none';
-  _chatHasUnread = false;
-
-  el.innerHTML = `
-    <div class="step-header">
-      <div class="step-title">Chat Interno</div>
-      <div class="step-desc">Canal geral de comunicação entre setores — em tempo real</div>
-    </div>
-    <div class="chat-wrap">
-      <div id="chat-messages-box" class="chat-messages">
-        <div style="text-align:center;color:var(--text3);padding:32px;font-size:13px">${icon('loader-circle',20,'color:var(--accent)')} Carregando…</div>
-      </div>
-      <div class="chat-footer">
-        <input id="chat-input" class="chat-input" type="text"
-          placeholder="Digite uma mensagem e pressione Enter…"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_chatSend()}">
-        <button class="chat-send-btn" onclick="_chatSend()">
-          Enviar
-        </button>
-      </div>
-    </div>`;
-
-  _chatLoad();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8276,5 +8430,13 @@ function renderChat(el) {
 // ═══════════════════════════════════════════════════════════════════
 checkSession();
 </script>
+
+<!-- FAB do chat flutuante — visível apenas quando chat está habilitado -->
+<button id="chat-fab" style="display:none" onclick="toggleChatPanel()" title="Chat">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span id="chat-fab-badge">0</span>
+</button>
+<div id="chat-panel"></div>
+
 </body>
 </html>

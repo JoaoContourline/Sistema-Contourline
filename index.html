@@ -709,118 +709,170 @@ body.kanban-mode .kanban-col-body {
    ═══════════════════════════════════════════════════ */
 #chat-fab {
   position: fixed;
-  bottom: 24px; right: 24px;
-  width: 52px; height: 52px;
+  bottom: 20px; right: 20px;
+  width: 50px; height: 50px;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, #1a6cf0 0%, #1251bb 100%);
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  box-shadow: 0 4px 16px rgba(18,81,187,.45), 0 1px 4px rgba(0,0,0,.2);
   z-index: 1000;
   transition: transform .15s, box-shadow .15s;
 }
-#chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 26px rgba(0,0,0,.32); }
+#chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(18,81,187,.55), 0 2px 6px rgba(0,0,0,.22); }
 #chat-fab-badge {
   position: absolute;
-  top: -3px; right: -3px;
-  min-width: 19px; height: 19px;
-  border-radius: 10px;
-  background: var(--red); color: #fff;
-  font-size: 10px; font-weight: 700;
+  top: -4px; right: -4px;
+  min-width: 18px; height: 18px;
+  border-radius: 9px;
+  background: #e53e3e; color: #fff;
+  font-size: 10px; font-weight: 800;
   display: none; align-items: center; justify-content: center;
-  padding: 0 5px;
+  padding: 0 4px;
   border: 2px solid var(--bg);
   pointer-events: none;
+  letter-spacing: -.3px;
 }
 #chat-panel {
   position: fixed;
-  bottom: 88px; right: 24px;
-  width: 320px; height: 460px;
+  bottom: 78px; right: 20px;
+  width: 330px;
+  max-height: 480px;
+  min-height: 120px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  box-shadow: 0 12px 48px rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.08);
   z-index: 999;
   display: none; flex-direction: column;
   overflow: hidden;
-  animation: cp-in .18s ease;
+  transform-origin: bottom right;
+  animation: cp-in .2s cubic-bezier(.34,1.56,.64,1);
 }
-@keyframes cp-in { from { opacity:0; transform:translateY(10px) scale(.97) } to { opacity:1; transform:none } }
+#chat-panel::after {
+  content: '';
+  position: absolute;
+  bottom: -7px; right: 18px;
+  width: 0; height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 7px solid var(--border);
+  filter: drop-shadow(0 2px 1px rgba(0,0,0,.08));
+}
+#chat-panel::before {
+  content: '';
+  position: absolute;
+  bottom: -6px; right: 19px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--surface);
+  z-index: 1;
+}
+@keyframes cp-in { from { opacity:0; transform:scale(.88) translateY(8px) } to { opacity:1; transform:none } }
 #chat-panel.open { display: flex; }
 .cp-header {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 13px 14px 12px;
+  background: linear-gradient(135deg, #162C45 0%, #1e3a5f 100%);
   display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.cp-header-icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 .cp-back, .cp-close {
   width: 28px; height: 28px;
   border-radius: 50%; border: none;
-  background: none; cursor: pointer;
+  background: rgba(255,255,255,.12); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  color: var(--text3);
+  color: rgba(255,255,255,.85);
+  transition: background .15s;
 }
-.cp-back:hover, .cp-close:hover { background: var(--surface2); }
-.cp-title { font-size: 14px; font-weight: 700; flex: 1; }
+.cp-back:hover, .cp-close:hover { background: rgba(255,255,255,.22); }
+.cp-title { font-size: 14px; font-weight: 700; flex: 1; color: #fff; letter-spacing: -.2px; }
+.cp-subtitle { font-size: 10.5px; color: rgba(255,255,255,.55); margin-top: 1px; }
 .cp-user-list { flex: 1; overflow-y: auto; }
 .cp-user-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 14px; cursor: pointer;
   border-bottom: 1px solid var(--border);
   transition: background .1s;
+  position: relative;
 }
 .cp-user-item:hover { background: var(--surface2); }
+.cp-user-item:last-child { border-bottom: none; }
 .cp-avatar {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: var(--accent);
+  width: 40px; height: 40px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
+  font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
 }
 .cp-user-info { flex: 1; min-width: 0; }
-.cp-user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cp-user-preview { font-size: 11px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.cp-user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.cp-user-role { font-size: 10px; color: var(--text3); margin-top: 1px; font-weight: 500; }
+.cp-user-preview { font-size: 11.5px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
 .cp-unread {
   min-width: 20px; height: 20px; border-radius: 10px;
-  background: var(--accent); color: #fff;
-  font-size: 10px; font-weight: 700;
+  background: #25D366; color: #fff;
+  font-size: 10px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
   padding: 0 6px; flex-shrink: 0;
+  letter-spacing: -.2px;
 }
 .cp-msgs {
   flex: 1; overflow-y: auto;
-  padding: 10px;
-  display: flex; flex-direction: column; gap: 3px;
+  padding: 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface2);
 }
 .cp-msg {
-  max-width: 78%; padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12.5px; line-height: 1.45;
+  max-width: 80%; padding: 7px 11px;
+  border-radius: 12px;
+  font-size: 13px; line-height: 1.42;
   word-break: break-word;
 }
-.cp-msg.me { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
-.cp-msg.other { align-self: flex-start; background: var(--surface2); color: var(--text); border-bottom-left-radius: 3px; }
-.cp-msg-time { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.cp-msg.me {
+  align-self: flex-end;
+  background: linear-gradient(135deg,#1a6cf0,#1251bb);
+  color: #fff; border-bottom-right-radius: 3px;
+}
+.cp-msg.other {
+  align-self: flex-start;
+  background: var(--surface);
+  color: var(--text); border-bottom-left-radius: 3px;
+  border: 1px solid var(--border);
+}
+.cp-msg-time { font-size: 10px; color: var(--text3); margin-top: 2px; }
 .cp-input-row {
-  padding: 8px 10px; border-top: 1px solid var(--border);
-  display: flex; gap: 6px; flex-shrink: 0;
+  padding: 9px 10px; border-top: 1px solid var(--border);
+  display: flex; gap: 7px; flex-shrink: 0;
+  background: var(--surface);
 }
 .cp-input {
-  flex: 1; height: 34px;
-  border: 1px solid var(--border); border-radius: 17px;
-  padding: 0 13px; font-size: 13px;
-  background: var(--bg); color: var(--text); outline: none;
+  flex: 1; height: 36px;
+  border: 1px solid var(--border); border-radius: 18px;
+  padding: 0 14px; font-size: 13px;
+  background: var(--surface2); color: var(--text); outline: none;
   font-family: 'Inter', sans-serif;
+  transition: border-color .15s;
 }
-.cp-input:focus { border-color: var(--accent); }
+.cp-input:focus { border-color: var(--accent); background: var(--bg); }
 .cp-send {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: var(--accent); border: none; cursor: pointer;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg,#1a6cf0,#1251bb);
+  border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center; color: #fff;
+  box-shadow: 0 2px 8px rgba(18,81,187,.35);
+  transition: transform .12s, box-shadow .12s;
 }
-.cp-send:hover { opacity: .88; }
+.cp-send:hover { transform: scale(1.08); box-shadow: 0 3px 12px rgba(18,81,187,.45); }
 @media (max-width: 680px) {
-  #chat-panel { width: calc(100vw - 20px); right: 10px; bottom: 78px; }
+  #chat-panel { width: calc(100vw - 32px); right: 16px; bottom: 76px; max-height: calc(100svh - 110px); }
   #chat-fab   { bottom: 16px; right: 16px; }
+  #chat-panel::after, #chat-panel::before { right: 14px; }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -8274,23 +8326,37 @@ function _chatRenderUserList() {
     const color   = roleColor(sec.role);
     const unread  = _chatUnread[u.id] || 0;
     const last    = _chatLastMsgs[u.id];
-    const preview = last ? esc(last.content.substring(0, 42)) : `<em style="color:var(--text3)">Iniciar conversa</em>`;
+    const hasMsg  = !!last;
+    const preview = hasMsg
+      ? esc(last.content.substring(0, 44))
+      : `<span style="font-style:italic;color:var(--text3)">Toque para iniciar</span>`;
+    const timeStr = hasMsg
+      ? new Date(last.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : '';
     return `<div class="cp-user-item" onclick="_chatOpenConv('${u.id}','${esc(u.name||'Usuário')}','${sec.role||''}')">
       <div class="cp-avatar" style="background:${color}">${(u.name||'?')[0].toUpperCase()}</div>
       <div class="cp-user-info">
         <div class="cp-user-name">${esc(u.name||'Usuário')}</div>
+        <div class="cp-user-role">${sec.name||''}</div>
         <div class="cp-user-preview">${preview}</div>
       </div>
-      ${unread > 0 ? `<span class="cp-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${timeStr ? `<span style="font-size:10px;color:var(--text3)">${timeStr}</span>` : ''}
+        ${unread > 0 ? `<span class="cp-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
+      </div>
     </div>`;
   });
 
   panel.innerHTML = `
     <div class="cp-header">
-      <span class="cp-title">Chat</span>
+      <div class="cp-header-icon">${icon('message-circle',16,'color:rgba(255,255,255,.9)')}</div>
+      <div style="flex:1;min-width:0">
+        <div class="cp-title">Chat</div>
+        <div class="cp-subtitle">${sorted.length} usuário${sorted.length!==1?'s':''}</div>
+      </div>
       <button class="cp-close" onclick="toggleChatPanel()" title="Fechar">${icon('x',14)}</button>
     </div>
-    <div class="cp-user-list">${items.length ? items.join('') : `<div style="padding:32px;text-align:center;color:var(--text3);font-size:13px">Nenhum usuário encontrado.<br>Execute a migração SQL.</div>`}</div>`;
+    <div class="cp-user-list">${items.length ? items.join('') : `<div style="padding:36px 20px;text-align:center;color:var(--text3);font-size:12.5px;line-height:1.6">${icon('users',28,'color:var(--border);display:block;margin:0 auto 10px')}<strong style="color:var(--text2)">Nenhum usuário</strong><br>Execute a migração SQL no Supabase.</div>`}</div>`;
 }
 
 async function _chatOpenConv(userId, userName, userRole) {
@@ -8299,10 +8365,16 @@ async function _chatOpenConv(userId, userName, userRole) {
 
   const panel = document.getElementById('chat-panel');
   if (!panel) return;
+  const sec = SECTORS.find(s => s.role === userRole) || {};
+  const roleColor = r => ({ financeiro:'#e6a817',fiscal:'#8b5cf6',logistica:'#14b8a6',comercial:'#22c55e',vendedor:'#22c55e',gestor:'#1a6cf0',adm:'#1a6cf0' }[r] || '#94a3b8');
   panel.innerHTML = `
     <div class="cp-header">
       <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>
-      <span class="cp-title">${esc(userName)}</span>
+      <div class="cp-header-icon" style="background:${roleColor(userRole)}33">${icon('user',14,'color:'+roleColor(userRole))}</div>
+      <div style="flex:1;min-width:0">
+        <div class="cp-title">${esc(userName)}</div>
+        <div class="cp-subtitle">${sec.name || userRole || ''}</div>
+      </div>
       <button class="cp-close" onclick="toggleChatPanel()" title="Fechar">${icon('x',14)}</button>
     </div>
     <div class="cp-msgs" id="cp-msgs-box">

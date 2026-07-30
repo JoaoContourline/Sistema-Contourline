@@ -4025,15 +4025,15 @@ function renderCounts() {
   const chatBtn = document.getElementById('btn-tab-chat');
   if (chatBtn) {
     const u = getUser();
-    const canChat = !!_sysConfig.chatEnabled && !!(u?.chatEnabled || u?.role === 'gestor' || u?.role === 'adm');
+    const canChat = !!_sysConfig.chatEnabled && !!(u?.chatEnabled || u?.role === 'adm');
     chatBtn.style.display = canChat ? '' : 'none';
     if (!canChat && currentTab === 'chat') currentTab = isGestor ? 'dashboard' : 'fila';
   }
 
-  // Aba Admin: só para gestor e adm
+  // Aba Admin: exclusivo para adm
   const adminBtn = document.getElementById('btn-tab-admin');
   if (adminBtn) {
-    const canAdmin = view?.role === 'gestor' || view?.role === 'adm';
+    const canAdmin = view?.role === 'adm';
     adminBtn.style.display = canAdmin ? '' : 'none';
     if (!canAdmin && currentTab === 'admin') currentTab = 'fila';
   }
@@ -7941,16 +7941,16 @@ function renderAdminUsers() {
   const sectorLabel = id => SECTORS.find(s => s.id === (id||'').toLowerCase())?.name || id || '—';
   box.innerHTML = _adminUsers.map(u => {
     const isMe  = u.id === me?.uid;
-    const on    = !!u.chat_enabled || isMe; // gestor sempre tem chat
-    const label = on ? 'Chat liberado' : 'Sem acesso ao chat';
-    return `<div class="toggle-row" style="${isMe?'opacity:.6;pointer-events:none':''}">
+    const on    = !!u.chat_enabled;
+    const label = on ? 'Chat liberado' : 'Sem acesso';
+    return `<div class="toggle-row">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'(sem nome)')}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">${sectorLabel(u.sector_id)}${isMe?' · você':''}</div>
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'(sem nome)')}${isMe?' <span style="font-size:10px;font-weight:400;color:var(--text3)">(você)</span>':''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">${sectorLabel(u.sector_id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:11px;color:${on?'var(--green)':'var(--text3)'};font-weight:600">${label}</span>
-        <button class="toggle-track" onclick="toggleUserChat('${u.id}', ${!u.chat_enabled})"
+        <button class="toggle-track" onclick="toggleUserChat('${u.id}', ${!on})"
           style="background:${on?'var(--green)':'var(--border2)'}"
           title="${on?'Revogar acesso ao chat':'Liberar acesso ao chat'}">
           <span class="toggle-thumb" style="left:${on?'23px':'3px'}"></span>
@@ -8018,7 +8018,7 @@ function renderAdminLogs() {
 
 function renderAdmin(el) {
   const view = getActiveView();
-  const canAdmin = view?.role === 'gestor' || view?.role === 'adm';
+  const canAdmin = view?.role === 'adm';
   if (!canAdmin) { el.innerHTML = `<div class="empty"><div class="empty-title">Acesso negado</div></div>`; return; }
 
   const toggle = (key, label, desc) => {

@@ -658,6 +658,208 @@ body.kanban-mode .kanban-col-body {
   .modal { border-radius: 16px 16px 0 0; }
   header { padding: 0 10px; }
 }
+
+/* ═══════════════════════════════════════════════════
+   KANBAN MOBILE — scroll horizontal com snap
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 680px) {
+  .kanban-board {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+  .kanban-col {
+    flex: 0 0 84vw;
+    min-width: 260px;
+    scroll-snap-align: start;
+  }
+  body.kanban-mode { overflow: auto !important; }
+  body.kanban-mode main { height: auto !important; overflow: visible !important; padding: 12px !important; }
+  body.kanban-mode .kanban-wrap { overflow-x: auto; }
+  body.kanban-mode .kanban-col-body { max-height: 60vh; }
+
+  /* Indicador de scroll no kanban mobile */
+  .kanban-wrap::after {
+    content: '← deslize →';
+    display: block;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text3);
+    padding: 4px 0 2px;
+    letter-spacing: .4px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT BUTTON
+   ═══════════════════════════════════════════════════ */
+.btn-export {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text3);
+  cursor: pointer; padding: 5px 10px;
+  border-radius: 8px; font-family: 'Inter', sans-serif;
+  font-size: 12px; font-weight: 600; transition: all .15s;
+  white-space: nowrap;
+}
+.btn-export:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
+
+/* ═══════════════════════════════════════════════════
+   CHAT INTERNO
+   ═══════════════════════════════════════════════════ */
+.chat-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 210px);
+  min-height: 320px;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  scroll-behavior: smooth;
+}
+.chat-footer {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+}
+.chat-input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.chat-input:focus { border-color: var(--accent); }
+.chat-send-btn {
+  height: 38px;
+  padding: 0 18px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.chat-send-btn:hover { opacity: .88; }
+.chat-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.chat-tab-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text3);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.chat-tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+@media (max-width: 680px) {
+  .chat-wrap { height: calc(100vh - 160px); }
+}
+
+/* ═══════════════════════════════════════════════════
+   PAINEL ADMIN
+   ═══════════════════════════════════════════════════ */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .admin-grid { grid-template-columns: 1fr; }
+}
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  gap: 16px;
+}
+.toggle-track {
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background .2s;
+}
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  transition: left .2s;
+}
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.logs-table thead tr {
+  background: var(--surface2);
+  position: sticky;
+  top: 0;
+}
+.logs-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.logs-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.logs-table tr:nth-child(even) { background: var(--surface2); }
+.log-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
 </style>
 </head>
 <body>
@@ -806,8 +1008,10 @@ body.kanban-mode .kanban-col-body {
   <button class="tab-btn active" data-tab="fila" onclick="setTab('fila',this)">Pendentes <span class="tab-count" id="cnt-fila">0</span><span class="notif-dot" id="pending-dot" style="display:none"></span></button>
   <button class="tab-btn"        data-tab="concluidas" onclick="setTab('concluidas',this)">Concluídas <span class="tab-count" id="cnt-concluidas">0</span></button>
   <button class="tab-btn"        data-tab="todas" onclick="setTab('todas',this)">Todas as OPs <span class="tab-count" id="cnt-todas">0</span></button>
-  <button class="tab-btn" id="btn-tab-rastreio" data-tab="rastreio" style="display:none" onclick="setTab('rastreio',this)">Rastreamento <span class="tab-count" id="cnt-rastreio">0</span></button>
+
   <button class="tab-btn" id="btn-tab-logistica" data-tab="logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
+  <button class="tab-btn" id="btn-tab-chat" data-tab="chat" style="display:none" onclick="setTab('chat',this)">Chat <span class="notif-dot" id="chat-notif-dot" style="display:none"></span></button>
+  <button class="tab-btn" id="btn-tab-admin" data-tab="admin" style="display:none" onclick="setTab('admin',this)">Admin</button>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
       <input id="fl-q"    type="text"  placeholder="Nº OP, cliente ou série" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
@@ -825,11 +1029,17 @@ body.kanban-mode .kanban-col-body {
     </div>
   </div>
   <div id="log-filter" style="display:none;flex:1;align-items:center;gap:8px;padding-left:12px;min-width:0"></div>
-  <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
-    style="margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-    <span id="cnt-cancelados" style="display:none">0</span>
-  </button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0">
+    <button id="btn-export" class="btn-export" onclick="exportCSV()" title="Exportar OPs filtradas para CSV" style="display:none">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      CSV
+    </button>
+    <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
+      style="flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      <span id="cnt-cancelados" style="display:none">0</span>
+    </button>
+  </div>
 </div>
 
 <main id="main"></main>
@@ -1391,7 +1601,8 @@ async function carregarRotas() {
 }
 function startRotasRealtime() {
   try {
-    sb.channel('rotas-realtime')
+    if (_rotasChannel) { try { sb.removeChannel(_rotasChannel); } catch {} _rotasChannel = null; }
+    _rotasChannel = sb.channel('rotas-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rotas' }, payload => {
         if (payload.eventType === 'DELETE') rotas = rotas.filter(r => r.id !== Number(payload.old.id));
         else { const r = rowToRota(payload.new); if (r) { const i = rotas.findIndex(x => x.id === r.id); if (i >= 0) rotas[i] = r; else rotas.unshift(r); } }
@@ -1507,7 +1718,7 @@ function setSaveIndicator(state) {
  * tela dizendo "Salvo". Agora o update só passa se a linha não mudou desde que
  * a carregamos (op._loadedAt vs updated_at, mantido pelo trigger do banco).
  */
-function dbSaveOp(op, _semTrava) {
+function dbSaveOp(op, _semTrava, _snapshot) {
   // Coalescing por OP: se já há um save em voo para esta OP, marca para re-salvar
   // ao terminar. Sem isso, dois saves rápidos da mesma OP (ex.: arrastar e logo
   // arrastar de novo) usavam o _loadedAt velho → falso "alterada por outra pessoa".
@@ -1545,7 +1756,20 @@ function dbSaveOp(op, _semTrava) {
 
   q.select('id,updated_at').then(async ({ data, error }) => {
     const finalizar = () => { op._saving = false; if (op._saveDirty) { op._saveDirty = false; dbSaveOp(op); } };
-    if (error) { console.error('dbSaveOp error:', error); setSaveIndicator('err'); finalizar(); return; }
+    if (error) {
+      console.error('dbSaveOp error:', error);
+      setSaveIndicator('err');
+      if (_snapshot) {
+        // Desfaz mutações in-memory: o DB rejeitou, o usuário enxerga o estado anterior
+        const _ri = ops.findIndex(o => o.id === _snapshot.id);
+        if (_ri >= 0) { ops[_ri] = _snapshot; renderAll(); }
+        showToast('Falha ao salvar — ação desfeita. Tente novamente.', 'err');
+      } else {
+        showToast('Falha ao salvar. Recarregue a página se o problema persistir.', 'err');
+      }
+      finalizar();
+      return;
+    }
 
     if (comTrava && (!data || !data.length)) {
       // 0 linhas: ou alguém salvou antes de nós, ou o updated_at não casou por
@@ -1641,6 +1865,12 @@ function refreshPendingAlert() {
   const ids     = view ? getQueue(view).map(o => o.id) : [];
   const key     = id => roleKey + ':' + id;
 
+  // Remove do conjunto OPs que saíram da fila para que, se voltarem, disparem som novamente.
+  const prefix = roleKey + ':';
+  for (const k of [..._soundedPending]) {
+    if (k.startsWith(prefix) && !ids.some(id => key(id) === k)) _soundedPending.delete(k);
+  }
+
   // Som: pendente novo (nunca sinalizado) no MESMO setor já semeado.
   const novos = ids.filter(id => !_soundedPending.has(key(id)));
   const tocar = _pendingSeeded && roleKey === _pendingViewRole && novos.length > 0;
@@ -1732,6 +1962,7 @@ function startRealtime() {
 // APP STATE
 // ═══════════════════════════════════════════════════════════════════
 
+let _sysConfig    = { chatEnabled: false, logsEnabled: true, exportEnabled: true }; // sobreescrito por loadSysConfig()
 let currentTab    = 'dashboard'; // ADM abre no Dashboard; demais setores caem em 'fila' (renderCounts)
 let verCancelados = false; // modo "ver OPs canceladas" (botão ban no topo)
 let _editandoObs  = false; // enquanto true, renderMain não reconstrói o #main (não perde a observação sendo digitada)
@@ -1754,9 +1985,8 @@ function getUser() { return _cachedUser; }
 async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
-  let { data: profile, error: _pErr } = await sb.from('profiles').select('name,sector_id,password_changed_at').eq('id', user.id).single();
-  // A coluna password_changed_at pode ainda não existir (migração não rodada) — se
-  // o select falhar por isso, refaz sem ela para o login não quebrar.
+  let { data: profile, error: _pErr } = await sb.from('profiles').select('name,sector_id,password_changed_at,chat_enabled').eq('id', user.id).single();
+  // A coluna password_changed_at (ou chat_enabled) pode ainda não existir — refaz sem ela.
   if (_pErr) { ({ data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single()); }
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
@@ -1766,7 +1996,7 @@ async function fetchUserProfile() {
   const sectorId = String(profile?.sector_id || '').trim().toLowerCase();
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
-  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id, password_changed_at: profile?.password_changed_at || null };
+  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id, password_changed_at: profile?.password_changed_at || null, chatEnabled: !!profile?.chat_enabled };
   return _cachedUser;
 }
 
@@ -2128,7 +2358,9 @@ function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appContainer').style.display = '';
   renderRoles();
+  loadSysConfig().then(() => { startSysConfigRealtime(); renderCounts(); });
   loadOps().then(() => { startRealtime(); carregarRotas(); startRotasRealtime(); });
+  startChatRealtime();
   loadEquipItems();
   requestNotifPermission();
 }
@@ -2242,6 +2474,9 @@ function advanceOP(opId, formData) {
   const next = step.getNext(op);
   if (!next) return;
 
+  // Snapshot imutável antes de qualquer mutação — usado para rollback se o DB falhar
+  const _snap = JSON.parse(JSON.stringify(op));
+
   // Merge em vez de replace — preserva campos anteriores (ex.: comprovante do financeiro em resubmissão)
   if (formData && Object.keys(formData).length) {
     op.stepData[op.status] = { ...(op.stepData[op.status] || {}), ...formData };
@@ -2253,7 +2488,7 @@ function advanceOP(opId, formData) {
     if (!sfDone(op)) {
       const u = getUser(), v = getActiveView();
       op.history.push({ step: op.status, actor: v?.role || '', actorName: u?.userName || u?.name || '-', ts: nowTs(), action: 'Financeiro aprovado - aguardando Simples Faturamento', note: formData?.descricao || '' });
-      dbSaveOp(op);
+      dbSaveOp(op, false, _snap);
       renderAll();
       showToast('Financeiro aprovado! Aguardando Simples Faturamento do Fiscal.', 'ok');
       return;
@@ -2265,7 +2500,7 @@ function advanceOP(opId, formData) {
   op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_ACTION[op.status] || step.actionLabel || '', note: formData?.descricao || '' });
 
   op.status = next;
-  dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
+  dbSaveOp(op, false, _snap);  // persiste no Supabase (não bloqueia UI)
 
   // Concluiu a entrega → tira a OP das rotas (não deve mais ser roteirizada).
   if (next === 'entregue') removerOpDasRotas(op.id);
@@ -2293,6 +2528,7 @@ function rejectOP(opId, formData) {
   const step = STEPS[op.status];
   if (!step) { console.warn(`[rejectOP] status "${op.status}" não existe em STEPS — ignorado`); return; }
   if (!step.getReject) return;
+  const _snap = JSON.parse(JSON.stringify(op));
   // Defesa: bloquear/rejeitar limpa a aprovação do financeiro, para a OP não
   // voltar "aprovada" ao ser desbloqueada.
   if (op.status === 'aguard_financeiro' && op.stepData?.aguard_financeiro) delete op.stepData.aguard_financeiro.aprovado;
@@ -2301,7 +2537,7 @@ function rejectOP(opId, formData) {
   const view = getActiveView();
   op.history.push({ step: op.status, actor: view?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: HIST_REJECT[op.status] || step.rejectLabel || 'OP Bloqueada', note: formData.descricao || formData.motivoReemissao || '' });
   op.status = step.getReject();
-  dbSaveOp(op);  // persiste no Supabase (não bloqueia UI)
+  dbSaveOp(op, false, _snap);  // persiste no Supabase (não bloqueia UI)
   renderAll();
 }
 
@@ -3760,15 +3996,6 @@ function renderCounts() {
   document.getElementById('cnt-concluidas').textContent  = getCompleted(view).length;
   document.getElementById('cnt-todas').textContent       = _opsFiltered().filter(o=>o.status!=='aberta'&&o.status!=='bloqueada').length;
 
-  // Aba Rastreamento: só para logística e gestor
-  const rastBtn = document.getElementById('btn-tab-rastreio');
-  if (rastBtn) {
-    const canRastreio = RASTREIO_ATIVO && (view?.role === 'logistica' || view?.role === 'gestor');
-    rastBtn.style.display = canRastreio ? '' : 'none';
-    document.getElementById('cnt-rastreio').textContent = canRastreio ? rastreioOps().length : 0;
-    // Se estava na aba e perdeu acesso, volta pra fila
-    if (!canRastreio && currentTab === 'rastreio') currentTab = 'fila';
-  }
 
   // Aba Entregas (painel operacional da logística): só a logística (o ADM vê ao
   // simular Logística). O Gestor tem visão gerencial, não opera entregas.
@@ -3792,6 +4019,30 @@ function renderCounts() {
   if (filaBtn) {
     filaBtn.style.display = isGestor ? 'none' : '';
     if (isGestor && currentTab === 'fila') currentTab = 'dashboard';
+  }
+
+  // Aba Chat: visível só se o sistema está ativado E o usuário tem permissão individual
+  const chatBtn = document.getElementById('btn-tab-chat');
+  if (chatBtn) {
+    const u = getUser();
+    const canChat = !!_sysConfig.chatEnabled && !!(u?.chatEnabled || u?.role === 'gestor' || u?.role === 'adm');
+    chatBtn.style.display = canChat ? '' : 'none';
+    if (!canChat && currentTab === 'chat') currentTab = isGestor ? 'dashboard' : 'fila';
+  }
+
+  // Aba Admin: só para gestor e adm
+  const adminBtn = document.getElementById('btn-tab-admin');
+  if (adminBtn) {
+    const canAdmin = view?.role === 'gestor' || view?.role === 'adm';
+    adminBtn.style.display = canAdmin ? '' : 'none';
+    if (!canAdmin && currentTab === 'admin') currentTab = 'fila';
+  }
+
+  // Botão Export: só fora das abas que não listam OPs
+  const exportBtn = document.getElementById('btn-export');
+  if (exportBtn) {
+    const noExport = currentTab === 'admin' || currentTab === 'chat';
+    exportBtn.style.display = (!!_sysConfig.exportEnabled && !noExport) ? '' : 'none';
   }
 
   // Botão de cancelados: badge com a contagem (só aparece se houver alguma)
@@ -3827,7 +4078,9 @@ function renderMain() {
     else if (currentTab === 'fila')       renderQueue(view, el);
     else if (currentTab === 'concluidas') renderConcluidas(view, el);
     else if (currentTab === 'logistica')  renderLogistica(el);
-    else if (currentTab === 'rastreio')   renderRastreio(el);
+    else if (currentTab === 'rastreio')   renderTodas(el); // aba removida → redireciona para Todas
+    else if (currentTab === 'chat')       renderChat(el);
+    else if (currentTab === 'admin')      renderAdmin(el);
     else                                  renderTodas(el);
   } catch (e) {
     console.error('renderMain falhou:', e);
@@ -3905,15 +4158,15 @@ function logFiltroHtml() {
 // Troca o filtro do topo: na aba Entregas mostra busca+chips no lugar do filtro
 // normal (e esconde o funil). Fora dela, restaura o filtro normal.
 function sincronizarTopFiltro() {
-  const emLog  = currentTab === 'logistica' && !verCancelados;
-  const funnel = document.getElementById('btn-filter-toggle');
-  const fbar   = document.getElementById('filter-bar');
-  const lf     = document.getElementById('log-filter');
-  if (funnel) funnel.style.display = emLog ? 'none' : '';
-  if (fbar)   fbar.style.display   = emLog ? 'none' : '';
+  const emLog   = currentTab === 'logistica' && !verCancelados;
+  const semFiltro = currentTab === 'admin' || currentTab === 'chat';
+  const funnel  = document.getElementById('btn-filter-toggle');
+  const fbar    = document.getElementById('filter-bar');
+  const lf      = document.getElementById('log-filter');
+  if (funnel) funnel.style.display = (emLog || semFiltro) ? 'none' : '';
+  if (fbar)   fbar.style.display   = (emLog || semFiltro) ? 'none' : '';
   if (lf) {
     lf.style.display = emLog ? 'flex' : 'none';
-    // Monta uma vez ao entrar (não a cada render, senão perde o foco da busca).
     if (emLog && !lf.dataset.built) { lf.innerHTML = logFiltroHtml(); lf.dataset.built = '1'; }
     if (!emLog) lf.dataset.built = '';
   }
@@ -4379,12 +4632,13 @@ function doCancelarOP(opId) {
   if (!op) return;
   if (op.status === 'entregue') { showToast('OP já entregue — não pode ser cancelada', 'err'); closeModal(); return; }
   if (op.cancelada) { showToast('OP já está cancelada', 'err'); closeModal(); return; }
+  const _snapCancel = JSON.parse(JSON.stringify(op));
   const user = getUser();
   op.cancelada = { motivo, ts: nowTs(), by: user?.userName || user?.name || getActiveView()?.role || '', statusAnterior: op.status };
   // Sai de qualquer rota (senão o motorista é roteirizado para uma OP cancelada).
   removerOpDasRotas(op.id);
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Cancelada', note: motivo });
-  dbSaveOp(op);
+  dbSaveOp(op, false, _snapCancel);
   closeModal();
   renderAll();
   showToast(`OP ${numOp(op)} cancelada`, 'ok');
@@ -4393,12 +4647,13 @@ function doCancelarOP(opId) {
 function reativarOP(opId) {
   const op = ops.find(o => o.id === opId);
   if (!op || !op.cancelada) return;
+  const _snapReativar = JSON.parse(JSON.stringify(op));
   const etapa = op.cancelada.statusAnterior;
   const user  = getUser();
   if (etapa && STEPS[etapa]) op.status = etapa; // restaura explicitamente — não depende de invariante implícita
   delete op.cancelada;
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Reativada', note: '' });
-  dbSaveOp(op);
+  dbSaveOp(op, false, _snapReativar);
   renderAll();
   showToast(`OP ${numOp(op)} reativada${etapa && STEPS[etapa] ? ' — voltou para ' + STEPS[etapa].label : ''}`, 'ok');
 }
@@ -4442,7 +4697,6 @@ function renderDashboard(el) {
     const dEnt  = o.stepData?.transito?.dataEntrega;
     const dPrev = parseBRDate(o.pedidoVenda?.dataPrevista);
     if (dEnt && dPrev) (new Date(dEnt + 'T12:00:00') <= dPrev) ? noPrazo++ : foraPrazo++;
-    else noPrazo++;
   });
   const pctPrazo = entregues.length ? Math.round(noPrazo / entregues.length * 100) : 100;
 
@@ -4680,7 +4934,7 @@ function renderTodas(el) {
       </div>
     </div>`;
   }).join('');
-  const hasResults = Object.values(groups).some(g => g.length > 0);
+  const hasResults = _opsFiltered().length > 0;
   el.innerHTML = `
     <div class="step-header" style="margin-bottom:12px">
       <div class="step-title">Todas as OPs</div>
@@ -4691,6 +4945,7 @@ function renderTodas(el) {
       : `<div class="kanban-wrap" id="kanban-wrap"><div class="kanban-board">${cols}</div></div>`}`;
 }
 
+let _rotasChannel  = null;
 let _filterBarOpen = false;
 function toggleFilterBar() {
   _filterBarOpen = !_filterBarOpen;
@@ -4720,6 +4975,13 @@ function clearFilters() {
   const sel = document.getElementById('fl-sem'); if (sel) sel.selectedIndex = 0;
   const clrBtn = document.getElementById('fl-clear'); if (clrBtn) clrBtn.style.display = 'none';
   const dot = document.getElementById('fl-active-dot'); if (dot) dot.style.display = 'none';
+  if (_filterBarOpen) {
+    _filterBarOpen = false;
+    const bar = document.getElementById('filter-bar');
+    if (bar) bar.style.maxWidth = '0';
+    const btn = document.getElementById('btn-filter-toggle');
+    if (btn) btn.style.color = '';
+  }
   renderAll();
 }
 
@@ -5772,6 +6034,7 @@ function saveSimplesFaturamento(opId) {
     return;
   }
 
+  const _snapSF = JSON.parse(JSON.stringify(op));
   if (!op.stepData) op.stepData = {};
   op.stepData.simples_faturamento = {
     arquivos:    [...(existing.arquivos || []), ...novos],
@@ -5787,13 +6050,13 @@ function saveSimplesFaturamento(opId) {
   if (op.status === 'aguard_financeiro' && finDone(op)) {
     op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '-', ts: nowTs(), action: 'Gate duplo concluído — avançado para Logística', note: '' });
     op.status = 'aguard_nf';
-    dbSaveOp(op);
+    dbSaveOp(op, false, _snapSF);
     showToast('Simples faturamento salvo! OP avançada para Logística.', 'ok');
     closeModal();
     return;
   }
 
-  dbSaveOp(op);
+  dbSaveOp(op, false, _snapSF);
   showToast('Simples faturamento salvo! Aguardando aprovação do financeiro.', 'ok');
   openInfoModal(opId);
 }
@@ -6435,7 +6698,12 @@ function preencherPedido(p) {
 
   // Previsão de entrega - data exata do pedido (prazo calculado a partir de hoje)
   if (p.previsaoEntrega) {
-    fill('nova-previsaoEntrega', p.previsaoEntrega);
+    let _prev = p.previsaoEntrega;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(_prev)) {
+      const [_d, _m, _y] = _prev.split('/');
+      _prev = `${_y}-${_m}-${_d}`;
+    }
+    fill('nova-previsaoEntrega', _prev);
     calcPrazoEntrega();
   }
 
@@ -6824,6 +7092,11 @@ async function lookupProtheusClient(rawVal) {
       const items = data.items || [];
       if (items.length > 0) {
         const d = items[0];
+        const cgcDigits = (d.cgc || d.cnpj || '').replace(/\D/g, '');
+        if (cgcDigits && cgcDigits !== digits) {
+          setStatus('cnpj-status', 'Não encontrado no Protheus', 'err');
+          return false;
+        }
         fillClientFromProtheus(d);
         // Salva no Supabase para próximas buscas
         upsertProtheusCache(digits, d);
@@ -7252,11 +7525,11 @@ function printPedidoVenda(opId) {
     // VALOR TOTAL por linha = bruto (qty × unit), sem descontar item a item
     const lineGross = e.valorUnit && parseFloat(e.valorUnit) > 0 ? qty * parseFloat(e.valorUnit) : 0;
     const vt = lineGross > 0 ? fmtBRL(lineGross) : (e.gratuito ? 'Gratuito' : '-');
-    const serieLote = e.numSerie || e.lote || '';
-    const tes = e.tes ? `TES ${e.tes}${e.tesDesc ? ' · ' + e.tesDesc : ''}` : '';
+    const serieLote = esc(e.numSerie || e.lote || '');
+    const tes = e.tes ? `TES ${esc(e.tes)}${e.tesDesc ? ' · ' + esc(e.tesDesc) : ''}` : '';
     return `<tr>
       <td style="text-align:center">${qty}</td>
-      <td>${e.name}${e.code?' (cód. '+e.code+')':''}${tes?`<br><span style="font-size:8px;color:#555">${tes}</span>`:''}</td>
+      <td>${esc(e.name)}${e.code?' (cód. '+esc(e.code)+')':''}${tes?`<br><span style="font-size:8px;color:#555">${tes}</span>`:''}</td>
       <td style="text-align:right">${vu}</td>
       <td style="text-align:right">${vt}</td>
       <td style="text-align:center;font-family:monospace">${serieLote}</td>
@@ -7270,7 +7543,7 @@ function printPedidoVenda(opId) {
   }, 0);
   // Desconto total = soma dos descontos por item + valorDesconto do pedido
   const totalDesconto = equipList.reduce((s,e) => s + (!e.gratuito ? parseFloat(e.desconto||0) : 0), 0);
-  const descontoVal = totalDesconto > 0 ? totalDesconto : parseFloat(pv.valorDesconto||0);
+  const descontoVal = totalDesconto + parseFloat(pv.valorDesconto||0);
   // Valor líquido = bruto − desconto
   const liqVal = grossTotal > 0 ? (grossTotal - descontoVal) : parseFloat(pv.valorLiquido||pv.valorTotal||0);
 
@@ -7546,7 +7819,457 @@ function setTab(tab, btn) {
   document.body.classList.toggle('kanban-mode', tab === 'todas');
   renderMain(); renderCounts();
 }
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const lb = document.getElementById('img-lightbox');
+  if (lb && lb.style.display !== 'none') return; // lightbox já tratou com seu próprio listener
+  closeModal();
+});
+
+// ─── ERROR BOUNDARY GLOBAL ───────────────────────────────────────────
+// Captura erros JS não tratados e promises rejeitadas sem .catch().
+// Não substitui o tratamento local — é a rede de segurança para o que
+// passa sem tratamento (bug inesperado, lib de terceiro, race condition).
+window.addEventListener('offline', () => showToast('Conexão perdida. Salvar ficará pendente até reconectar.', 'err'));
+window.addEventListener('online',  () => showToast('Conexão restaurada.', 'ok'));
+
+window.addEventListener('unhandledrejection', ev => {
+  const msg = (ev.reason instanceof Error ? ev.reason.message : String(ev.reason || ''));
+  console.error('[Contourline] Promise não tratada:', ev.reason);
+  // Só toast para erros de rede/fetch — o resto é ruído para o usuário
+  if (/fetch|network|failed to fetch|load failed/i.test(msg)) {
+    showToast('Erro de rede. Verifique sua conexão e tente novamente.', 'err');
+  }
+});
+window.onerror = (msg, src, line, col, err) => {
+  console.error('[Contourline] Erro não capturado:', msg, { src, line, col, err });
+  return false; // não suprime stack trace no console
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIGURAÇÕES DO SISTEMA (Admin)
+// ═══════════════════════════════════════════════════════════════════
+
+let _sysConfigChannel = null;
+
+async function loadSysConfig() {
+  try {
+    const { data } = await sb.from('system_config').select('key,value');
+    if (data) data.forEach(r => {
+      if (r.key in _sysConfig) _sysConfig[r.key] = r.value === 'true';
+    });
+  } catch(e) { console.warn('[system_config] tabela não encontrada — rode a migração 2026-07-30-admin-chat-logs.sql'); }
+}
+
+async function saveSysConfig(key, value) {
+  const u = getUser();
+  try {
+    await sb.from('system_config').upsert({
+      key, value: String(value),
+      updated_at: new Date().toISOString(),
+      updated_by: u?.uid || null,
+    });
+    _sysConfig[key] = value;
+    renderCounts();
+    if (currentTab === 'admin') renderMain();
+    showToast('Configuração salva', 'ok');
+    logSystemEvent('config_changed', { key, value: String(value) });
+  } catch(e) { showToast('Erro ao salvar configuração: ' + e.message, 'err'); }
+}
+
+function startSysConfigRealtime() {
+  try {
+    if (_sysConfigChannel) { try { sb.removeChannel(_sysConfigChannel); } catch {} _sysConfigChannel = null; }
+    _sysConfigChannel = sb.channel('sys-config-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_config' }, payload => {
+        if (payload.new) {
+          const { key, value } = payload.new;
+          if (key in _sysConfig) _sysConfig[key] = value === 'true';
+          renderCounts();
+          if (currentTab === 'admin') renderMain();
+        }
+      }).subscribe();
+  } catch(e) { console.warn('[Realtime system_config]', e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGS DO SISTEMA
+// ═══════════════════════════════════════════════════════════════════
+
+async function logSystemEvent(eventType, detail, opId, opNumero) {
+  if (!_sysConfig.logsEnabled) return;
+  const u = getUser();
+  if (!u) return;
+  try {
+    await sb.from('system_logs').insert({
+      event_type: eventType,
+      user_id: u.uid || null,
+      user_name: u.userName || '',
+      user_role: u.role || '',
+      op_id: opId || null,
+      op_numero: opNumero || null,
+      detail: detail || {},
+    });
+  } catch(e) { /* logs são melhor-esforço */ }
+}
+
+let _adminLogs  = [];
+let _adminUsers = [];
+
+async function loadAdminUsers() {
+  const box = document.getElementById('admin-users-box');
+  try {
+    const { data, error } = await sb.from('profiles')
+      .select('id,name,sector_id,chat_enabled')
+      .order('name', { ascending: true });
+    if (error) throw error;
+    _adminUsers = data || [];
+    renderAdminUsers();
+  } catch(e) {
+    if (box) box.innerHTML = `<div style="padding:12px;color:var(--red);font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">Erro ao carregar usuários: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderAdminUsers() {
+  const box = document.getElementById('admin-users-box');
+  if (!box) return;
+  const me = getUser();
+  if (!_adminUsers.length) {
+    box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:16px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">Nenhum usuário encontrado.</div>`;
+    return;
+  }
+  const sectorLabel = id => SECTORS.find(s => s.id === (id||'').toLowerCase())?.name || id || '—';
+  box.innerHTML = _adminUsers.map(u => {
+    const isMe  = u.id === me?.uid;
+    const on    = !!u.chat_enabled || isMe; // gestor sempre tem chat
+    const label = on ? 'Chat liberado' : 'Sem acesso ao chat';
+    return `<div class="toggle-row" style="${isMe?'opacity:.6;pointer-events:none':''}">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'(sem nome)')}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">${sectorLabel(u.sector_id)}${isMe?' · você':''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:11px;color:${on?'var(--green)':'var(--text3)'};font-weight:600">${label}</span>
+        <button class="toggle-track" onclick="toggleUserChat('${u.id}', ${!u.chat_enabled})"
+          style="background:${on?'var(--green)':'var(--border2)'}"
+          title="${on?'Revogar acesso ao chat':'Liberar acesso ao chat'}">
+          <span class="toggle-thumb" style="left:${on?'23px':'3px'}"></span>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleUserChat(userId, enable) {
+  try {
+    const { error } = await sb.from('profiles').update({ chat_enabled: enable }).eq('id', userId);
+    if (error) throw error;
+    const idx = _adminUsers.findIndex(u => u.id === userId);
+    if (idx >= 0) _adminUsers[idx] = { ..._adminUsers[idx], chat_enabled: enable };
+    renderAdminUsers();
+    showToast(enable ? 'Chat liberado para o usuário.' : 'Acesso ao chat revogado.', 'ok');
+    logSystemEvent('config_changed', { action: enable ? 'chat_user_enabled' : 'chat_user_disabled', target_user: userId });
+  } catch(e) {
+    showToast('Erro ao atualizar: ' + e.message, 'err');
+  }
+}
+
+async function loadAdminLogs() {
+  try {
+    const { data, error } = await sb.from('system_logs')
+      .select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    _adminLogs = data || [];
+    renderAdminLogs();
+  } catch(e) {
+    const box = document.getElementById('admin-logs-box');
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Tabela de logs não encontrada — execute a migração <code>2026-07-30-admin-chat-logs.sql</code> no Supabase.</div>`;
+  }
+}
+
+function renderAdminLogs() {
+  const box = document.getElementById('admin-logs-box');
+  if (!box) return;
+  if (!_adminLogs.length) {
+    box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Nenhum log registrado ainda.</div>`;
+    return;
+  }
+  const typeColor = { login:'var(--green)', logout:'var(--gray)', op_created:'var(--accent)', op_advanced:'var(--teal)', op_cancelled:'var(--red)', op_reactivated:'var(--orange)', export_csv:'var(--purple)', chat_message:'var(--blue)', config_changed:'var(--yellow)' };
+  box.innerHTML = `<table class="logs-table">
+    <thead><tr>
+      <th>Data / Hora</th><th>Evento</th><th>Usuário</th><th>Setor</th><th>OP</th><th>Detalhe</th>
+    </tr></thead>
+    <tbody>${_adminLogs.map(log => {
+      const dt = new Date(log.created_at);
+      const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const col = typeColor[log.event_type] || 'var(--text3)';
+      const det = log.detail ? Object.entries(log.detail).map(([k,v])=>`${k}: ${v}`).join(' · ') : '';
+      return `<tr>
+        <td style="white-space:nowrap;color:var(--text3)">${dtStr}</td>
+        <td><span class="log-badge" style="color:${col};background:${col}20">${esc(log.event_type)}</span></td>
+        <td style="font-weight:600">${esc(log.user_name||'—')}</td>
+        <td style="color:var(--text3)">${esc(log.user_role||'—')}</td>
+        <td style="color:var(--accent);font-weight:600">${esc(log.op_numero||'—')}</td>
+        <td style="color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(det)}">${esc(det)||'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderAdmin(el) {
+  const view = getActiveView();
+  const canAdmin = view?.role === 'gestor' || view?.role === 'adm';
+  if (!canAdmin) { el.innerHTML = `<div class="empty"><div class="empty-title">Acesso negado</div></div>`; return; }
+
+  const toggle = (key, label, desc) => {
+    const on = !!_sysConfig[key];
+    return `<div class="toggle-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14px">${label}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${desc}</div>
+      </div>
+      <button class="toggle-track" onclick="saveSysConfig('${key}', ${!on})"
+        style="background:${on?'var(--green)':'var(--border2)'}"
+        title="${on?'Clique para desativar':'Clique para ativar'}">
+        <span class="toggle-thumb" style="left:${on?'23px':'3px'}"></span>
+      </button>
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <div class="step-header">
+      <div class="step-title">Painel Admin</div>
+      <div class="step-desc">Configurações do sistema e logs de auditoria — acesso restrito ao gestor</div>
+    </div>
+    <div class="admin-grid">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700;margin-bottom:10px">Funcionalidades globais</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          ${toggle('chatEnabled',   'Chat Interno',       'Habilita o chat no sistema (por usuário abaixo)')}
+          ${toggle('logsEnabled',   'Logs do Sistema',    'Registra login, avanços de OP e ações do admin')}
+          ${toggle('exportEnabled', 'Exportação CSV',     'Botão de exportação visível para todos os setores')}
+        </div>
+
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700;margin-bottom:10px">Acesso ao Chat por usuário</div>
+        <div id="admin-users-box" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px">
+          <div style="text-align:center;color:var(--text3);padding:16px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+            ${icon('loader-circle',14,'color:var(--accent)')} Carregando usuários…
+          </div>
+        </div>
+
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700;margin-bottom:10px">Ações</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+          <button onclick="loadAdminLogs()" style="height:36px;padding:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center">
+            ${icon('refresh-cw',14)} Carregar Logs
+          </button>
+          <button onclick="exportCSV()" style="height:36px;padding:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center">
+            ${icon('download',14)} Exportar OPs (CSV)
+          </button>
+        </div>
+        <div style="padding:12px;background:var(--blue-bg);border:1px solid var(--azul-claro);border-radius:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--accent)">Propagação em tempo real</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">Funcionalidades globais afetam todos imediatamente. O acesso ao chat por usuário é efetivo no próximo login deles.</div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700">Logs do Sistema (últimos 100)</div>
+          <button onclick="loadAdminLogs()" style="height:26px;padding:0 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;color:var(--text3);font-weight:600">${icon('refresh-cw',11)} Atualizar</button>
+        </div>
+        <div id="admin-logs-box" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;max-height:520px;overflow-y:auto">
+          <div style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Clique em "Carregar Logs" para visualizar.</div>
+        </div>
+      </div>
+    </div>`;
+
+  loadAdminUsers();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORTAÇÃO INTELIGENTE DE RELATÓRIOS
+// ═══════════════════════════════════════════════════════════════════
+
+function exportCSV() {
+  const lista = _opsFiltered();
+  if (!lista.length) { showToast('Nenhuma OP para exportar com os filtros ativos.', 'err'); return; }
+
+  const semLabel = op => { const s = semaforo(op); if (s.cls==='b-green') return 'No prazo'; if (s.cls==='b-red') return 'Atrasado'; return 'Próximo ao prazo'; };
+
+  const cabecalho = [
+    'Nº OP','Cliente','Status','Semáforo','Vendedor Canal','PV Protheus',
+    'Data Abertura','Previsão Entrega','Valor Líquido','Entrada',
+    'Nº NF','Data NF','Data Entrega','Endereço Entrega','Tipo Envio',
+    'Transportadora','Volumes','Peso (kg)',
+  ];
+
+  const linhas = lista.map(op => {
+    const pv   = op.pedidoVenda || {};
+    const nf   = op.stepData?.aguard_emissao || {};
+    const ent  = op.stepData?.transito || {};
+    const transp = op.stepData?.aguard_nf || {};
+    return [
+      numOp(op),
+      op.cliente || '',
+      STEPS[op.status]?.label || op.status || '',
+      semLabel(op),
+      pv.vendedorCanal || op.vendedorCanal || '',
+      op.pedidoProtheus || '',
+      op.dataAbertura || '',
+      pv.dataPrevista || '',
+      fmtBRL(parseFloat(pv.valorLiquido || pv.valorTotal || 0) || 0),
+      pv.entrada === 'pendente' ? 'Com entrada' : 'Sem entrada',
+      nf.numeroNF || '',
+      nf.dataEmissao || '',
+      ent.dataEntrega || '',
+      transp.enderecoEntrega || pv.enderecoEntrega || '',
+      transp.envioTipo || '',
+      transp.transportadora || transp.envio || '',
+      transp.volumes || '',
+      transp.peso || '',
+    ];
+  });
+
+  const csv = [cabecalho, ...linhas]
+    .map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(','))
+    .join('\r\n');
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `contourline-ops-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`${lista.length} OP${lista.length!==1?'s':''} exportada${lista.length!==1?'s':''} com sucesso.`, 'ok');
+  logSystemEvent('export_csv', { count: lista.length });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHAT INTERNO
+// ═══════════════════════════════════════════════════════════════════
+
+let _chatMessages    = [];
+let _chatChannel     = null;
+let _chatHasUnread   = false;
+
+async function _chatLoad() {
+  try {
+    const { data, error } = await sb.from('chat_messages')
+      .select('*').is('op_id', null)
+      .order('created_at', { ascending: true }).limit(150);
+    if (error) throw error;
+    _chatMessages = data || [];
+    _chatRender();
+  } catch(e) {
+    const box = document.getElementById('chat-messages-box');
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Tabela de chat não encontrada — execute a migração <code>2026-07-30-admin-chat-logs.sql</code> no Supabase.</div>`;
+  }
+}
+
+function _chatRender() {
+  const box = document.getElementById('chat-messages-box');
+  if (!box) return;
+  const u = getUser();
+  if (!_chatMessages.length) {
+    box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:40px 16px;font-size:13px">Nenhuma mensagem ainda.<br>Seja o primeiro a escrever! 👋</div>`;
+    return;
+  }
+  const sectorColor = r => ({ financeiro:'var(--yellow)',fiscal:'var(--purple)',logistica:'var(--teal)',comercial:'var(--green)',vendedor:'var(--green)',gestor:'var(--accent)',adm:'var(--accent)' }[r] || 'var(--gray)');
+  let lastDate = '';
+  box.innerHTML = _chatMessages.map(m => {
+    const isMe  = u && m.user_id === u.uid;
+    const mDate = new Date(m.created_at);
+    const dateStr = mDate.toLocaleDateString('pt-BR', {weekday:'short',day:'2-digit',month:'short'});
+    const timeStr = mDate.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    const color   = sectorColor(m.user_role);
+    const sectorName = SECTORS.find(s=>s.role===m.user_role)?.name || m.user_role;
+    let out = '';
+    if (dateStr !== lastDate) {
+      lastDate = dateStr;
+      out += `<div style="text-align:center;margin:12px 0 8px"><span style="font-size:11px;font-weight:600;color:var(--text3);background:var(--surface2);padding:3px 10px;border-radius:10px">${dateStr}</span></div>`;
+    }
+    out += `<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'};margin-bottom:8px;gap:2px">
+      ${!isMe?`<div style="font-size:10px;color:${color};font-weight:700;padding:0 4px">${esc(m.user_name)} · ${sectorName}</div>`:''}
+      <div style="max-width:80%;background:${isMe?'var(--accent)':'var(--surface)'};color:${isMe?'#fff':'var(--text)'};border:1px solid ${isMe?'transparent':'var(--border)'};border-radius:${isMe?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:8px 12px;font-size:13px;line-height:1.45;word-break:break-word">
+        ${esc(m.content)}
+      </div>
+      <div style="font-size:10px;color:var(--text3);padding:0 4px">${timeStr}</div>
+    </div>`;
+    return out;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+async function _chatSend() {
+  const input = document.getElementById('chat-input');
+  if (!input || !input.value.trim()) return;
+  const content = input.value.trim();
+  input.value = '';
+  const u = getUser();
+  if (!u) return;
+  try {
+    await sb.from('chat_messages').insert({
+      op_id: null,
+      user_id: u.uid || null,
+      user_name: u.userName || u.role,
+      user_role: u.role,
+      content,
+      is_private: false,
+    });
+    logSystemEvent('chat_message', { canal: 'geral' });
+  } catch(e) { showToast('Erro ao enviar: ' + e.message, 'err'); }
+}
+
+function startChatRealtime() {
+  try {
+    if (_chatChannel) { try { sb.removeChannel(_chatChannel); } catch {} _chatChannel = null; }
+    _chatChannel = sb.channel('chat-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+        const msg = payload.new;
+        if (msg.op_id != null) return; // só canal geral por enquanto
+        _chatMessages.push(msg);
+        if (_chatMessages.length > 200) _chatMessages = _chatMessages.slice(-200);
+        if (currentTab === 'chat') {
+          _chatRender();
+        } else {
+          const dot = document.getElementById('chat-notif-dot');
+          if (dot) dot.style.display = 'inline-block';
+          _chatHasUnread = true;
+        }
+      }).subscribe();
+  } catch(e) { console.warn('[Realtime chat]', e.message); }
+}
+
+function renderChat(el) {
+  // Limpa notificação ao entrar no chat
+  const dot = document.getElementById('chat-notif-dot');
+  if (dot) dot.style.display = 'none';
+  _chatHasUnread = false;
+
+  el.innerHTML = `
+    <div class="step-header">
+      <div class="step-title">Chat Interno</div>
+      <div class="step-desc">Canal geral de comunicação entre setores — em tempo real</div>
+    </div>
+    <div class="chat-wrap">
+      <div id="chat-messages-box" class="chat-messages">
+        <div style="text-align:center;color:var(--text3);padding:32px;font-size:13px">${icon('loader-circle',20,'color:var(--accent)')} Carregando…</div>
+      </div>
+      <div class="chat-footer">
+        <input id="chat-input" class="chat-input" type="text"
+          placeholder="Digite uma mensagem e pressione Enter…"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_chatSend()}">
+        <button class="chat-send-btn" onclick="_chatSend()">
+          Enviar
+        </button>
+      </div>
+    </div>`;
+
+  _chatLoad();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT - carrega do Supabase e inicia Realtime

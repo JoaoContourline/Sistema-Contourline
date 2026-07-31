@@ -518,79 +518,98 @@ body.kanban-mode .kanban-col-body {
 /* ── LOGIN SCREEN ──────────────────────────────────────────────── */
 #loginScreen {
   position: fixed; inset: 0; z-index: 9999;
-  background: #eef1f6;
-  display: flex; align-items: center; justify-content: center;
-  padding: 20px;
-  font-family: 'Inter', sans-serif;
+  display: flex; font-family: 'Inter', sans-serif;
 }
-.login-card {
-  width: 100%; max-width: 420px;
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 16px 60px rgba(22,44,69,.18), 0 2px 8px rgba(22,44,69,.08);
-  overflow: hidden;
+.login-left {
+  width: 46%; min-width: 360px; max-width: 540px;
+  background: linear-gradient(145deg, #0b1735 0%, #0f2055 55%, #172d7a 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 52px; position: relative; overflow: hidden;
 }
-.login-card-header {
-  background: linear-gradient(135deg, #162C45 0%, #24336E 100%);
-  padding: 32px 28px 28px;
-  text-align: center;
+.login-left::before {
+  content: ''; position: absolute; width: 500px; height: 500px;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.05);
+  top: -150px; left: -120px; pointer-events: none;
 }
+.login-left::after {
+  content: ''; position: absolute; width: 320px; height: 320px;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.05);
+  bottom: -80px; right: -80px; pointer-events: none;
+}
+.login-right {
+  flex: 1; background: linear-gradient(145deg, #eef4ff 0%, #f5f9ff 60%, #fff 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px; position: relative; overflow: hidden;
+}
+.login-form-wrap { width: 100%; max-width: 320px; }
 .login-logo {
-  height: 32px; width: auto;
-  filter: brightness(0) invert(1);
-  margin-bottom: 14px;
-  display: block; margin-left: auto; margin-right: auto;
+  height: 28px; width: auto;
+  filter: brightness(0) invert(1); opacity: .85;
+  display: block; margin-bottom: 26px;
+}
+.login-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+  color: rgba(255,255,255,.4); text-transform: uppercase; margin-bottom: 5px;
 }
 .login-title {
-  font-size: 20px; font-weight: 700; color: #fff;
-  letter-spacing: -.3px;
+  font-size: 26px; font-weight: 800; color: #fff;
+  letter-spacing: -.5px; margin-bottom: 28px; line-height: 1.2;
 }
-.login-card-body { padding: 28px; display: flex; flex-direction: column; gap: 16px; }
-.login-field { display: flex; flex-direction: column; gap: 6px; }
+.login-field { display: flex; flex-direction: column; gap: 0; margin-bottom: 13px; }
 .login-label {
-  font-size: 10px; font-weight: 700; letter-spacing: .8px;
-  color: #8096b3; font-family: 'DM Mono', monospace; text-transform: uppercase;
+  font-size: 11px; font-weight: 600; letter-spacing: .4px;
+  color: rgba(255,255,255,.45); margin-bottom: 5px; padding-left: 6px;
 }
 .login-input-wrap {
   position: relative; display: flex; align-items: center;
-  border: 1.5px solid #dde3ed; border-radius: 10px; background: #f8fafc;
-  transition: border-color .15s;
+  background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.13);
+  border-radius: 50px; transition: border-color .15s, background .15s;
 }
-.login-input-wrap:focus-within { border-color: #2672B8; background: #fff; }
+.login-input-wrap:focus-within {
+  border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.14);
+}
 .login-input-icon {
-  position: absolute; left: 13px; color: #8096b3; pointer-events: none;
+  position: absolute; left: 17px; color: rgba(255,255,255,.4); pointer-events: none;
   display: flex; align-items: center;
 }
 .login-input {
-  width: 100%; padding: 12px 42px;
+  width: 100%; padding: 13px 46px;
   border: none; background: transparent; outline: none;
-  font-family: 'Inter', sans-serif; font-size: 14px; color: #0f1f35;
+  font-family: 'Inter', sans-serif; font-size: 14px; color: #fff;
 }
-.login-input::placeholder { color: #aab5c8; }
+.login-input::placeholder { color: rgba(255,255,255,.28); }
 .login-eye-btn {
-  position: absolute; right: 12px; background: none; border: none;
-  cursor: pointer; color: #8096b3; display: flex; align-items: center;
+  position: absolute; right: 15px; background: none; border: none;
+  cursor: pointer; color: rgba(255,255,255,.4); display: flex; align-items: center;
   padding: 4px; border-radius: 4px; transition: color .15s;
 }
-.login-eye-btn:hover { color: #3d5170; }
+.login-eye-btn:hover { color: rgba(255,255,255,.8); }
 .login-error {
-  font-size: 12px; color: #dc2626; text-align: center;
-  min-height: 16px; font-weight: 500;
+  font-size: 12px; color: #fca5a5; text-align: center;
+  min-height: 16px; font-weight: 500; margin: 2px 0 4px;
 }
 .login-btn {
-  width: 100%; padding: 13px;
-  background: linear-gradient(135deg, #162C45 0%, #24336E 100%);
-  color: #fff; border: none; border-radius: 10px;
+  width: 100%; padding: 13px 20px;
+  background: #1a6cf0; color: #fff; border: none; border-radius: 50px;
   font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: opacity .15s; display: flex; align-items: center;
-  justify-content: center; gap: 8px; margin-top: 4px;
+  cursor: pointer; transition: background .15s, transform .1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px;
 }
-.login-btn:hover:not(:disabled) { opacity: .88; }
-.login-btn:disabled { opacity: .55; cursor: default; }
-.login-card-footer {
-  text-align: center; padding: 14px;
-  font-size: 11px; color: #aab5c8; border-top: 1px solid #eef1f6;
-  font-family: 'DM Mono', monospace;
+.login-btn:hover:not(:disabled) { background: #1558c9; }
+.login-btn:active:not(:disabled) { transform: scale(.98); }
+.login-btn:disabled { opacity: .48; cursor: default; }
+.login-footer-text {
+  margin-top: 26px; font-size: 11px; color: rgba(255,255,255,.22);
+  font-family: 'DM Mono', monospace; letter-spacing: .5px; text-align: center;
+}
+.lp-card {
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 4px 28px rgba(22,44,100,.09), 0 1px 4px rgba(22,44,100,.05);
+  padding: 18px 20px; width: 100%; max-width: 270px; margin-bottom: 14px;
+}
+@media (max-width: 780px) {
+  .login-right { display: none; }
+  .login-left { width: 100%; max-width: none; padding: 32px 28px; }
 }
 /* ── USER WIDGET (header) ──────────────────────────────────────── */
 .user-widget {
@@ -967,104 +986,152 @@ body.kanban-mode .kanban-col-body {
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen" style="display:none">
-  <div class="login-card">
-    <div class="login-card-header">
+  <!-- LEFT: painel escuro com formulário -->
+  <div class="login-left">
+    <div class="login-form-wrap">
       <img id="loginLogo" class="login-logo" alt="Contourline">
+      <div class="login-eyebrow">Bem-vindo</div>
       <div class="login-title">Fluxo de Vendas</div>
-    </div>
-    <!-- PAINEL 1: Credenciais -->
-    <div class="login-card-body" id="loginCredPanel" style="">
-      <div class="login-field">
-        <label class="login-label">E-mail</label>
-        <div class="login-input-wrap">
-          <span class="login-input-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </span>
-          <input class="login-input" id="loginEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username"
-            onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
-        </div>
-      </div>
-      <div class="login-field">
-        <label class="login-label">Senha</label>
-        <div class="login-input-wrap">
-          <span class="login-input-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </span>
-          <input class="login-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"
-            onkeydown="if(event.key==='Enter')doLogin()">
-          <button class="login-eye-btn" type="button" onclick="toggleLoginPwd(this)" title="Mostrar/ocultar senha">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="loginError" class="login-error"></div>
-      <button class="login-btn" id="loginBtn" onclick="doLogin()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-        Entrar
-      </button>
-      <button type="button" onclick="showResetPanel()" style="display:none;background:none;border:none;color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Esqueci minha senha</button>
-    </div>
 
-    <!-- PAINEL 2: Recuperar senha por código de e-mail -->
-    <div class="login-card-body" id="loginResetPanel" style="display:none">
-      <!-- Etapa 1: e-mail -->
-      <div id="resetStep1">
+      <!-- PAINEL 1: Credenciais -->
+      <div id="loginCredPanel">
         <div class="login-field">
-          <label class="login-label">E-mail da conta</label>
+          <label class="login-label">E-mail</label>
           <div class="login-input-wrap">
-            <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-            <input class="login-input" id="resetEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username" onkeydown="if(event.key==='Enter')enviarCodigoReset()">
+            <span class="login-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <input class="login-input" id="loginEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username"
+              onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
           </div>
         </div>
-        <div id="resetError" class="login-error"></div>
-        <button class="login-btn" id="resetSendBtn" onclick="enviarCodigoReset()">Enviar código</button>
-        <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Voltar ao login</button>
-      </div>
-      <!-- Etapa 2: código + nova senha -->
-      <div id="resetStep2" style="display:none">
-        <div style="font-size:12.5px;color:var(--text2);line-height:1.5">Enviamos um código para <b id="resetEmailShow"></b>. Digite-o abaixo e defina a nova senha.</div>
         <div class="login-field">
-          <label class="login-label">Código do e-mail</label>
-          <div class="login-input-wrap"><input class="login-input" id="resetCode" inputmode="numeric" placeholder="000000" autocomplete="one-time-code" style="letter-spacing:3px"></div>
+          <label class="login-label">Senha</label>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input class="login-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password"
+              onkeydown="if(event.key==='Enter')doLogin()">
+            <button class="login-eye-btn" type="button" onclick="toggleLoginPwd(this)" title="Mostrar/ocultar senha">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="loginError" class="login-error"></div>
+        <button class="login-btn" id="loginBtn" onclick="doLogin()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Entrar
+        </button>
+        <button type="button" onclick="showResetPanel()" style="display:none;background:none;border:none;color:rgba(255,255,255,.45);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:6px;align-self:center;margin-top:4px">Esqueci minha senha</button>
+      </div>
+
+      <!-- PAINEL 2: Recuperar senha por código de e-mail -->
+      <div id="loginResetPanel" style="display:none">
+        <!-- Etapa 1: e-mail -->
+        <div id="resetStep1">
+          <div class="login-field">
+            <label class="login-label">E-mail da conta</label>
+            <div class="login-input-wrap">
+              <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+              <input class="login-input" id="resetEmail" type="email" placeholder="seu@contourline.com.br" autocomplete="username" onkeydown="if(event.key==='Enter')enviarCodigoReset()">
+            </div>
+          </div>
+          <div id="resetError" class="login-error"></div>
+          <button class="login-btn" id="resetSendBtn" onclick="enviarCodigoReset()">Enviar código</button>
+          <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:6px;display:block;margin:6px auto 0">Voltar ao login</button>
+        </div>
+        <!-- Etapa 2: código + nova senha -->
+        <div id="resetStep2" style="display:none">
+          <div style="font-size:12.5px;color:rgba(255,255,255,.65);line-height:1.5;margin-bottom:12px">Enviamos um código para <b id="resetEmailShow" style="color:rgba(255,255,255,.9)"></b>. Digite-o abaixo e defina a nova senha.</div>
+          <div class="login-field">
+            <label class="login-label">Código do e-mail</label>
+            <div class="login-input-wrap"><input class="login-input" id="resetCode" inputmode="numeric" placeholder="000000" autocomplete="one-time-code" style="letter-spacing:3px"></div>
+          </div>
+          <div class="login-field">
+            <label class="login-label">Nova senha</label>
+            <div class="login-input-wrap"><input class="login-input" id="resetNew" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password"></div>
+          </div>
+          <div class="login-field">
+            <label class="login-label">Confirmar nova senha</label>
+            <div class="login-input-wrap"><input class="login-input" id="resetConfirm" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')redefinirComCodigo()"></div>
+          </div>
+          <div id="resetError2" class="login-error"></div>
+          <button class="login-btn" id="resetSaveBtn" onclick="redefinirComCodigo()">Redefinir senha</button>
+          <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:6px;display:block;margin:6px auto 0">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- PAINEL 3: Definir nova senha (senha expirada / temporária) -->
+      <div id="loginNewPassPanel" style="display:none">
+        <div style="font-size:13px;color:rgba(255,220,100,.9);line-height:1.5;background:rgba(234,179,8,.13);border:1px solid rgba(234,179,8,.28);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+          <b>Defina uma nova senha</b> para continuar.
         </div>
         <div class="login-field">
           <label class="login-label">Nova senha</label>
-          <div class="login-input-wrap"><input class="login-input" id="resetNew" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password"></div>
+          <div class="login-input-wrap">
+            <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <input class="login-input" id="np-new" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password">
+          </div>
         </div>
         <div class="login-field">
           <label class="login-label">Confirmar nova senha</label>
-          <div class="login-input-wrap"><input class="login-input" id="resetConfirm" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')redefinirComCodigo()"></div>
+          <div class="login-input-wrap">
+            <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <input class="login-input" id="np-confirm" type="password" placeholder="repita a nova senha" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvarSenhaForcada()">
+          </div>
         </div>
-        <div id="resetError2" class="login-error"></div>
-        <button class="login-btn" id="resetSaveBtn" onclick="redefinirComCodigo()">Redefinir senha</button>
-        <button type="button" onclick="showLoginPanel()" style="background:none;border:none;color:var(--text3);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px;align-self:center">Cancelar</button>
+        <div id="np-err" class="login-error"></div>
+        <button class="login-btn" id="np-save" onclick="salvarSenhaForcada()">Salvar e entrar</button>
+      </div>
+
+      <div class="login-footer-text">Rede interna · Acesso restrito</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: painel claro com preview do sistema -->
+  <div class="login-right">
+    <div style="width:100%;max-width:280px">
+      <div class="lp-card">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;margin-bottom:12px">FLUXO DE VENDAS</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #22c55e">
+            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5842</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:2px">Emissão NF · Em andamento</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #f59e0b">
+            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5839</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:2px">Aguardando Despacho</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #3b82f6">
+            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5831</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:2px">Em Trânsito · São Paulo</div>
+          </div>
+        </div>
+      </div>
+      <div class="lp-card">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;margin-bottom:10px">RESUMO DO DIA</div>
+        <div style="display:flex;justify-content:space-around;align-items:center">
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:800;color:#0f1f35;line-height:1">12</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:3px">abertas</div>
+          </div>
+          <div style="width:1px;height:32px;background:#eef1f6"></div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:800;color:#16a34a;line-height:1">5</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:3px">entregues</div>
+          </div>
+          <div style="width:1px;height:32px;background:#eef1f6"></div>
+          <div style="text-align:center">
+            <div style="font-size:24px;font-weight:800;color:#f59e0b;line-height:1">3</div>
+            <div style="font-size:10px;color:#8096b3;margin-top:3px">em atraso</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:#aab5c8;font-family:'DM Mono',monospace;line-height:1.7">
+        Sistema de Logística<br>Fluxo de Vendas · Contourline
       </div>
     </div>
-
-    <!-- PAINEL 3: Definir nova senha (senha expirada / temporária) -->
-    <div class="login-card-body" id="loginNewPassPanel" style="display:none">
-      <div style="font-size:13px;color:var(--text);line-height:1.5;background:var(--yellow-bg);border:1px solid rgba(234,179,8,.35);border-radius:8px;padding:10px 12px">
-        <b>Defina uma nova senha</b> para continuar.
-      </div>
-      <div class="login-field">
-        <label class="login-label">Nova senha</label>
-        <div class="login-input-wrap">
-          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          <input class="login-input" id="np-new" type="password" placeholder="mínimo 8 caracteres" autocomplete="new-password">
-        </div>
-      </div>
-      <div class="login-field">
-        <label class="login-label">Confirmar nova senha</label>
-        <div class="login-input-wrap">
-          <span class="login-input-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          <input class="login-input" id="np-confirm" type="password" placeholder="repita a nova senha" autocomplete="new-password" onkeydown="if(event.key==='Enter')salvarSenhaForcada()">
-        </div>
-      </div>
-      <div id="np-err" class="login-error"></div>
-      <button class="login-btn" id="np-save" onclick="salvarSenhaForcada()">Salvar e entrar</button>
-    </div>
-
-    <div class="login-card-footer">Rede interna · Acesso restrito</div>
   </div>
 </div>
 

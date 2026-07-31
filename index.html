@@ -8602,7 +8602,7 @@ async function _chatOpenConv(userId, userName, userRole) {
   const roleColor = r => ({ financeiro:'#e6a817',fiscal:'#8b5cf6',logistica:'#14b8a6',comercial:'#22c55e',vendedor:'#22c55e',gestor:'#1a6cf0',adm:'#1a6cf0' }[r] || '#94a3b8');
   const convHeaderIcon = avatarUrl
     ? `<img src="${esc(avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
-    : roleIcon(userRole, 15, 'color:'+roleColor(userRole));
+    : icon('user', 17, 'color:rgba(255,255,255,.85)');
   panel.innerHTML = `
     <div class="cp-header">
       <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>

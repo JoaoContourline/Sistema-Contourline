@@ -521,7 +521,7 @@ body.kanban-mode .kanban-col-body {
   display: flex; font-family: 'Inter', sans-serif;
 }
 .login-left {
-  width: 46%; min-width: 360px; max-width: 540px;
+  width: 54%; min-width: 380px; max-width: 600px;
   background: linear-gradient(145deg, #0b1735 0%, #0f2055 55%, #172d7a 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 40px 52px; position: relative; overflow: hidden;
@@ -602,15 +602,40 @@ body.kanban-mode .kanban-col-body {
   margin-top: 26px; font-size: 11px; color: rgba(255,255,255,.22);
   font-family: 'DM Mono', monospace; letter-spacing: .5px; text-align: center;
 }
-.lp-card {
-  background: #fff; border-radius: 14px;
-  box-shadow: 0 4px 28px rgba(22,44,100,.09), 0 1px 4px rgba(22,44,100,.05);
-  padding: 18px 20px; width: 100%; max-width: 270px; margin-bottom: 14px;
-}
 @media (max-width: 780px) {
   .login-right { display: none; }
   .login-left { width: 100%; max-width: none; padding: 32px 28px; }
 }
+/* ── LOGIN RIGHT PANEL ─────────────────────────────────────────── */
+.lr-dot-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(22,44,100,.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.lr-orb {
+  position: absolute; border-radius: 50%; filter: blur(72px); pointer-events: none;
+}
+.lr-orb1 { width:360px;height:360px;background:rgba(26,108,240,.13);top:-80px;right:-100px; }
+.lr-orb2 { width:220px;height:220px;background:rgba(22,163,74,.09);bottom:0;left:-50px; }
+.lr-orb3 { width:160px;height:160px;background:rgba(245,158,11,.07);bottom:100px;right:20px; }
+.lr-scene {
+  position: relative; width: 340px; height: 380px; flex-shrink: 0;
+}
+.lr-card {
+  position: absolute; background: #fff; border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(22,44,100,.12), 0 2px 8px rgba(22,44,100,.06);
+  padding: 16px 18px;
+}
+.lr-card1 { width:230px; top:10px; left:20px; animation: lrf1 4.2s ease-in-out infinite; }
+.lr-card2 { width:210px; top:148px; left:80px; animation: lrf2 5s ease-in-out infinite .9s; }
+.lr-card3 { width:200px; top:278px; left:30px; animation: lrf3 4.6s ease-in-out infinite .4s; }
+@keyframes lrf1 { 0%,100%{transform:translateY(0) rotate(-.5deg)} 50%{transform:translateY(-10px) rotate(-.5deg)} }
+@keyframes lrf2 { 0%,100%{transform:translateY(0) rotate(.8deg)} 50%{transform:translateY(-8px) rotate(.8deg)} }
+@keyframes lrf3 { 0%,100%{transform:translateY(0) rotate(-.3deg)} 50%{transform:translateY(-11px) rotate(-.3deg)} }
+.lr-connector {
+  position: absolute; left: 56px; width: 2px; background: linear-gradient(#e2e8f0,#cbd5e1);
+}
+.lr-dot { position:absolute;left:50px;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15); }
 /* ── USER WIDGET (header) ──────────────────────────────────────── */
 .user-widget {
   display: flex; align-items: center; gap: 10px;
@@ -1089,48 +1114,96 @@ body.kanban-mode .kanban-col-body {
     </div>
   </div>
 
-  <!-- RIGHT: painel claro com preview do sistema -->
+  <!-- RIGHT: painel claro com pipeline animado -->
   <div class="login-right">
-    <div style="width:100%;max-width:280px">
-      <div class="lp-card">
-        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;margin-bottom:12px">FLUXO DE VENDAS</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #22c55e">
-            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5842</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:2px">Emissão NF · Em andamento</div>
+    <div class="lr-dot-grid"></div>
+    <div class="lr-orb lr-orb1"></div>
+    <div class="lr-orb lr-orb2"></div>
+    <div class="lr-orb lr-orb3"></div>
+
+    <div class="lr-scene">
+      <!-- Linha conectora vertical -->
+      <div class="lr-connector" style="top:38px;height:108px"></div>
+      <div class="lr-connector" style="top:186px;height:100px"></div>
+
+      <!-- Dot indicadores -->
+      <div class="lr-dot" style="top:34px;background:#22c55e"></div>
+      <div class="lr-dot" style="top:182px;background:#f59e0b"></div>
+      <div class="lr-dot" style="top:318px;background:#3b82f6"></div>
+
+      <!-- Card 1: Nova OP -->
+      <div class="lr-card lr-card1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase">Nova OP</div>
+          <span style="font-size:10px;font-weight:700;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px">Comercial</span>
+        </div>
+        <div style="font-size:15px;font-weight:800;color:#0f1f35;margin-bottom:4px">OP #5842</div>
+        <div style="font-size:11px;color:#64748b;margin-bottom:10px">MULTISHAPE · Cliente XYZ</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:4px;border-radius:2px;background:#f1f5f9;overflow:hidden">
+            <div style="width:28%;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:2px"></div>
           </div>
-          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #f59e0b">
-            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5839</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:2px">Aguardando Despacho</div>
+          <span style="font-size:10px;font-weight:600;color:#94a3b8">28%</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Em trânsito -->
+      <div class="lr-card lr-card2">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#fef3c7,#fde68a);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
           </div>
-          <div style="background:#f8fafc;border-radius:8px;padding:9px 12px;border-left:3px solid #3b82f6">
-            <div style="font-size:11px;font-weight:700;color:#0f1f35">OP #5831</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:2px">Em Trânsito · São Paulo</div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#0f1f35">OP #5839 · Em Trânsito</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">São Paulo → Curitiba</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:6px">
+          <div style="flex:1;text-align:center;background:#fff7ed;border-radius:8px;padding:6px">
+            <div style="font-size:13px;font-weight:800;color:#f59e0b">2d</div>
+            <div style="font-size:9px;color:#94a3b8">prazo</div>
+          </div>
+          <div style="flex:1;text-align:center;background:#f0fdf4;border-radius:8px;padding:6px">
+            <div style="font-size:13px;font-weight:800;color:#16a34a">NF</div>
+            <div style="font-size:9px;color:#94a3b8">emitida</div>
+          </div>
+          <div style="flex:1;text-align:center;background:#eff6ff;border-radius:8px;padding:6px">
+            <div style="font-size:13px;font-weight:800;color:#3b82f6">AWB</div>
+            <div style="font-size:9px;color:#94a3b8">rastreio</div>
           </div>
         </div>
       </div>
-      <div class="lp-card">
-        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:#94a3b8;text-transform:uppercase;margin-bottom:10px">RESUMO DO DIA</div>
-        <div style="display:flex;justify-content:space-around;align-items:center">
-          <div style="text-align:center">
-            <div style="font-size:24px;font-weight:800;color:#0f1f35;line-height:1">12</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:3px">abertas</div>
+
+      <!-- Card 3: Entregue / stats -->
+      <div class="lr-card lr-card3">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Hoje</div>
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font-size:22px;font-weight:800;color:#0f1f35;line-height:1">18</span>
+              <span style="font-size:11px;color:#94a3b8">OPs ativas</span>
+            </div>
           </div>
-          <div style="width:1px;height:32px;background:#eef1f6"></div>
-          <div style="text-align:center">
-            <div style="font-size:24px;font-weight:800;color:#16a34a;line-height:1">5</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:3px">entregues</div>
-          </div>
-          <div style="width:1px;height:32px;background:#eef1f6"></div>
-          <div style="text-align:center">
-            <div style="font-size:24px;font-weight:800;color:#f59e0b;line-height:1">3</div>
-            <div style="font-size:10px;color:#8096b3;margin-top:3px">em atraso</div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:700;color:#16a34a">▲ 12%</div>
+            <div style="font-size:10px;color:#94a3b8">vs ontem</div>
           </div>
         </div>
+        <div style="margin-top:10px;display:flex;gap:4px">
+          <div style="flex:3;height:6px;border-radius:3px;background:#22c55e;opacity:.85"></div>
+          <div style="flex:2;height:6px;border-radius:3px;background:#f59e0b;opacity:.85"></div>
+          <div style="flex:1;height:6px;border-radius:3px;background:#ef4444;opacity:.85"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px">
+          <span style="font-size:9px;color:#22c55e;font-weight:600">9 entregues</span>
+          <span style="font-size:9px;color:#f59e0b;font-weight:600">6 transit.</span>
+          <span style="font-size:9px;color:#ef4444;font-weight:600">3 atraso</span>
+        </div>
       </div>
-      <div style="text-align:center;font-size:11px;color:#aab5c8;font-family:'DM Mono',monospace;line-height:1.7">
-        Sistema de Logística<br>Fluxo de Vendas · Contourline
-      </div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center;font-size:11px;color:#94a3b8;font-family:'DM Mono',monospace;line-height:1.8;position:relative;z-index:1">
+      Sistema de Logística<br>Fluxo de Vendas · Contourline
     </div>
   </div>
 </div>

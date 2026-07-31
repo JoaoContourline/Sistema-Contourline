@@ -613,6 +613,9 @@ body.kanban-mode .kanban-col-body {
   box-shadow: 0 2px 8px rgba(0,0,0,.2), 0 0 0 4px rgba(255,255,255,.06), 0 4px 20px rgba(0,0,0,.35);
 }
 .user-avatar svg { display: block; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+#avatar-confirm-btn:not(:disabled) { opacity: 1; cursor: pointer; }
+#avatar-confirm-btn:disabled { opacity: .4; cursor: not-allowed; }
 .logout-btn {
   padding: 5px 11px; border-radius: 8px;
   border: 1px solid rgba(255,255,255,.15);
@@ -1182,6 +1185,8 @@ function icon(name, size = 16, style = '') {
     'users':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     'message-circle': `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
     'landmark':       `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>`,
+    'camera':         `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+    'image':          `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
   };
   return SVG[name] || `<svg style="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
 }
@@ -2098,8 +2103,8 @@ function getUser() { return _cachedUser; }
 async function fetchUserProfile() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) { _cachedUser = null; return null; }
-  let { data: profile, error: _pErr } = await sb.from('profiles').select('name,sector_id,password_changed_at,chat_enabled').eq('id', user.id).single();
-  // A coluna password_changed_at (ou chat_enabled) pode ainda não existir — refaz sem ela.
+  let { data: profile, error: _pErr } = await sb.from('profiles').select('name,sector_id,password_changed_at,chat_enabled,avatar_url').eq('id', user.id).single();
+  // A coluna password_changed_at / chat_enabled / avatar_url pode ainda não existir — refaz sem ela.
   if (_pErr) { ({ data: profile } = await sb.from('profiles').select('name,sector_id').eq('id', user.id).single()); }
   // Só profiles.sector_id. NÃO usar user_metadata como fallback: aquele campo é
   // auto-editável pelo dono da conta (PUT /auth/v1/user), o que permitia a
@@ -2109,7 +2114,7 @@ async function fetchUserProfile() {
   const sectorId = String(profile?.sector_id || '').trim().toLowerCase();
   const sector   = SECTORS.find(s => s.id === sectorId);
   if (!sector) { _cachedUser = null; return null; }
-  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id, password_changed_at: profile?.password_changed_at || null, chatEnabled: !!profile?.chat_enabled };
+  _cachedUser = { ...sector, userName: profile?.name || user.email.split('@')[0], uid: user.id, password_changed_at: profile?.password_changed_at || null, chatEnabled: !!profile?.chat_enabled, avatarUrl: profile?.avatar_url || null };
   return _cachedUser;
 }
 
@@ -4071,13 +4076,16 @@ function renderRoles() {
     <div class="user-widget" id="userMenuWrap" style="position:relative">
       <button onclick="toggleUserMenu(event)" title="Minha conta" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:2px 4px">
         <div class="user-avatar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          ${_cachedUser?.avatarUrl ? `<img src="${esc(_cachedUser.avatarUrl)}" alt="avatar">` : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`}
         </div>
         <div class="user-widget-name">${esc(user.userName || user.name)}</div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="userMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:190px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(15,31,53,.18);padding:6px;z-index:50">
         <div style="padding:8px 12px 6px;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);margin-bottom:4px"><div style="font-weight:700;color:var(--text2);font-size:12px">${esc(user.userName || user.name)}</div>${esc(user.name || user.id)}</div>
+        <button onclick="document.getElementById('userMenu').style.display='none';openAvatarModal()" style="${mItem}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
+          ${icon('camera',15)} Foto de perfil
+        </button>
         <button onclick="document.getElementById('userMenu').style.display='none';openChangePassword(false)" style="${mItem}" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='none'">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Alterar senha
         </button>
@@ -8261,11 +8269,190 @@ function exportCSV() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// AVATAR DE PERFIL — crop modal WhatsApp-style
+// ═══════════════════════════════════════════════════════════════════
+
+let _avImg = null, _avOffX = 0, _avOffY = 0, _avScale = 1;
+let _avDragging = false, _avDragStart = null, _avPinchStart = null;
+
+function openAvatarModal() {
+  document.getElementById('userMenu').style.display = 'none';
+  const modal = document.getElementById('avatar-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  _avImg = null; _avOffX = 0; _avOffY = 0; _avScale = 1; _avDragging = false;
+  document.getElementById('avatar-confirm-btn').disabled = true;
+  document.getElementById('avatar-upload-status').style.display = 'none';
+  document.getElementById('avatar-file-input').value = '';
+  _avRedraw();
+  const wrap = document.getElementById('avatar-canvas-wrap');
+  wrap.onmousedown = _avMouseDown;
+  document.onmousemove = _avMouseMove;
+  document.onmouseup = _avMouseUp;
+  wrap.onwheel = e => { e.preventDefault(); _avZoom(e.deltaY > 0 ? 0.9 : 1.1, 140, 140); };
+  wrap.ontouchstart = _avTouchStart;
+  wrap.ontouchmove = _avTouchMove;
+  wrap.ontouchend = () => { _avDragging = false; _avPinchStart = null; };
+}
+
+function closeAvatarModal() {
+  document.getElementById('avatar-modal').style.display = 'none';
+  document.onmousemove = null;
+  document.onmouseup = null;
+}
+
+function _avRedraw() {
+  const c = document.getElementById('avatar-canvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 280, 280);
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, 280, 280);
+  if (_avImg) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(140, 140, 138, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(_avImg, _avOffX, _avOffY, _avImg.naturalWidth * _avScale, _avImg.naturalHeight * _avScale);
+    ctx.restore();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,.45)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(140, 140, 138, 0, Math.PI * 2);
+  ctx.stroke();
+  if (!_avImg) {
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Escolha uma foto', 140, 148);
+  }
+}
+
+function avatarFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Selecione uma imagem válida', 'err'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      _avImg = img;
+      const minDim = Math.min(img.naturalWidth, img.naturalHeight);
+      _avScale = 280 / minDim;
+      _avOffX = (280 - img.naturalWidth * _avScale) / 2;
+      _avOffY = (280 - img.naturalHeight * _avScale) / 2;
+      _avRedraw();
+      document.getElementById('avatar-confirm-btn').disabled = false;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function _avMouseDown(e) {
+  e.preventDefault();
+  _avDragging = true;
+  _avDragStart = { x: e.clientX - _avOffX, y: e.clientY - _avOffY };
+  document.getElementById('avatar-canvas-wrap').style.cursor = 'grabbing';
+}
+function _avMouseMove(e) {
+  if (!_avDragging || !_avImg) return;
+  _avOffX = e.clientX - _avDragStart.x;
+  _avOffY = e.clientY - _avDragStart.y;
+  _avRedraw();
+}
+function _avMouseUp() {
+  _avDragging = false;
+  const w = document.getElementById('avatar-canvas-wrap');
+  if (w) w.style.cursor = 'grab';
+}
+function _avZoom(factor, cx, cy) {
+  if (!_avImg) return;
+  _avOffX = cx - (cx - _avOffX) * factor;
+  _avOffY = cy - (cy - _avOffY) * factor;
+  _avScale = Math.min(10, Math.max(0.05, _avScale * factor));
+  _avRedraw();
+}
+function _avTouchStart(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    _avDragging = true;
+    _avDragStart = { x: e.touches[0].clientX - _avOffX, y: e.touches[0].clientY - _avOffY };
+  } else if (e.touches.length === 2) {
+    _avPinchStart = {
+      dist: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY),
+      scale: _avScale, offX: _avOffX, offY: _avOffY
+    };
+    _avDragging = false;
+  }
+}
+function _avTouchMove(e) {
+  e.preventDefault();
+  if (!_avImg) return;
+  if (e.touches.length === 1 && _avDragging) {
+    _avOffX = e.touches[0].clientX - _avDragStart.x;
+    _avOffY = e.touches[0].clientY - _avDragStart.y;
+    _avRedraw();
+  } else if (e.touches.length === 2 && _avPinchStart) {
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const factor = dist / _avPinchStart.dist;
+    _avScale = Math.min(10, Math.max(0.05, _avPinchStart.scale * factor));
+    _avOffX = 140 - (140 - _avPinchStart.offX) * factor;
+    _avOffY = 140 - (140 - _avPinchStart.offY) * factor;
+    _avRedraw();
+  }
+}
+
+async function avatarConfirm() {
+  if (!_avImg) return;
+  const btn = document.getElementById('avatar-confirm-btn');
+  const status = document.getElementById('avatar-upload-status');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  status.style.display = 'block';
+  status.textContent = 'Processando imagem…';
+  try {
+    const out = document.createElement('canvas');
+    out.width = out.height = 400;
+    const ctx = out.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(200, 200, 200, 0, Math.PI * 2);
+    ctx.clip();
+    const ratio = 400 / 280;
+    ctx.drawImage(_avImg, _avOffX * ratio, _avOffY * ratio, _avImg.naturalWidth * _avScale * ratio, _avImg.naturalHeight * _avScale * ratio);
+
+    const blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.88));
+    const uid = _cachedUser?.uid;
+    const path = `${uid}/avatar.jpg`;
+
+    status.textContent = 'Enviando…';
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    if (upErr) throw upErr;
+
+    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(path);
+    const urlWithCache = publicUrl + '?v=' + Date.now();
+
+    status.textContent = 'Salvando…';
+    await sb.from('profiles').update({ avatar_url: urlWithCache }).eq('id', uid);
+
+    _cachedUser.avatarUrl = urlWithCache;
+    renderRoles();
+    showToast('Foto de perfil atualizada!', 'ok');
+    closeAvatarModal();
+  } catch(e) {
+    status.textContent = 'Erro: ' + (e.message || 'tente novamente');
+    btn.disabled = false;
+    btn.textContent = 'Confirmar';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // CHAT FLUTUANTE — WhatsApp-style DM entre usuários
 // ═══════════════════════════════════════════════════════════════════
 
 let _chatChannel  = null;
-let _chatConvUser = null;   // { id, name, role } da conversa aberta
+let _chatConvUser = null;   // { id, name, role, avatarUrl } da conversa aberta
 let _chatUnread   = {};     // { [userId]: count }
 let _chatLastMsgs = {};     // { [userId]: { content, time } }
 let _chatConvMsgs = [];     // mensagens da conversa aberta
@@ -8305,7 +8492,8 @@ async function _chatLoadUsers() {
   try {
     const myId = _cachedUser?.uid;
     if (!myId) return;
-    const { data: users } = await sb.from('profiles').select('id,name,sector_id').neq('id', myId);
+    let { data: users, error: usersErr } = await sb.from('profiles').select('id,name,sector_id,avatar_url').neq('id', myId);
+    if (usersErr) { ({ data: users } = await sb.from('profiles').select('id,name,sector_id').neq('id', myId)); }
     _chatAllUsers = users || [];
 
     const { data: msgs } = await sb.from('chat_messages')
@@ -8359,8 +8547,11 @@ function _chatRenderUserList() {
     const timeStr = hasMsg
       ? new Date(last.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       : '';
+    const avatarHtml = u.avatar_url
+      ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+      : icon('user', 18, 'color:#fff');
     return `<div class="cp-user-item" onclick="_chatOpenConv('${u.id}','${esc(u.name||'Usuário')}','${sec.role||''}')">
-      <div class="cp-avatar" style="background:${color}">${icon('user', 18, 'color:#fff')}</div>
+      <div class="cp-avatar" style="background:${color};overflow:hidden">${avatarHtml}</div>
       <div class="cp-user-info">
         <div class="cp-user-name">${esc(u.name||'Usuário')}</div>
         <div class="cp-user-role">${sec.name||''}</div>
@@ -8386,17 +8577,22 @@ function _chatRenderUserList() {
 }
 
 async function _chatOpenConv(userId, userName, userRole) {
-  _chatConvUser = { id: userId, name: userName, role: userRole };
+  const userInfo = _chatAllUsers.find(u => u.id === userId);
+  const avatarUrl = userInfo?.avatar_url || null;
+  _chatConvUser = { id: userId, name: userName, role: userRole, avatarUrl };
   _chatMarkRead(userId);
 
   const panel = document.getElementById('chat-panel');
   if (!panel) return;
   const sec = SECTORS.find(s => s.role === userRole) || {};
   const roleColor = r => ({ financeiro:'#e6a817',fiscal:'#8b5cf6',logistica:'#14b8a6',comercial:'#22c55e',vendedor:'#22c55e',gestor:'#1a6cf0',adm:'#1a6cf0' }[r] || '#94a3b8');
+  const convHeaderIcon = avatarUrl
+    ? `<img src="${esc(avatarUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+    : roleIcon(userRole, 15, 'color:'+roleColor(userRole));
   panel.innerHTML = `
     <div class="cp-header">
       <button class="cp-back" onclick="_chatBackToList()" title="Voltar">${icon('arrow-left',14)}</button>
-      <div class="cp-header-icon" style="background:${roleColor(userRole)}33">${roleIcon(userRole, 15, 'color:'+roleColor(userRole))}</div>
+      <div class="cp-header-icon" style="background:${roleColor(userRole)}33;overflow:hidden">${convHeaderIcon}</div>
       <div style="flex:1;min-width:0">
         <div class="cp-title">${esc(userName)}</div>
         <div class="cp-subtitle">${sec.name || userRole || ''}</div>
@@ -8528,6 +8724,34 @@ function startChatRealtime() {
 // ═══════════════════════════════════════════════════════════════════
 checkSession();
 </script>
+
+<!-- Modal de foto de perfil com canvas crop -->
+<div id="avatar-modal" onclick="closeAvatarModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;align-items:center;justify-content:center;padding:16px">
+  <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;padding:22px;max-width:330px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.45)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="margin:0;font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Foto de perfil
+      </h3>
+      <button onclick="closeAvatarModal()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:22px;line-height:1;padding:0 4px">×</button>
+    </div>
+    <div id="avatar-canvas-wrap" style="position:relative;width:280px;height:280px;margin:0 auto;border-radius:50%;overflow:hidden;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none">
+      <canvas id="avatar-canvas" width="280" height="280" style="display:block;touch-action:none"></canvas>
+    </div>
+    <p style="margin:8px 0 0;text-align:center;font-size:11px;color:var(--text3)">Arraste para reposicionar · Scroll para zoom</p>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <label style="flex:1;padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:inherit">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Escolher foto
+        <input type="file" id="avatar-file-input" accept="image/*" onchange="avatarFileChange(this)" style="display:none">
+      </label>
+      <button id="avatar-confirm-btn" onclick="avatarConfirm()" disabled style="flex:1;padding:9px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:600;font-family:inherit">
+        Confirmar
+      </button>
+    </div>
+    <div id="avatar-upload-status" style="display:none;text-align:center;font-size:12px;color:var(--text3);margin-top:10px;line-height:1.5"></div>
+  </div>
+</div>
 
 <!-- FAB do chat flutuante — visível apenas quando chat está habilitado -->
 <button id="chat-fab" style="display:none" onclick="toggleChatPanel()" title="Chat">

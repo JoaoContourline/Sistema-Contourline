@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root {
   --bg: #f0f3f7; --surface: #ffffff; --surface2: #f0f4f8;
@@ -932,7 +933,7 @@ body.kanban-mode .kanban-col-body {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 @media (max-width: 900px) {
   .admin-grid { grid-template-columns: 1fr; }
@@ -1241,6 +1242,7 @@ body.kanban-mode .kanban-col-body {
 
   <button class="tab-btn" id="btn-tab-logistica" data-tab="logistica" style="display:none" onclick="setTab('logistica',this)">Entregas <span class="tab-count" id="cnt-logistica">0</span></button>
   <button class="tab-btn" id="btn-tab-admin" data-tab="admin" style="display:none" onclick="setTab('admin',this)">Admin</button>
+  <div id="adm-view-switcher-tab" style="display:none;align-items:center"></div>
   <div id="filter-bar" style="overflow:hidden;max-width:0;transition:max-width .25s ease;display:flex;align-items:center;flex-shrink:0">
     <div style="display:flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap;border-left:1px solid var(--border);margin-left:2px">
       <input id="fl-q"    type="text"  placeholder="Nº OP, cliente ou série" oninput="applyFilters()"  style="height:26px;font-size:12px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);width:150px;outline:none">
@@ -1259,9 +1261,9 @@ body.kanban-mode .kanban-col-body {
   </div>
   <div id="log-filter" style="display:none;flex:1;align-items:center;gap:8px;padding-left:12px;min-width:0"></div>
   <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0">
-    <button id="btn-export" class="btn-export" onclick="exportCSV()" title="Exportar OPs filtradas para CSV" style="display:none">
+    <button id="btn-export" class="btn-export" onclick="exportXLSX()" title="Exportar OPs filtradas para XLSX" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      CSV
+      XLSX
     </button>
     <button id="btn-cancelados" onclick="toggleCancelados()" title="Ver OPs canceladas"
       style="flex-shrink:0;display:flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;transition:all .15s">
@@ -1754,6 +1756,18 @@ function getActiveView() {
     return SECTORS.find(s => s.id === gestorViewAs) || user;
   }
   return user;
+}
+
+function setGestorViewOrAdmin(id) {
+  if (id === 'adm') {
+    currentTab = 'admin';
+    _editandoObs = false;
+    document.body.classList.remove('kanban-mode');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    renderMain(); renderCounts();
+  } else {
+    setGestorView(id);
+  }
 }
 
 function setGestorView(sectorId) {
@@ -4197,15 +4211,9 @@ function renderRoles() {
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 
-  // Centro do header: switcher de visão só para o ADM (inclui o setor Gestor).
+  // Centro do header: switcher movido para a tab bar (renderCounts popula adm-view-switcher-tab)
   const center = document.getElementById('headerCenter');
-  if (center) {
-    const vb = (id, label) => `<button class="view-btn ${gestorViewAs === id ? 'active' : ''}" onclick="setGestorView('${id}')">${label}</button>`;
-    center.innerHTML = user.id === 'adm' ? `
-      <div class="view-switcher">
-        ${vb('gestor','Gestor')}${vb('comercial','Comercial')}${vb('financeiro','Financeiro')}${vb('logistica','Logística')}${vb('fiscal','Fiscal')}
-      </div>` : '';
-  }
+  if (center) center.innerHTML = '';
 
   // Widget: [Sair] [Avatar + nome]
   const mItem = `display:flex;align-items:center;gap:9px;width:100%;padding:9px 12px;background:none;border:none;font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;text-align:left;border-radius:8px`;
@@ -4291,12 +4299,29 @@ function renderCounts() {
     if (!canChat) { const p = document.getElementById('chat-panel'); if (p) p.classList.remove('open'); }
   }
 
-  // Aba Admin: exclusivo para adm — usa _cachedUser (role real), não a view atual
+  // View switcher do ADM na tab bar (substituiu o btn-tab-admin e o headerCenter)
   const adminBtn = document.getElementById('btn-tab-admin');
-  if (adminBtn) {
+  if (adminBtn) adminBtn.style.display = 'none';
+
+  const admSwitcher = document.getElementById('adm-view-switcher-tab');
+  if (admSwitcher) {
     const canAdmin = _cachedUser?.role === 'adm';
-    adminBtn.style.display = canAdmin ? '' : 'none';
-    if (!canAdmin && currentTab === 'admin') currentTab = 'fila';
+    if (canAdmin) {
+      const vb = (id, label) => {
+        const isActive = id === 'adm' ? currentTab === 'admin' : (gestorViewAs === id && currentTab !== 'admin');
+        return `<button class="view-btn${isActive ? ' active' : ''}" onclick="setGestorViewOrAdmin('${id}')">${label}</button>`;
+      };
+      admSwitcher.innerHTML = `<div class="view-switcher" style="margin:0 4px">
+        ${vb('gestor','Gestor')}${vb('comercial','Comercial')}${vb('financeiro','Financeiro')}${vb('logistica','Logística')}${vb('fiscal','Fiscal')}
+        <span style="width:1px;align-self:stretch;background:rgba(128,128,128,.3);margin:4px 2px"></span>
+        ${vb('adm','ADM')}
+      </div>`;
+      admSwitcher.style.display = 'flex';
+      admSwitcher.style.alignItems = 'center';
+    } else {
+      admSwitcher.style.display = 'none';
+      if (currentTab === 'admin') currentTab = 'fila';
+    }
   }
 
   // Botão Export: só fora das abas que não listam OPs
@@ -8255,7 +8280,7 @@ function renderAdminLogs() {
     box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:24px;font-size:13px">Nenhum log registrado ainda.</div>`;
     return;
   }
-  const typeColor = { login:'var(--green)', logout:'var(--gray)', op_created:'var(--accent)', op_advanced:'var(--teal)', op_cancelled:'var(--red)', op_reactivated:'var(--orange)', export_csv:'var(--purple)', chat_message:'var(--blue)', config_changed:'var(--yellow)' };
+  const typeColor = { login:'var(--green)', logout:'var(--gray)', op_created:'var(--accent)', op_advanced:'var(--teal)', op_cancelled:'var(--red)', op_reactivated:'var(--orange)', export_csv:'var(--purple)', export_xlsx:'var(--purple)', chat_message:'var(--blue)', config_changed:'var(--yellow)' };
   box.innerHTML = `<table class="logs-table">
     <thead><tr>
       <th>Data / Hora</th><th>Evento</th><th>Usuário</th><th>Setor</th><th>OP</th><th>Detalhe</th>
@@ -8307,7 +8332,7 @@ function renderAdmin(el) {
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
           ${toggle('chatEnabled',   'Chat Interno',       'Habilita o chat no sistema (por usuário abaixo)')}
           ${toggle('logsEnabled',   'Logs do Sistema',    'Registra login, avanços de OP e ações do admin')}
-          ${toggle('exportEnabled', 'Exportação CSV',     'Botão de exportação visível para todos os setores')}
+          ${toggle('exportEnabled', 'Exportação XLSX',    'Botão de exportação visível para todos os setores')}
         </div>
 
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700;margin-bottom:10px">Acesso ao Chat por usuário</div>
@@ -8322,8 +8347,8 @@ function renderAdmin(el) {
           <button onclick="loadAdminLogs()" style="height:36px;padding:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center">
             ${icon('refresh-cw',14)} Carregar Logs
           </button>
-          <button onclick="exportCSV()" style="height:36px;padding:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center">
-            ${icon('download',14)} Exportar OPs (CSV)
+          <button onclick="exportXLSX()" style="height:36px;padding:0 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px;justify-content:center">
+            ${icon('download',14)} Exportar OPs (XLSX)
           </button>
         </div>
         <div style="padding:12px;background:var(--blue-bg);border:1px solid var(--azul-claro);border-radius:8px">
@@ -8331,12 +8356,12 @@ function renderAdmin(el) {
           <div style="font-size:12px;color:var(--text2);margin-top:4px">Funcionalidades globais afetam todos imediatamente. O acesso ao chat por usuário é efetivo no próximo login deles.</div>
         </div>
       </div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0">
           <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);font-weight:700">Logs do Sistema (últimos 100)</div>
           <button onclick="loadAdminLogs()" style="height:26px;padding:0 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;color:var(--text3);font-weight:600">${icon('refresh-cw',11)} Atualizar</button>
         </div>
-        <div id="admin-logs-box" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;max-height:520px;overflow-y:auto">
+        <div id="admin-logs-box" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;flex:1;min-height:0;overflow-y:auto">
           <div style="text-align:center;color:var(--text3);padding:32px;font-size:13px">Clique em "Carregar Logs" para visualizar.</div>
         </div>
       </div>
@@ -8349,7 +8374,8 @@ function renderAdmin(el) {
 // EXPORTAÇÃO INTELIGENTE DE RELATÓRIOS
 // ═══════════════════════════════════════════════════════════════════
 
-function exportCSV() {
+function exportXLSX() {
+  if (typeof XLSX === 'undefined') { showToast('Módulo XLSX não carregado — recarregue a página.', 'err'); return; }
   const lista = _opsFiltered();
   if (!lista.length) { showToast('Nenhuma OP para exportar com os filtros ativos.', 'err'); return; }
 
@@ -8363,9 +8389,9 @@ function exportCSV() {
   ];
 
   const linhas = lista.map(op => {
-    const pv   = op.pedidoVenda || {};
-    const nf   = op.stepData?.aguard_emissao || {};
-    const ent  = op.stepData?.transito || {};
+    const pv    = op.pedidoVenda || {};
+    const nf    = op.stepData?.aguard_emissao || {};
+    const ent   = op.stepData?.transito || {};
     const transp = op.stepData?.aguard_nf || {};
     return [
       numOp(op),
@@ -8384,28 +8410,41 @@ function exportCSV() {
       transp.enderecoEntrega || pv.enderecoEntrega || '',
       transp.envioTipo || '',
       transp.transportadora || transp.envio || '',
-      transp.volumes || '',
-      transp.peso || '',
+      String(transp.volumes || ''),
+      String(transp.peso || ''),
     ];
   });
 
-  const csv = [cabecalho, ...linhas]
-    .map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(','))
-    .join('\r\n');
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([cabecalho, ...linhas]);
 
-  const bytes = new Uint8Array([...csv].map(c => c.charCodeAt(0) & 0xFF));
-  const blob = new Blob([bytes], { type: 'text/csv;charset=windows-1252' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `contourline-ops-${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Cabeçalho: azul-noturno (#162C45) com texto branco e negrito
+  const hStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+    fill: { patternType: 'solid', fgColor: { rgb: '162C45' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: { bottom: { style: 'thin', color: { rgb: '91B0DC' } } },
+  };
+  cabecalho.forEach((_, i) => {
+    const ref = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (ws[ref]) ws[ref].s = hStyle;
+  });
+
+  // Larguras das colunas (caracteres)
+  ws['!cols'] = [
+    {wch:10},{wch:28},{wch:22},{wch:14},{wch:20},{wch:14},
+    {wch:14},{wch:16},{wch:14},{wch:13},
+    {wch:12},{wch:12},{wch:14},{wch:32},{wch:14},
+    {wch:22},{wch:10},{wch:10},
+  ];
+  ws['!views'] = [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2' }];
+  ws['!autofilter'] = { ref: `A1:R${lista.length + 1}` };
+
+  XLSX.utils.book_append_sheet(wb, ws, 'OPs Contourline');
+  XLSX.writeFile(wb, `contourline-ops-${new Date().toISOString().slice(0,10)}.xlsx`);
 
   showToast(`${lista.length} OP${lista.length!==1?'s':''} exportada${lista.length!==1?'s':''} com sucesso.`, 'ok');
-  logSystemEvent('export_csv', { count: lista.length });
+  logSystemEvent('export_xlsx', { count: lista.length });
 }
 
 // ═══════════════════════════════════════════════════════════════════

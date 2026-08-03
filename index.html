@@ -1763,11 +1763,12 @@ function setGestorViewOrAdmin(id) {
     currentTab = 'admin';
     _editandoObs = false;
     document.body.classList.remove('kanban-mode');
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    renderMain(); renderCounts();
   } else {
-    setGestorView(id);
+    gestorViewAs = id;
+    if (id === 'gestor') currentTab = 'dashboard';
+    else if (currentTab === 'dashboard' || currentTab === 'admin') currentTab = 'fila';
   }
+  renderAll();
 }
 
 function setGestorView(sectorId) {
@@ -4211,9 +4212,20 @@ function renderRoles() {
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 
-  // Centro do header: switcher movido para a tab bar (renderCounts popula adm-view-switcher-tab)
+  // Centro do header: switcher de visão para o ADM (inclui botão ADM que abre configs)
   const center = document.getElementById('headerCenter');
-  if (center) center.innerHTML = '';
+  if (center) {
+    const vb = (id, label) => {
+      const isActive = id === 'adm' ? currentTab === 'admin' : (gestorViewAs === id && currentTab !== 'admin');
+      return `<button class="view-btn${isActive ? ' active' : ''}" onclick="setGestorViewOrAdmin('${id}')">${label}</button>`;
+    };
+    center.innerHTML = user.id === 'adm' ? `
+      <div class="view-switcher">
+        ${vb('gestor','Gestor')}${vb('comercial','Comercial')}${vb('financeiro','Financeiro')}${vb('logistica','Logística')}${vb('fiscal','Fiscal')}
+        <span style="width:1px;align-self:stretch;background:rgba(255,255,255,.2);margin:4px 2px"></span>
+        ${vb('adm','ADM')}
+      </div>` : '';
+  }
 
   // Widget: [Sair] [Avatar + nome]
   const mItem = `display:flex;align-items:center;gap:9px;width:100%;padding:9px 12px;background:none;border:none;font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;text-align:left;border-radius:8px`;
@@ -4304,25 +4316,8 @@ function renderCounts() {
   if (adminBtn) adminBtn.style.display = 'none';
 
   const admSwitcher = document.getElementById('adm-view-switcher-tab');
-  if (admSwitcher) {
-    const canAdmin = _cachedUser?.role === 'adm';
-    if (canAdmin) {
-      const vb = (id, label) => {
-        const isActive = id === 'adm' ? currentTab === 'admin' : (gestorViewAs === id && currentTab !== 'admin');
-        return `<button class="view-btn${isActive ? ' active' : ''}" onclick="setGestorViewOrAdmin('${id}')">${label}</button>`;
-      };
-      admSwitcher.innerHTML = `<div class="view-switcher" style="margin:0 4px">
-        ${vb('gestor','Gestor')}${vb('comercial','Comercial')}${vb('financeiro','Financeiro')}${vb('logistica','Logística')}${vb('fiscal','Fiscal')}
-        <span style="width:1px;align-self:stretch;background:rgba(128,128,128,.3);margin:4px 2px"></span>
-        ${vb('adm','ADM')}
-      </div>`;
-      admSwitcher.style.display = 'flex';
-      admSwitcher.style.alignItems = 'center';
-    } else {
-      admSwitcher.style.display = 'none';
-      if (currentTab === 'admin') currentTab = 'fila';
-    }
-  }
+  if (admSwitcher) admSwitcher.style.display = 'none';
+  if (!(_cachedUser?.role === 'adm') && currentTab === 'admin') currentTab = 'fila';
 
   // Botão Export: só fora das abas que não listam OPs
   const exportBtn = document.getElementById('btn-export');

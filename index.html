@@ -1947,7 +1947,7 @@ async function loadOps() {
   // Repair: OPs presas em aguard_financeiro sem nenhum gate necessário (sem entrada + sem TES 624)
   // Pode ocorrer em OPs criadas antes do fix de 2026-08-10 ou por bug de fluxo.
   ops.filter(o => o.status === 'aguard_financeiro' && !finNeeded(o) && !sfNeeded(o)).forEach(op => {
-    op.history.push({ step: 'aguard_financeiro', actor: 'sistema', actorName: 'Sistema', ts: nowTs(), action: 'Avançado automaticamente — sem entrada pendente e sem TES 624', note: '' });
+    op.history.push({ step: 'aguard_financeiro', actor: 'sistema', actorName: 'Sistema', ts: nowTs(), action: 'Avançado automaticamente — sem simples faturamento e sem entrada', note: '' });
     op.status = 'aguard_nf';
     dbSaveOp(op, true, null);
   });

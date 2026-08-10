@@ -1630,8 +1630,8 @@ const STEPS = {
     label: 'Aberta', color: 'blue', owner: null, pipelineIdx: 0,
     actionLabel: null, formFields: [],
     getNext(op) {
-      // Sempre passa pelo estágio aguard_financeiro: o Simples Faturamento é
-      // obrigatório para toda OP. O gate do financeiro só vale "com entrada".
+      // A lógica correta está em submitNovaOP (tem acesso a tempEquipList).
+      // Este fallback retorna aguard_financeiro para compatibilidade.
       return 'aguard_financeiro';
     },
   },
@@ -1943,6 +1943,14 @@ async function loadOps() {
   ops = (data || []).map(rowToOp).filter(Boolean);
   const maxId = ops.reduce((m, o) => Math.max(m, Number(o.id) || 0), 0);
   nextId = maxId + 1;
+
+  // Repair: OPs presas em aguard_financeiro sem nenhum gate necessário (sem entrada + sem TES 624)
+  // Pode ocorrer em OPs criadas antes do fix de 2026-08-10 ou por bug de fluxo.
+  ops.filter(o => o.status === 'aguard_financeiro' && !finNeeded(o) && !sfNeeded(o)).forEach(op => {
+    op.history.push({ step: 'aguard_financeiro', actor: 'sistema', actorName: 'Sistema', ts: nowTs(), action: 'Avançado automaticamente — sem entrada pendente e sem TES 624', note: '' });
+    op.status = 'aguard_nf';
+    dbSaveOp(op, true, null);
+  });
 
   // Repair ops stuck with 'PENDENTE' as numero (created before the await fix)
   const pendentes = ops.filter(o => !o.numero || o.numero === 'PENDENTE');
@@ -7625,7 +7633,10 @@ async function submitNovaOP() {
   }
 
   const vUser = VENDEDORES.find(vv => vv.id === analistaId);
-  const initialStatus = STEPS.aberta.getNext({ entrada, liberadoDiretoria: false });
+  // Pula aguard_financeiro se nenhum dos dois gates se aplica a esta OP
+  const _needsFin = entrada === 'pendente';
+  const _needsSF  = tempEquipList.some(e => String(e.tes || '').trim() === '624');
+  const initialStatus = (_needsFin || _needsSF) ? 'aguard_financeiro' : 'aguard_nf';
   const equipNames = tempEquipList.map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
   const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 

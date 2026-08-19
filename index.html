@@ -3449,10 +3449,22 @@ async function urlAssinada(path, { download = false, segundos = 3600 } = {}) {
   } catch { return ''; }
 }
 
-/** Resolve o endereço de um anexo a partir do elemento clicado. */
+/** Resolve o endereço de um anexo a partir do elemento clicado.
+ *
+ *  O fallback existe por um motivo concreto: createSignedUrl() exige policy de
+ *  SELECT em storage.objects, e num bucket PÚBLICO sem essa policy ele falha —
+ *  a URL pública funciona, a assinada não. Sem este fallback, publicar o código
+ *  antes de rodar a migração derruba TODOS os anexos. Depois que o bucket vira
+ *  privado o caminho se inverte sozinho: a URL pública para de responder e a
+ *  assinada passa a funcionar. */
 async function _urlDoElemento(el, download = false) {
   const path = el.getAttribute('data-signpath');
-  if (path) return urlAssinada(path, { download });
+  if (path) {
+    const assinada = await urlAssinada(path, { download });
+    if (assinada) return assinada;
+    console.warn('[anexo] assinatura falhou para', path, '— usando a URL pública. Rode a migração 2026-08-19-bucket-op-files-privado.sql');
+    return el.getAttribute('data-fallback') || '';
+  }
   return el.getAttribute('data-fileurl') || ''; // legado: base64 em OPs antigas
 }
 
@@ -3479,7 +3491,7 @@ async function hidratarAnexos() {
   const imgs = document.querySelectorAll('img[data-signpath]:not([data-assinada])');
   for (const img of imgs) {
     img.dataset.assinada = '1';
-    const u = await urlAssinada(img.getAttribute('data-signpath'));
+    const u = await urlAssinada(img.getAttribute('data-signpath')) || img.getAttribute('data-fallback');
     if (u) img.src = u;
   }
 }
@@ -3548,7 +3560,9 @@ function fileLinkHtml(f, compact = false) {
   const canLight = isImage || (isPdf && (path || legacy.startsWith('data:application/pdf')));
   const btn      = `display:inline-flex;align-items:center;gap:4px;font-size:11px;text-decoration:none;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:inherit;white-space:nowrap`;
   // data-signpath = assina na hora do uso · data-fileurl = legado, abre direto
-  const alvo     = path ? `data-signpath="${esc(path)}"` : `data-fileurl="${legacy}"`;
+  const alvo     = path
+    ? `data-signpath="${esc(path)}" data-fallback="${esc(f.url || '')}"`
+    : `data-fileurl="${legacy}"`;
   const iconePlaceholder = `<span style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon(isPdf?'file-text':'paperclip',15,'color:var(--text3)')}</span>`;
 
   // A miniatura nasce sem src: o hidratarAnexos() preenche assim que a URL

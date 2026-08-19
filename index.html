@@ -3451,12 +3451,14 @@ async function urlAssinada(path, { download = false, segundos = 3600 } = {}) {
 
 /** Resolve o endereço de um anexo a partir do elemento clicado.
  *
- *  O fallback existe por um motivo concreto: createSignedUrl() exige policy de
- *  SELECT em storage.objects, e num bucket PÚBLICO sem essa policy ele falha —
- *  a URL pública funciona, a assinada não. Sem este fallback, publicar o código
- *  antes de rodar a migração derruba TODOS os anexos. Depois que o bucket vira
- *  privado o caminho se inverte sozinho: a URL pública para de responder e a
- *  assinada passa a funcionar. */
+ *  Assinar pode falhar por dois motivos bem diferentes:
+ *    • o objeto não existe no bucket (404 NoSuchKey) — anexo cujo registro na
+ *      OP aponta para um arquivo que nunca subiu, ou que foi removido;
+ *    • falta policy de SELECT em storage.objects — não é o caso hoje, mas passa
+ *      a valer quando o bucket virar privado, se a migração não tiver rodado.
+ *  Nos dois casos o fallback para a URL pública mantém o anexo abrindo enquanto
+ *  o bucket ainda é público. Depois da virada, a pública deixa de responder e a
+ *  assinada assume — por isso a ordem entre deploy e SQL não importa. */
 async function _urlDoElemento(el, download = false) {
   const path = el.getAttribute('data-signpath');
   if (path) {

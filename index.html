@@ -4314,8 +4314,12 @@ function renderAll() {
 function renderRoles() {
   const user = getUser();
   if (!user) return;
-  // Botão Nova OP: só ADM e comercial
-  const canCreate = user.id === 'adm' || user.id === 'comercial';
+  // Botão Nova OP: comercial, gestor e ADM — exatamente os setores da policy
+  // ops_insert. Manter os dois lados iguais é o que evita o botão aparecer para
+  // quem o banco vai recusar (e, com isso, um erro no meio da criação da OP).
+  // Usa getUser() (setor real), não getActiveView(): o my_sector() do Postgres
+  // também lê o setor real, então o switcher do ADM não pode influenciar aqui.
+  const canCreate = ['comercial', 'gestor', 'adm'].includes(user.id);
   const novaBtn = document.getElementById('btnNovaOP');
   if (novaBtn) novaBtn.style.display = canCreate ? '' : 'none';
 

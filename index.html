@@ -1681,7 +1681,13 @@ const STEPS = {
     formFields: [
       { key: 'numeroNF',    label: 'Número da NF *',         type: 'text',  required: true },
       { key: 'dataEmissao', label: 'Data de Emissão *',       type: 'date',  required: true },
-      { key: 'arquivoNF',   label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
+      { key: 'arquivoNF',     label: 'Arquivo(s) da NF *',        type: 'multi-file', accept: '.pdf,.png,.jpg,.jpeg,.xml', required: true },
+      { key: 'chaveNfe',    label: 'Chave NF-e (44 dígitos)', type: 'text',
+        placeholder: '35240314458149000123550010000000011000000011',
+        helpText: 'Obrigatório para rastreio automático via Loggica.' },
+      { key: 'codigoObjeto', label: 'Código objeto postal (Correios)', type: 'text',
+        placeholder: 'SS123456789BR',
+        helpText: 'Obrigatório para rastreio automático via Correios.' },
       { key: 'descricao',   label: 'Observações',             type: 'textarea',
         placeholder: 'Confirmação da emissão, valor da nota, observações...' },
     ],
@@ -2792,6 +2798,8 @@ function advanceOP(opId, formData) {
 
   // Ao entrar em trânsito (logística confirmou o despacho da NF), dispara o
   // 1º rastreio automático quando a transportadora tem integração.
+  // A chaveNfe (Loggica) e codigoObjeto (Correios) já estão disponíveis
+  // pois foram preenchidos pelo fiscal no passo de emissão.
   if (RASTREIO_ATIVO
       && next === 'transito'
       && op.stepData?.aguard_nf?.envioTipo === 'transportadora'
@@ -3888,7 +3896,7 @@ async function _cadastrarEquipamentosQR(op) {
 // ═══════════════════════════════════════════════════════════════════
 
 const TRANSPORTADORAS = { azul: 'Azul Cargo', jamef: 'Jamef', correios: 'Correios', rotta: 'Rotta Master', loggica: 'Loggica' };
-const RASTREAVEIS     = new Set(['azul', 'rotta']); // com integração de API hoje (demais entram ao ter API)
+const RASTREAVEIS     = new Set(['azul', 'rotta', 'loggica', 'correios', 'jamef']);
 
 // DESLIGADO temporariamente até a API de rastreio da transportadora ficar pronta.
 // Com false: aba Rastreamento, seção no detalhe, disparo automático e os textos
@@ -3983,19 +3991,23 @@ async function atualizarRastreio(opId, silent) {
   const op = ops.find(o => o.id === opId);
   if (!op) return;
   if (op._rastreioLoading) { if (!silent) showToast('Rastreio já em andamento', 'ok'); return; }
-  const transp   = op.stepData?.aguard_nf?.transportadora;
-  const numeroNF = (op.stepData?.aguard_emissao?.numeroNF || '').trim();
-  const cnpj     = (op.pedidoVenda?.cpf || '').replace(/\D/g, '');
+  const transp        = op.stepData?.aguard_nf?.transportadora;
+  const numeroNF      = (op.stepData?.aguard_emissao?.numeroNF     || '').trim();
+  const chaveNfe      = (op.stepData?.aguard_emissao?.chaveNfe     || '').replace(/\D/g, '');
+  const codigoObjeto  = (op.stepData?.aguard_emissao?.codigoObjeto || '').trim();
+  const cnpj          = (op.pedidoVenda?.cpf || '').replace(/\D/g, '');
   if (!RASTREAVEIS.has(transp)) { if (!silent) showToast('Transportadora sem integração de rastreio', 'err'); return; }
-  if (!numeroNF) { if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
-  if (transp === 'rotta' && !cnpj) { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
+  if (!numeroNF && !chaveNfe && !codigoObjeto) { if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
+  if (transp === 'rotta'    && !cnpj)         { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
+  if (transp === 'loggica'  && !chaveNfe)     { if (!silent) showToast('Chave NF-e (44 dígitos) obrigatória para Loggica — preencha no passo Emissão de NF', 'err'); return; }
+  if (transp === 'correios' && !codigoObjeto) { if (!silent) showToast('Código objeto postal obrigatório para Correios — preencha no passo Emissão de NF', 'err'); return; }
 
   op._rastreioLoading = true; op._rastreioErro = null;
   if (currentTab === 'rastreio') renderMain();
   try {
     const resp = await apiFetch('/api/rastreio', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transportadora: transp, pedido: numeroNF, cnpj, numeroNF }),
+      body: JSON.stringify({ transportadora: transp, pedido: numeroNF, cnpj, numeroNF, chaveNfe, codigoObjeto }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Falha ao consultar rastreio');

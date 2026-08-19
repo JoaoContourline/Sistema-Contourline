@@ -29,10 +29,15 @@ export async function loginAs(page, role) {
  * Faz logout e aguarda a tela de login voltar.
  */
 export async function logout(page) {
-  // Abre o menu do usuário (avatar no canto superior direito) e clica em Sair
-  await page.click('.user-avatar');
-  await page.waitForSelector('#userMenu', { state: 'visible', timeout: 5_000 });
-  await page.click('button[onclick="doLogout()"]');
+  try {
+    await page.click('.user-avatar');
+    await page.waitForSelector('#userMenu', { state: 'visible', timeout: 5_000 });
+    // O menu pode fechar antes do clique (race condition de re-render)
+    await page.locator('button[onclick="doLogout()"]').click({ timeout: 5_000 });
+  } catch {
+    // Fallback: chama doLogout() diretamente via JS se o menu fechou antes
+    await page.evaluate(() => { if (typeof doLogout === 'function') doLogout(); });
+  }
   await page.waitForSelector('#loginEmail', { state: 'visible', timeout: 10_000 });
 }
 

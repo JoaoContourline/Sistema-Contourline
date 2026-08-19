@@ -50,7 +50,7 @@ test.describe('Fluxo completo: Comercial → Entregue', () => {
       // Injeta equipamento mínimo diretamente no array global (evita a busca no catálogo)
       if (typeof tempEquipList !== 'undefined') {
         tempEquipList.length = 0;
-        tempEquipList.push({ name: 'PLAYWRIGHT TEST Equipamento', code: '', qty: 1, valorUnit: '100', desconto: '' });
+        tempEquipList.push({ name: 'PLAYWRIGHT TEST Equipamento', code: '', qty: 1, valorUnit: '100', desconto: '', tes: '624' });
         if (typeof refreshEquipList === 'function') refreshEquipList();
       }
     });

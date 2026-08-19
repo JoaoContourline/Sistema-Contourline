@@ -7,6 +7,7 @@ export const CREDS = {
   fiscal:     { email: process.env.TEST_USER_FISCAL,     pass: process.env.TEST_PASS_FISCAL     },
   logistica:  { email: process.env.TEST_USER_LOGISTICA,  pass: process.env.TEST_PASS_LOGISTICA  },
   gestor:     { email: process.env.TEST_USER_GESTOR,     pass: process.env.TEST_PASS_GESTOR     },
+  adm:        { email: process.env.TEST_USER_ADM,        pass: process.env.TEST_PASS_ADM        },
 };
 
 /**

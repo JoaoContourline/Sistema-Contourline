@@ -9,7 +9,7 @@
 // As asserções leem o estado DEPOIS de um reload, não a memória do app — o bug
 // original era justamente o app mostrar certo na tela e errado no banco.
 import { test, expect } from '@playwright/test';
-import { loginAs } from './helpers/auth.js';
+import { loginAs, logout } from './helpers/auth.js';
 import { TEST_PREFIX } from './helpers/op.js';
 import { waitForModalOpen, waitForModalClose } from './helpers/modal.js';
 
@@ -184,6 +184,9 @@ test.describe('Permissões do ADM', () => {
       console.log('   ' + papel.padEnd(10) + ' → botão Cancelar OP visível: ' + (n > 0));
       expect(n, `${papel} não deveria poder cancelar OP`).toBe(0);
       await page.evaluate(() => closeModal());
+      // Sem deslogar, o loginAs seguinte cai no app ja autenticado e fica
+      // esperando por um #loginEmail que nunca aparece.
+      await logout(page);
     }
 
     await loginAs(page, 'gestor');

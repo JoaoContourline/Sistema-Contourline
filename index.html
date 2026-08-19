@@ -1958,20 +1958,38 @@ async function loadOps() {
     dbSaveOp(op, true, null);
   });
 
-  // Repair ops stuck with 'PENDENTE' as numero (created before the await fix)
+  // Repair de OPs legadas que ficaram com numero 'PENDENTE'.
+  // OP nova não cai mais aqui: o submitNovaOP numera ANTES do insert. Isto só
+  // atende linhas antigas — e a correção definitiva é a migração
+  // 2026-08-19-ops-update-adm.sql, que renumera no servidor com next_op_seq.
   const pendentes = ops.filter(o => !o.numero || o.numero === 'PENDENTE');
   if (pendentes.length > 0) {
     pendentes.sort((a, b) => a.id - b.id);
+    // Números já emitidos, para não reaproveitar nenhum.
+    const usados = new Set(ops.filter(o => o.numero && o.numero !== 'PENDENTE').map(o => String(o.numero)));
     for (const op of pendentes) {
       const ano = (op.dataAbertura || '').slice(0, 4) || String(new Date().getFullYear());
-      const opsEsteAno = ops.filter(o => (o.dataAbertura || '').startsWith(ano) && o.numero && o.numero !== 'PENDENTE');
-      const seqNum = opsEsteAno.length + 1;
+      // MAIOR sequência do ano + 1. Era `opsEsteAno.length + 1` — uma CONTAGEM,
+      // que colide com números existentes assim que alguma OP do ano é cancelada,
+      // renumerada ou criada fora de ordem.
+      let seqNum = ops.reduce((mx, o) => {
+        const m = String(o.numero || '').match(new RegExp('^(\\d+)/' + ano));
+        return m ? Math.max(mx, parseInt(m[1], 10)) : mx;
+      }, 0) + 1;
+      while (usados.has(`${seqNum}/${ano}`) || [...usados].some(n => n.startsWith(`${seqNum}/${ano} `))) seqNum++;
       const numero = op.pedidoProtheus ? `${seqNum}/${ano} - PV ${op.pedidoProtheus}` : `${seqNum}/${ano}`;
+      usados.add(numero);
       op.numero = numero;
       const { id: _id, ...repairData } = op;
       repairData.numero = numero;
-      sb.from('ops').update({ numero, data: repairData }).eq('id', op.id)
-        .then(({ error }) => { if (error) console.error('[repair] falha ao corrigir numero da OP', op.id, error); });
+      sb.from('ops').update({ numero, data: repairData }).eq('id', op.id).select('id')
+        .then(({ data, error }) => {
+          if (error) console.error('[repair] falha ao corrigir numero da OP', op.id, error);
+          // 0 linhas = a RLS recusou (setor sem permissão de UPDATE nesta etapa).
+          // Sem este aviso o repair "acontecia" só na memória deste usuário, e
+          // cada pessoa via a OP com um número diferente.
+          else if (!data || !data.length) console.warn('[repair] sem permissão para renumerar a OP', op.id, '— rode a migração 2026-08-19-ops-update-adm.sql');
+        });
     }
   }
 
@@ -2056,15 +2074,34 @@ function dbSaveOp(op, _semTrava, _snapshot) {
       return;
     }
 
+    // 0 linhas SEM trava = o UPDATE não alcançou a linha. É assim que a RLS
+    // recusa: 200 com lista vazia e error null, sem nenhum erro. Antes daqui o
+    // fluxo caía no setSaveIndicator('ok') logo abaixo e a tela dizia "✓ Salvo"
+    // com nada gravado — a alteração sumia no F5 seguinte, sem aviso nenhum.
+    if (!comTrava && (!data || !data.length)) {
+      console.error('[dbSaveOp] UPDATE não afetou nenhuma linha (RLS recusou?) — OP', op.id, 'status', op.status);
+      setSaveIndicator('err');
+      if (_snapshot) {
+        const _ri = ops.findIndex(o => o.id === _snapshot.id);
+        if (_ri >= 0) { ops[_ri] = _snapshot; renderAll(); }
+        showToast('Seu setor não pode alterar esta OP nesta etapa — nada foi salvo, a ação foi desfeita.', 'err');
+      } else {
+        showToast('Seu setor não pode alterar esta OP nesta etapa — nada foi salvo. Recarregue a página.', 'err');
+      }
+      op._saving = false; op._saveDirty = false; // não re-tenta: sem permissão não melhora sozinho
+      return;
+    }
+
     if (comTrava && (!data || !data.length)) {
-      // 0 linhas: ou alguém salvou antes de nós, ou o updated_at não casou por
-      // formato. Confere no banco antes de assustar o usuário.
+      // 0 linhas: alguém salvou antes de nós, o updated_at não casou por formato,
+      // ou a RLS recusou. Confere no banco antes de assustar o usuário.
       const { data: atual } = await sb.from('ops').select('id,updated_at').eq('id', op.id).single();
       if (atual && atual.updated_at === op._loadedAt) {
-        // A linha NÃO mudou → o .eq() falhou por formato, não é conflito real.
-        console.warn('[dbSaveOp] trava otimista não casou por formato — salvando sem trava');
+        // A linha NÃO mudou → não é conflito. Pode ser formato do .eq() ou RLS;
+        // re-tenta sem trava, e o guard acima decide entre gravar ou avisar.
+        console.warn('[dbSaveOp] trava otimista não casou — repetindo sem trava para distinguir formato de RLS');
         op._saving = false; op._saveDirty = false;
-        return dbSaveOp(op, true);
+        return dbSaveOp(op, true, _snapshot);
       }
       setSaveIndicator('err');
       showToast('Esta OP foi alterada por outra pessoa enquanto você editava. Recarregue antes de salvar de novo.', 'err');
@@ -2731,7 +2768,9 @@ function getCompleted(user) {
   const queue = getQueue(user);
   return base.filter(op => {
     if (queue.some(q => q.id === op.id)) return false;
-    if (user.role === 'financeiro' && !finNeeded(op) && op.status !== 'aberta') return true;
+    // "Concluídas" = o que ESTE setor de fato tocou. A regra antiga dava ao
+    // financeiro toda OP sem entrada (que pula a validação dele), enchendo a
+    // aba de OPs em que ele nunca encostou.
     return op.history.some(h => h.actor === user.role);
   });
 }
@@ -2948,11 +2987,20 @@ function calcLineTotal(e) {
 
 function renderEquipItem(e, i) {
   const isFree    = !!e.gratuito;
-  const lineTotal = (!isFree && e.valorUnit) ? Math.max(0, (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) - (parseFloat(e.desconto)||0)) : 0;
-  const lt = isFree ? ''
+  const isClone   = !!e.simplesFat;      // linha de TES 624: faturamento, não máquina
+  // Clone entra sempre com zero. O campo de preço nem é renderizado: se ficasse
+  // editável, um valor digitado ali contaria a MESMA máquina duas vezes no total
+  // do pedido (ela já é cobrada na linha de entrega).
+  const semValor  = isFree || isClone;
+  const lineTotal = (!semValor && e.valorUnit) ? Math.max(0, (parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0) - (parseFloat(e.desconto)||0)) : 0;
+  const lt = semValor ? ''
            : lineTotal > 0 ? 'R$ ' + lineTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
-  const tesLabel = e.tes ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc ? ' · '+e.tesDesc : ''}</span>` : '';
-  return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px">
+  const tesLabel = e.tes ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace">TES ${esc(e.tes)}${e.tesDesc ? ' · '+esc(e.tesDesc) : ''}</span>` : '';
+  // Faixa lateral laranja: o clone é reconhecível de relance dentro da lista.
+  const cloneStyle = isClone
+    ? ';border-left:3px solid var(--orange);background:var(--orange-bg);opacity:.92'
+    : '';
+  return `<div class="equip-list-item" style="flex-direction:column;align-items:stretch;gap:5px${cloneStyle}">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
       <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
         <span class="equip-list-item-name">${e.name}</span>
@@ -2966,7 +3014,9 @@ function renderEquipItem(e, i) {
       </div>
     </div>
     <div style="display:flex;gap:5px;align-items:center">
-      ${isFree
+      ${isClone
+        ? `<span style="flex:1"><span style="display:inline-flex;align-items:center;background:var(--surface);color:var(--orange);border:1px solid rgba(234,88,12,.3);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">SIMPLES FATURAMENTO · SEM VALOR</span></span>`
+        : isFree
         ? `<span style="flex:1"><span style="display:inline-flex;align-items:center;background:var(--green-bg);color:var(--green);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.5px">GRATUITO</span></span>`
         : `<span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">R$</span>
       <input class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
@@ -2974,7 +3024,7 @@ function renderEquipItem(e, i) {
         value="${e.valorUnit ? brlFmtNum(e.valorUnit) : ''}" oninput="brlFormat(this);equipPrice(${i},this.value)">`}
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>
-    ${isFree ? '' : `<div style="display:flex;gap:5px;align-items:center">
+    ${semValor ? '' : `<div style="display:flex;gap:5px;align-items:center">
       <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
       <input id="equip-desc-${i}" class="form-input" style="flex:1;font-size:11px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
         type="text" inputmode="decimal"
@@ -2994,6 +3044,11 @@ function renderEquipItem(e, i) {
  *  salvo no item e, se não houver, consulta o catálogo (_equipCache). */
 function equipTracking(e) {
   if (!e || e.serial === false) return null;            // retrocompat campo antigo
+  // Clone de simples faturamento (TES 624) não é máquina física: ela já é
+  // coletada na linha de entrega, com a série que o Protheus traz lá. Sem isto
+  // o PV 002833 (2 máquinas em 4 linhas) pedia 4 pares de QR/série e mandava a
+  // mesma máquina duas vezes ao Sistema QR — ou, pior, com dois QRs diferentes.
+  if (e.simplesFat) return null;
   if ('tracking' in e) return e.tracking;
   const cached = _equipCache?.find(c => c.name === e.name || (e.code && c.code === e.code));
   return cached ? cached.tracking : null;
@@ -3003,6 +3058,7 @@ function equipTracking(e) {
  *  Série: 1 por unidade (cada máquina tem seu adesivo).
  *  Lote:  1 só — o código que veio do Protheus vale para a linha toda. */
 function qrQtdDaLinha(e) {
+  if (e?.simplesFat) return 0;  // clone contábil: não tem adesivo próprio
   const tracking = equipTracking(e);
   if (tracking === 'serie') return parseInt(e.qty) || 1;
   return 1; // lote ou desconhecido: um único campo
@@ -3116,10 +3172,41 @@ function hideEquipDropdownDelayed() {
   }, 160);
 }
 
+/** Itens da lista em DOIS blocos: primeiro os equipamentos de verdade, depois,
+ *  separados por um divisor, os clones de simples faturamento (TES 624).
+ *
+ *  O índice entregue ao renderEquipItem é SEMPRE o de tempEquipList — os
+ *  onclick (equipQty/equipRemove/equipPrice) indexam esse array, então agrupar
+ *  não pode reindexar nada.
+ *
+ *  Fonte única: o equipListHtml (montagem inicial) e o refreshEquipList
+ *  (re-render a cada alteração) chamam esta função, em vez de repetirem o map. */
+function equipListItemsHtml() {
+  if (!tempEquipList.length) return `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
+
+  const reais = [], clones = [];
+  tempEquipList.forEach((e, i) => (e.simplesFat ? clones : reais).push([e, i]));
+  const bloco = par => par.map(([e, i]) => renderEquipItem(e, i)).join('');
+
+  // Sem clones (o caso comum) a lista sai exatamente como antes, sem cabeçalho.
+  if (!clones.length) return bloco(reais);
+
+  const divisor = (titulo, cor, nota) => `
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:12px 0 6px;padding-top:9px;border-top:1px dashed var(--border)">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${cor}">${titulo}</span>
+      ${nota ? `<span style="font-size:10px;color:var(--text3)">${nota}</span>` : ''}
+    </div>`;
+
+  return (reais.length
+      ? divisor('Equipamentos', 'var(--text3)', `${reais.length} ${reais.length > 1 ? 'itens' : 'item'} do pedido`) + bloco(reais)
+      : '')
+    + divisor('Simples Faturamento', 'var(--orange)',
+        'faturamento da(s) mesma(s) máquina(s) acima — sem valor e sem QR próprio')
+    + bloco(clones);
+}
+
 function equipListHtml() {
-  const items = tempEquipList.length
-    ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
-    : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
+  const items = equipListItemsHtml();
 
   return `
     <div class="form-group">
@@ -3258,9 +3345,7 @@ function calcDescontoTotal() {
 function refreshEquipList() {
   const el = document.getElementById('equip-list-items');
   if (!el) return;
-  el.innerHTML = tempEquipList.length
-    ? tempEquipList.map((e,i) => renderEquipItem(e,i)).join('')
-    : `<div class="equip-empty">Nenhum equipamento adicionado</div>`;
+  el.innerHTML = equipListItemsHtml();
   updateEquipListTotal();
 }
 
@@ -4883,7 +4968,7 @@ function renderCancelados(el) {
         <span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
       </div>
       <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'—'} · por ${c.by||'—'} · estava em: ${etapa}</div>
-      ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${c.motivo}</div>` : ''}
+      ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${esc(c.motivo)}</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:4px">
         <button onclick="openInfoModal(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--text2);cursor:pointer">Abrir OP</button>
         <button onclick="reativarOP(${op.id})" style="background:var(--green);border:none;border-radius:6px;padding:5px 12px;font-size:11px;color:#fff;font-weight:600;cursor:pointer">Reativar</button>
@@ -5394,15 +5479,23 @@ function buildContextPanel(op) {
 
   // Pedido do Cliente
   if (pv) {
-    const equipLines = (pv.equipamentos||[]).map(e=>{
-      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
+    // Máquinas primeiro; clones de simples faturamento (TES 624) num bloco à parte.
+    const _linhaEq = e => {
+      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>` : '';
       const details = [e.qty>1&&`Qtd: ${e.qty}`, e.numSerie&&`Série: ${e.numSerie}`, e.lote&&`Lote: ${e.lote}`].filter(Boolean);
-      return `<div style="padding:3px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:500">${e.name}</div>
+      return `<div style="padding:3px 0;border-bottom:1px solid var(--border)${e.simplesFat?';border-left:3px solid var(--orange);padding-left:7px;background:var(--orange-bg)':''}">
+        <div style="font-size:12px;font-weight:500">${esc(e.name)}</div>
         ${tesBadge}
         ${details.map(d=>`<div style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
       </div>`;
-    }).join('');
+    };
+    const _eqReais  = (pv.equipamentos||[]).filter(e => !e.simplesFat);
+    const _eqClones = (pv.equipamentos||[]).filter(e =>  e.simplesFat);
+    const equipLines = _eqReais.map(_linhaEq).join('')
+      + (_eqClones.length
+          ? `<div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--orange);margin:8px 0 3px">Simples Faturamento</div>`
+            + _eqClones.map(_linhaEq).join('')
+          : '');
     const addrParts  = [[pv.endRua, pv.endNumero, pv.endComplemento].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -5731,18 +5824,29 @@ function buildInfoSections(op, opId) {
 
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
-    const equipLines = (pv.equipamentos||[]).map(e => {
-      const valor = e.gratuito ? '<span style="color:var(--green);font-weight:700">Gratuito</span>'
+    // Mesma separação da tela de criação: primeiro as máquinas, depois os clones
+    // de simples faturamento (TES 624), que são a MESMA máquina já listada acima.
+    const _eqTodos = pv.equipamentos || [];
+    const _eqReais  = _eqTodos.filter(e => !e.simplesFat);
+    const _eqClones = _eqTodos.filter(e =>  e.simplesFat);
+    const linhaEquip = e => {
+      const valor = e.simplesFat ? '<span style="color:var(--orange);font-weight:700">Sem valor — faturamento da máquina acima</span>'
+                  : e.gratuito ? '<span style="color:var(--green);font-weight:700">Gratuito</span>'
                   : e.valorUnit ? fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0))) : '';
-      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${e.tes}${e.tesDesc?' · '+e.tesDesc:''}</span>` : '';
+      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:9px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>` : '';
       const _qrs = qrListaDaLinha(e).filter(Boolean); // 1 QR por máquina
       const details = [valor, _qrs.length&&`QR ${_qrs.join(', ')}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
-      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+      return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)${e.simplesFat?';border-left:3px solid var(--orange);padding-left:7px;background:var(--orange-bg)':''}">
         <div style="font-weight:500">${esc(e.name)}${e.qty>1?' × '+e.qty:''}</div>
         ${tesBadge}
         ${details.map(d=>`<div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:1px">${d}</div>`).join('')}
       </div>`;
-    }).join('') || `<div style="font-size:12px">${esc((op.equipamentos||[]).join(', '))}</div>`;
+    };
+    const _subtitulo = t => `<div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--orange);margin:8px 0 3px">${t}</div>`;
+    const equipLines = (
+      _eqReais.map(linhaEquip).join('')
+      + (_eqClones.length ? _subtitulo('Simples Faturamento') + _eqClones.map(linhaEquip).join('') : '')
+    ) || `<div style="font-size:12px">${esc((op.equipamentos||[]).join(', '))}</div>`;
     const addrParts = [[pv.endRua, pv.endNumero, pv.endComplemento].filter(Boolean).join(', '), pv.endBairro, [pv.endCidade,pv.endEstado].filter(Boolean).join('/'), pv.endCEP].filter(Boolean);
     const endDisplay = addrParts.length ? addrParts.join(', ') : (pv.enderecoCliente||'');
 
@@ -7029,12 +7133,18 @@ function preencherPedido(p) {
     tempEquipList = p.itens.map(it => {
       const nome = (it.descricao || it.produto || '').trim();
       const code = (it.produto || '').trim();
+      // Linha de SIMPLES FATURAMENTO (TES 624) é o "clone" contábil de uma
+      // máquina que também aparece numa linha de entrega (TES 577/708/…).
+      // Não é equipamento físico: entra na lista para o fiscal ver e para o
+      // sfNeeded() acender, mas com valor zerado (senão o total do pedido conta
+      // a mesma máquina duas vezes) e fora da vitrine de equipamentos da OP.
+      const simplesFat = (it.tes || '').trim() === '624';
       const item = {
         name:      nome,
         code:      code,
         qty:       parseInt(it.qtd) > 0 ? parseInt(it.qtd) : 1,
-        valorUnit: gratuito ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
-        desconto:  gratuito ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
+        valorUnit: (gratuito || simplesFat) ? '0' : (Number(it.preco) > 0 ? Number(it.preco).toString() : ''),
+        desconto:  (gratuito || simplesFat) ? '' : (Number(it.desconto) > 0 ? Number(it.desconto).toString() : ''),
         qrcode:    (it.qrcode || '').trim(),
         // Protheus traz 1 QR por linha (C6_XQRCODE). Se a linha tiver mais de uma
         // máquina, os demais adesivos são digitados na abertura da OP.
@@ -7043,6 +7153,7 @@ function preencherPedido(p) {
         numSerie:  (it.numSerie || '').trim(),
         lote:      (it.lote || '').trim(),
         gratuito:  gratuito,
+        simplesFat,
         tes:       (it.tes || '').trim(),
         tesDesc:   (it.tesDesc || '').trim(),
       };
@@ -7649,7 +7760,13 @@ async function submitNovaOP() {
   const _needsFin = entrada === 'pendente';
   const _needsSF  = tempEquipList.some(e => String(e.tes || '').trim() === '624');
   const initialStatus = (_needsFin || _needsSF) ? 'aguard_financeiro' : 'aguard_nf';
-  const equipNames = tempEquipList.map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
+  // Vitrine de equipamentos da OP (chips do card, resumo, exportação): só o que
+  // é máquina de verdade. Os clones de simples faturamento (TES 624) duplicariam
+  // o nome da mesma máquina na visualização. Eles seguem inteiros em
+  // pedidoVenda.equipamentos — é de lá que o sfNeeded() lê a TES.
+  const equipNames = tempEquipList
+    .filter(e => !e.simplesFat)
+    .map(e => e.qty > 1 ? `${e.name} (x${e.qty})` : e.name);
   const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR') : '';
 
   // Constrói o objeto OP sem ID ainda - Supabase vai gerar
@@ -7705,28 +7822,21 @@ async function submitNovaOP() {
   const btnCriar = g('btn-criar-op');
   if (btnCriar) { btnCriar.disabled = true; btnCriar.textContent = 'Salvando…'; }
 
-  // Insere no Supabase para obter o ID real
-  const { data: rows, error } = await sb.from('ops').insert({
-    cliente:  opData.cliente,
-    status:   opData.status,
-    data:     opData,
-  }).select('id');
-
-  if (error || !rows?.length) {
-    console.error('Erro ao inserir OP:', error);
-    showToast('Erro ao salvar OP: ' + (error?.message || 'sem resposta'), 'err');
-    if (btnCriar) { btnCriar.disabled = false; btnCriar.textContent = 'Criar OP →'; }
-    return;
-  }
-
-  // Atualiza com ID e numero reais
-  const newId  = Number(rows[0].id);
   const pedidoProtheus = (g('nova-numPedido')?.value || '').trim();
 
-  // Numeração sequencial por ano. Preferência: sequência ATÔMICA no servidor
-  // (RPC next_op_seq) — evita duas OPs com o mesmo número em criações simultâneas.
-  // Fallback (enquanto a migração 2026-07-21 não estiver aplicada): melhor esforço
-  // lendo o MAX do banco.
+  // Numeração sequencial por ano, ANTES do insert.
+  //
+  // Antes daqui a OP era inserida com numero 'PENDENTE' e um segundo UPDATE
+  // gravava o número, o id e o pedidoProtheus. Quando esse UPDATE falhava, a OP
+  // ficava permanentemente sem número — e a RLS falha devolvendo 0 linhas sem
+  // erro, então nada avisava. Foi o que aconteceu com a OP id=94 criada por um
+  // ADM (a policy ops_update não incluía 'adm'): nasceu certa na tela e virou
+  // "#94" sem PV no F5 seguinte. Numerando antes, o insert é a única escrita —
+  // ou a OP nasce completa, ou não nasce.
+  //
+  // Preferência: sequência ATÔMICA no servidor (RPC next_op_seq), que evita duas
+  // OPs com o mesmo número em criações simultâneas. Fallback (enquanto a migração
+  // 2026-07-21 não estiver aplicada): melhor esforço lendo o MAX do banco.
   const anoAtual = new Date().getFullYear();
   let seqNum;
   try {
@@ -7734,8 +7844,7 @@ async function submitNovaOP() {
     if (seqErr || seqData == null) throw seqErr || new Error('sem retorno');
     seqNum = Number(seqData);
   } catch {
-    // Exclui a própria linha (recém inserida com PENDENTE) para não inflar o MAX
-    const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null).neq('id', newId);
+    const { data: _numRows } = await sb.from('ops').select('numero').like('numero', `%/${anoAtual}%`).not('numero','is',null);
     const existingNums = new Set((_numRows || []).map(r => String(r.numero || '')));
     const _maxSeq = (_numRows || []).reduce((mx, r) => {
       const m = String(r.numero || '').match(/^(\d+)\//);
@@ -7749,13 +7858,28 @@ async function submitNovaOP() {
   }
   const baseNum = `${seqNum}/${anoAtual}`;
   const numero  = pedidoProtheus ? `${baseNum} - PV ${pedidoProtheus}` : baseNum;
-  opData.id     = newId;
   opData.numero = numero;
   opData.pedidoProtheus = pedidoProtheus;
   if (opData.pedidoVenda) opData.pedidoVenda.numero = numero;
 
-  // Atualiza Supabase com numero correto (await para garantir que data.numero não fique 'PENDENTE')
-  await sb.from('ops').update({ numero, data: opData }).eq('id', newId);
+  // Insere já completo. `data.id` é irrelevante na leitura — o rowToOp sempre
+  // sobrescreve com o id da coluna —, então não há segundo UPDATE.
+  const { data: rows, error } = await sb.from('ops').insert({
+    numero:   opData.numero,
+    cliente:  opData.cliente,
+    status:   opData.status,
+    data:     opData,
+  }).select('id');
+
+  if (error || !rows?.length) {
+    console.error('Erro ao inserir OP:', error);
+    showToast('Erro ao salvar OP: ' + (error?.message || 'sem resposta'), 'err');
+    if (btnCriar) { btnCriar.disabled = false; btnCriar.textContent = 'Criar OP →'; }
+    return;
+  }
+
+  const newId = Number(rows[0].id);
+  opData.id   = newId;
 
   // O realtime pode ter inserido esta mesma OP (com numero 'PENDENTE', exibida
   // como "#49") entre o insert e este ponto. Substitui em vez de duplicar.
@@ -7878,7 +8002,7 @@ function printPedidoVenda(opId) {
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
   if (pv.instagram)   obsParts.push(`Instagram: ${pv.instagram}`);
-  const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${e.tes}${e.tesDesc?' ('+e.tesDesc+')':''}`))];
+  const tesUniq = [...new Set(equipList.filter(e=>e.tes).map(e=>`TES ${esc(e.tes)}${e.tesDesc?' ('+esc(e.tesDesc)+')':''}`))];
   if (tesUniq.length) obsParts.push(tesUniq.join(', '));
   const obsText = obsParts.join('\n');
 

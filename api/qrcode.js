@@ -13,7 +13,7 @@
 // Segurança: o login acontece AQUI, no servidor. As credenciais nunca vão ao
 // browser — o front chama /api/qrcode e esta função cuida do resto.
 
-import { requireAuth, cors } from './_auth.js';
+import { requireSectors, cors } from './_auth.js';
 
 const QR_BASE = 'https://www.bodyhealthbrasil.com/sistema-qr';
 
@@ -132,7 +132,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   // Escreve no sistema do parceiro com a identidade da Contourline: sem sessão,
   // qualquer um sobrescrevia equipamento real (eu mesmo provei isso hoje).
-  if (!await requireAuth(req, res)) return;
+  // Restrito ao setor que despacha: o cadastro é disparado na entrada em
+  // 'transito', etapa da logistica. Antes bastava estar logado — comercial ou
+  // financeiro podiam gravar equipamento no sistema do parceiro.
+  if (!await requireSectors(req, res, ['logistica', 'gestor', 'adm'])) return;
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }

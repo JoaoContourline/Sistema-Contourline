@@ -33,31 +33,49 @@ const SB_URL  = process.env.SUPABASE_URL || 'https://hmzxqoktfzheqjjnhlam.supaba
 const SB_ANON = process.env.SUPABASE_ANON_KEY
   || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtenhxb2t0ZnpoZXFqam5obGFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4ODE4NDUsImV4cCI6MjA5NTQ1Nzg0NX0.5Ll5dRBgZ3X6a_TtMQvKXVj3IExTkaVufoh-KQQXtzI';
 
-/** Setor (sector_id) do usuário, lido do profiles com o próprio token (RLS). null se indeterminado. */
+/** Setor (sector_id) do usuário, lido do profiles com o próprio token (RLS).
+ *  null se indeterminado. Tenta 2 vezes: uma falha de rede pontual não deve
+ *  virar bloqueio de acesso agora que o requireSectors falha FECHADO. */
 export async function sectorOf(req, userId) {
   const header = String(req.headers.authorization || '');
   const token  = header.replace(/^bearer\s+/i, '').trim();
-  try {
-    const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=sector_id`, {
-      headers: { apikey: SB_ANON, Authorization: `Bearer ${token}` },
-    });
-    if (!r.ok) return null;
-    const rows = await r.json();
-    return rows?.[0]?.sector_id || null;
-  } catch { return null; }
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    try {
+      const r = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=sector_id`, {
+        headers: { apikey: SB_ANON, Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) continue;
+      const rows = await r.json();
+      const s = rows?.[0]?.sector_id;
+      if (s) return s;
+      return null; // respondeu certo e o perfil não tem setor: não adianta repetir
+    } catch { /* rede: tenta de novo */ }
+  }
+  return null;
 }
 
 /**
- * Exige sessão válida E setor no allowlist. Bloqueia (403) quando o setor é
- * conhecido e não permitido; se o setor não puder ser determinado (erro/rede),
- * deixa passar para não travar o sistema. Retorna o usuário ou null (já respondeu).
+ * Exige sessão válida E setor no allowlist.
+ *
+ * FALHA FECHADO. Antes, quando o setor não podia ser determinado (rede, RLS,
+ * perfil sem sector_id), a função deixava passar "para não travar o sistema".
+ * O efeito era o oposto do pretendido: uma instabilidade momentânea do Supabase
+ * abria CPF/CNPJ, endereço e telefone de cliente (via /api/cliente e
+ * /api/protheus) para qualquer sessão válida, de qualquer setor. Indisponibilidade
+ * é um problema menor do que vazamento de dado pessoal.
+ *
+ * Retorna o usuário, ou null (e JÁ respondeu — o handler deve só retornar).
  */
 export async function requireSectors(req, res, allowed) {
   const user = await requireAuth(req, res);
   if (!user) return null;
   // Normaliza a caixa (ex.: "ADM" → "adm").
   const sector = (await sectorOf(req, user.id) || '').trim().toLowerCase();
-  if (sector && !allowed.includes(sector)) {
+  if (!sector) {
+    res.status(403).json({ error: 'Não foi possível confirmar seu setor. Recarregue a página e tente de novo.' });
+    return null;
+  }
+  if (!allowed.includes(sector)) {
     res.status(403).json({ error: 'Seu setor não tem acesso a este recurso' });
     return null;
   }

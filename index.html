@@ -3413,8 +3413,87 @@ function storagePath(f) {
 async function signedUrl(f, segundos = 3600) {
   const path = storagePath(f);
   if (!path) return f?.url || f?.dataUrl || '';
-  const { data, error } = await sb.storage.from('op-files').createSignedUrl(path, segundos);
-  return (!error && data?.signedUrl) ? data.signedUrl : (f.url || '');
+  const u = await urlAssinada(path, { segundos });
+  return u || f.url || '';
+}
+
+// ─── ANEXOS: URLs ASSINADAS ─────────────────────────────────────────
+// O bucket op-files guarda NF, comprovante de pagamento e foto de entrega —
+// documentos com CPF/CNPJ e endereço de cliente. Enquanto ele foi público,
+// cada anexo tinha uma URL permanente que dispensava login: bastava ter o link
+// (e ele fica gravado no jsonb da OP, legível por qualquer usuário autenticado).
+// Agora nada é renderizado com a URL crua: o HTML carrega só o CAMINHO no
+// bucket, e a URL assinada é gerada na hora do clique, valendo 1 hora.
+//
+// Isto funciona com o bucket público OU privado, de propósito: dá para publicar
+// o código, conferir que tudo abre, e só então virar a chave do bucket.
+
+const _urlAssinadaCache = new Map(); // chave → { url, exp }
+
+/** URL temporária de um anexo, a partir do caminho no bucket. '' se falhar. */
+async function urlAssinada(path, { download = false, segundos = 3600 } = {}) {
+  if (!path) return '';
+  // O mesmo anexo é re-renderizado a cada renderAll; sem cache, cada passada
+  // dispara uma chamada nova ao Storage.
+  const chave = (download ? 'dl:' : 'v:') + path;
+  const hit = _urlAssinadaCache.get(chave);
+  if (hit && Date.now() < hit.exp) return hit.url;
+  try {
+    const { data, error } = await sb.storage.from('op-files')
+      .createSignedUrl(path, segundos, download ? { download: true } : undefined);
+    if (error || !data?.signedUrl) return '';
+    if (_urlAssinadaCache.size > 300) _urlAssinadaCache.clear(); // teto de memória
+    // Guarda com folga: expira antes da assinatura de verdade.
+    _urlAssinadaCache.set(chave, { url: data.signedUrl, exp: Date.now() + (segundos - 300) * 1000 });
+    return data.signedUrl;
+  } catch { return ''; }
+}
+
+/** Resolve o endereço de um anexo a partir do elemento clicado. */
+async function _urlDoElemento(el, download = false) {
+  const path = el.getAttribute('data-signpath');
+  if (path) return urlAssinada(path, { download });
+  return el.getAttribute('data-fileurl') || ''; // legado: base64 em OPs antigas
+}
+
+async function abrirAnexo(el) {
+  const nome = el.getAttribute('data-filename') || 'arquivo';
+  const url  = await _urlDoElemento(el);
+  if (!url) { showToast('Não foi possível abrir o anexo. Recarregue a página.', 'err'); return; }
+  if (el.dataset.lightbox === '1') { showLightbox(url, nome); return; }
+  if (url.startsWith('data:')) { openFileBlob(el, url); return; }
+  window.open(url, '_blank', 'noopener');
+}
+
+async function baixarAnexo(el) {
+  const nome = el.getAttribute('data-filename') || 'arquivo';
+  const url  = await _urlDoElemento(el, true);
+  if (!url) { showToast('Não foi possível baixar o anexo. Recarregue a página.', 'err'); return; }
+  const a = document.createElement('a');
+  a.href = url; a.download = nome; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/** Troca o src das miniaturas por URLs assinadas, depois que o HTML entra no DOM. */
+async function hidratarAnexos() {
+  const imgs = document.querySelectorAll('img[data-signpath]:not([data-assinada])');
+  for (const img of imgs) {
+    img.dataset.assinada = '1';
+    const u = await urlAssinada(img.getAttribute('data-signpath'));
+    if (u) img.src = u;
+  }
+}
+
+// O #main, os modais e o painel de contexto são reconstruídos por innerHTML em
+// muitos pontos. Em vez de chamar a hidratação em cada um deles — e esquecer de
+// algum —, observa o DOM uma vez só. Debounce para não rodar a cada nó inserido
+// durante um renderAll.
+let _hidratarTimer = null;
+if (typeof MutationObserver !== 'undefined') {
+  new MutationObserver(() => {
+    clearTimeout(_hidratarTimer);
+    _hidratarTimer = setTimeout(hidratarAnexos, 60);
+  }).observe(document.documentElement, { childList: true, subtree: true });
 }
 
 // Mantido para compatibilidade com OPs antigas que ainda têm base64
@@ -3428,8 +3507,8 @@ function fileToDataUrl(file) {
 }
 
 // Abre arquivo - URL do Storage diretamente, ou Blob para base64 legado
-function openFileBlob(btn) {
-  const dataUrl = btn.getAttribute('data-fileurl');
+function openFileBlob(btn, urlDireta) {
+  const dataUrl = urlDireta || btn.getAttribute('data-fileurl');
   const name    = btn.getAttribute('data-filename') || 'arquivo';
   if (!dataUrl) return;
   // URLs do Supabase Storage: abre diretamente na nova aba
@@ -3457,20 +3536,27 @@ function fileLinkHtml(f, compact = false) {
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)">${icon('paperclip',13,'color:var(--text3)')} ${esc(f)}</div>`;
   }
   const kb       = f.size ? `${(f.size/1024).toFixed(0)} KB` : '';
-  const fileUrl  = f.url || f.dataUrl || '';   // url = Storage, dataUrl = legado base64
+  // O caminho no bucket é o que vai para o HTML. A URL só existe para os anexos
+  // legados em base64 (dataUrl) — nunca mais embutimos a URL pública do Storage,
+  // que é permanente e dispensa login.
+  const path     = storagePath(f);
+  const legacy   = path ? '' : (f.dataUrl || f.url || '');
+  const temArq   = !!(path || legacy);
   const safeName = (f.name || 'arquivo').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-  const isImage  = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || fileUrl.startsWith('data:image/');
+  const isImage  = /\.(jpe?g|png|gif|webp|bmp)$/i.test(f.name || '') || legacy.startsWith('data:image/');
   const isPdf    = /\.pdf$/i.test(f.name || '');
-  const canLight = isImage || (isPdf && (f.url || fileUrl.startsWith('data:application/pdf')));
+  const canLight = isImage || (isPdf && (path || legacy.startsWith('data:application/pdf')));
   const btn      = `display:inline-flex;align-items:center;gap:4px;font-size:11px;text-decoration:none;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:inherit;white-space:nowrap`;
+  // data-signpath = assina na hora do uso · data-fileurl = legado, abre direto
+  const alvo     = path ? `data-signpath="${esc(path)}"` : `data-fileurl="${legacy}"`;
+  const iconePlaceholder = `<span style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon(isPdf?'file-text':'paperclip',15,'color:var(--text3)')}</span>`;
 
-  const thumb = (isImage && fileUrl)
-    ? `<img src="${fileUrl}" alt="${safeName}" onclick="showLightbox(this.src,'${safeName}')" title="Ampliar" style="width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;flex-shrink:0">`
-    : `<span style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon(isPdf?'file-text':'paperclip',15,'color:var(--text3)')}</span>`;
-
-  const vizAction = canLight
-    ? `onclick="showLightbox('${fileUrl.replace(/'/g,"\\'")}','${safeName}')"`
-    : `data-fileurl="${fileUrl}" data-filename="${safeName}" onclick="openFileBlob(this)"`;
+  // A miniatura nasce sem src: o hidratarAnexos() preenche assim que a URL
+  // assinada volta. Anexo legado em base64 já entra com o src pronto.
+  const thumb = !(isImage && temArq) ? iconePlaceholder
+    : path
+      ? `<img ${alvo} data-filename="${safeName}" data-lightbox="1" alt="${safeName}" onclick="abrirAnexo(this)" title="Ampliar" style="width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:var(--surface2);cursor:zoom-in;flex-shrink:0">`
+      : `<img src="${legacy}" alt="${safeName}" onclick="showLightbox(this.src,'${safeName}')" title="Ampliar" style="width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;flex-shrink:0">`;
 
   return `<div style="display:flex;align-items:center;gap:10px;padding:7px 4px;border-top:1px solid var(--border)">
     ${thumb}
@@ -3479,8 +3565,8 @@ function fileLinkHtml(f, compact = false) {
       ${kb ? `<div style="font-size:10px;color:var(--text3)">${kb}</div>` : ''}
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0">
-      ${fileUrl ? `<button type="button" style="${btn};color:var(--accent)" ${vizAction}>${icon('eye',12,'color:var(--accent)')} Visualizar</button>` : ''}
-      ${fileUrl ? `<a href="${fileUrl}" download="${safeName}" style="${btn};color:var(--text2)">${icon('download',12,'color:var(--text2)')} Baixar</a>` : ''}
+      ${temArq ? `<button type="button" style="${btn};color:var(--accent)" ${alvo} data-filename="${safeName}" ${canLight ? 'data-lightbox="1"' : ''} onclick="abrirAnexo(this)">${icon('eye',12,'color:var(--accent)')} Visualizar</button>` : ''}
+      ${temArq ? `<button type="button" style="${btn};color:var(--text2)" ${alvo} data-filename="${safeName}" onclick="baixarAnexo(this)">${icon('download',12,'color:var(--text2)')} Baixar</button>` : ''}
     </div>
   </div>`;
 }
@@ -7060,6 +7146,32 @@ async function puxarSerieLote(opId) {
       inp.dataset.puxado = '1';
       algum++;
     });
+
+    // Reler a TES junto. Ela costuma ser definida/ajustada no Protheus DEPOIS
+    // da OP aberta — e o sfNeeded() lê de pedidoVenda.equipamentos, que era um
+    // retrato do momento da criação. Sem isto, uma linha que virou TES 624 mais
+    // tarde nunca acendia o gate de Simples Faturamento.
+    const _antesSF = sfNeeded(op);
+    let _tesMudou = 0;
+    (op.pedidoVenda?.equipamentos || []).forEach(e => {
+      const it = (p.itens || []).find(i =>
+        (i.produto || '').trim() === String(e.code || '').trim() &&
+        String(i.tes || '').trim() !== String(e.tes || '').trim());
+      if (!it) return;
+      e.tes     = (it.tes || '').trim();
+      e.tesDesc = (it.tesDesc || '').trim();
+      if (e.tes === '624') { e.simplesFat = true; e.valorUnit = '0'; e.desconto = ''; }
+      _tesMudou++;
+    });
+    if (_tesMudou) {
+      dbSaveOp(op);
+      showToast(`${_tesMudou} TES atualizada(s) a partir do Protheus`, 'ok');
+      // Avisa, mas NÃO move a OP para trás sozinho: reabrir etapa por conta
+      // própria bagunçaria o fluxo de quem já seguiu adiante.
+      if (!_antesSF && sfNeeded(op) && !sfDone(op)) {
+        showToast('Atenção: agora há item com TES 624 nesta OP — o Simples Faturamento passou a ser necessário.', 'err');
+      }
+    }
 
     if (algum) showToast(`${algum} série(s)/lote(s) puxado(s) do Protheus`, 'ok');
     else showToast('Nenhuma série/lote disponível no pedido ainda (fatura o pedido primeiro)', 'err');

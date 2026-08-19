@@ -6,6 +6,7 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "test":         "playwright test",
+    "test:unit":    "node tests/unit/run.mjs",
     "test:ui":      "playwright test --ui",
     "test:headed":  "playwright test --headed",
     "test:report":  "playwright show-report",

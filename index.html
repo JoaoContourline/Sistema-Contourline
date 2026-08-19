@@ -4975,7 +4975,7 @@ function renderCancelados(el) {
       ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${esc(c.motivo)}</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:4px">
         <button onclick="openInfoModal(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--text2);cursor:pointer">Abrir OP</button>
-        <button onclick="reativarOP(${op.id})" style="background:var(--green);border:none;border-radius:6px;padding:5px 12px;font-size:11px;color:#fff;font-weight:600;cursor:pointer">Reativar</button>
+        ${getUser()?.role === 'gestor' ? `<button onclick="reativarOP(${op.id})" style="background:var(--green);border:none;border-radius:6px;padding:5px 12px;font-size:11px;color:#fff;font-weight:600;cursor:pointer">Reativar</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -5022,6 +5022,8 @@ function doCancelarOP(opId) {
   }
   const op = ops.find(o => o.id === opId);
   if (!op) return;
+  // Guarda de papel (defesa client-side; o gate real é o trigger no Postgres).
+  if (getUser()?.role !== 'gestor') { showToast('Somente o gestor pode cancelar uma OP', 'err'); closeModal(); return; }
   if (op.status === 'entregue') { showToast('OP já entregue — não pode ser cancelada', 'err'); closeModal(); return; }
   if (op.cancelada) { showToast('OP já está cancelada', 'err'); closeModal(); return; }
   const _snapCancel = JSON.parse(JSON.stringify(op));
@@ -5039,6 +5041,7 @@ function doCancelarOP(opId) {
 function reativarOP(opId) {
   const op = ops.find(o => o.id === opId);
   if (!op || !op.cancelada) return;
+  if (getUser()?.role !== 'gestor') { showToast('Somente o gestor pode reativar uma OP', 'err'); return; }
   const _snapReativar = JSON.parse(JSON.stringify(op));
   const etapa = op.cancelada.statusAnterior;
   const user  = getUser();
@@ -6268,7 +6271,14 @@ function openInfoModal(opId) {
 
   // Cancelar (OP ativa) ou Reativar (OP cancelada). Entregue não cancela.
   const banIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`;
-  const cancelarBtn = op.cancelada
+  // Cancelar e reativar são exclusivos do GESTOR. Antes o botão aparecia para
+  // qualquer setor, e a RLS recusava em silêncio quem não fosse dono da etapa:
+  // a OP sumia da tela de quem cancelou e continuava viva para todo mundo.
+  // O gate real é o trigger ops_bloqueia_cancelamento (migração 2026-08-19);
+  // isto aqui só evita oferecer um botão que vai falhar.
+  const podeCancelar = getUser()?.role === 'gestor';
+  const cancelarBtn = !podeCancelar ? ''
+    : op.cancelada
     ? `<button onclick="reativarOP(${opId});closeModal()" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px;background:var(--green);border:none;color:#fff;font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${icon('check',13,'color:#fff')} Reativar OP</button>`
     : (op.status !== 'entregue'
       ? `<button onclick="openCancelarOP(${opId})" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--red);font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${banIcon} Cancelar OP</button>`

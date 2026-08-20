@@ -56,7 +56,7 @@ header {
 }
 .logo-text-group { display: flex; flex-direction: column; gap: 1px; }
 .logo-text { font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -.3px; line-height: 1; }
-.logo-sub  { font-size: 9px; color: rgba(255,255,255,.4); font-family: 'DM Mono', monospace; letter-spacing: .5px; text-transform: uppercase; }
+.logo-sub  { font-size: 11px; color: rgba(255,255,255,.4); font-family: 'DM Mono', monospace; letter-spacing: .5px; text-transform: uppercase; }
 
 /* Header center: view switcher do gestor */
 .header-center {
@@ -70,7 +70,7 @@ header {
 .view-btn {
   padding: 4px 9px; border-radius: 6px; border: none;
   background: transparent; color: rgba(255,255,255,.55);
-  font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
   cursor: pointer; transition: all .15s; letter-spacing: .3px;
   white-space: nowrap;
 }
@@ -100,7 +100,7 @@ header {
 .role-btn {
   padding: 5px 11px; border-radius: 20px; border: 1px solid rgba(255,255,255,.2);
   background: rgba(255,255,255,.08); color: rgba(255,255,255,.75);
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
   cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px;
 }
 .role-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
@@ -118,7 +118,7 @@ header {
 .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: transparent; border-radius: 2px 2px 0 0; transition: background .15s; }
 .tab-btn.active { color: var(--text); }
 .tab-btn.active::after { background: var(--accent); }
-.tab-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 7px; font-size: 10px; font-family: 'DM Mono', monospace; }
+.tab-count { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 7px; font-size: 11px; font-family: 'DM Mono', monospace; }
 .tab-btn.active .tab-count { background: var(--accent); border-color: var(--accent); color: #fff; }
 .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(220,38,38,.55); animation: notifPulse 1.6s infinite; }
 @keyframes notifPulse { 0% { box-shadow: 0 0 0 0 rgba(220,38,38,.55); } 70% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); } }
@@ -151,21 +151,21 @@ main { padding: 24px; }
 .card.entregue:hover { border-color: var(--green); box-shadow: 0 4px 12px rgba(22,163,74,.1); }
 
 .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.card-op { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); font-weight: 600; }
+.card-op { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); font-weight: 600; }
 .card-flags { display: flex; gap: 3px; flex-wrap: wrap; }
-.flag { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.flag { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
 .flag-dir   { background: rgba(234,88,12,.1);  color: var(--orange); border: 1px solid rgba(234,88,12,.25); }
 .flag-div   { background: rgba(220,38,38,.1);  color: var(--red);    border: 1px solid rgba(220,38,38,.25); }
 .flag-multi { background: rgba(124,58,237,.1); color: var(--purple); border: 1px solid rgba(124,58,237,.25); }
 
 .card-client { font-size: 13px; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
 .equip-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; min-width: 0; }
-.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.equip-chip { display: inline-block; padding: 1px 7px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 5px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 
 /* BADGE */
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: .2px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .2px; }
 .badge-dot { width: 5px; height: 5px; border-radius: 50%; }
 .b-blue   { background: var(--blue-bg);   color: var(--blue);   }
 .b-yellow { background: var(--yellow-bg); color: var(--yellow); }
@@ -177,7 +177,7 @@ main { padding: 24px; }
 .b-gray   { background: var(--gray-bg);   color: var(--gray);   }
 
 /* SEMA */
-.sema { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: 'DM Mono', monospace; }
+.sema { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-family: 'DM Mono', monospace; }
 
 /* PIPELINE BAR */
 .pipe-bar { display: flex; gap: 3px; margin-bottom: 6px; }
@@ -187,7 +187,7 @@ main { padding: 24px; }
 .pipe-dot.blocked { background: var(--red); }
 
 /* CARD LAST EVENT */
-.card-last-event { margin-top: 6px; font-size: 10px; color: var(--text3); line-height: 1.35; border-top: 1px solid var(--border); padding-top: 6px; }
+.card-last-event { margin-top: 6px; font-size: 11px; color: var(--text3); line-height: 1.35; border-top: 1px solid var(--border); padding-top: 6px; }
 
 /* CARD FOOTER */
 .card-footer { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
@@ -212,7 +212,7 @@ main { padding: 24px; }
   display: grid; place-items: center; flex-shrink: 0;
 }
 .section-header-title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
-.section-header-desc  { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.section-header-desc  { font-size: 12px; color: var(--text3); margin-top: 1px; }
 .section-header-count {
   font-size: 12px; font-weight: 700; min-width: 24px; height: 24px;
   border-radius: 12px; display: grid; place-items: center; padding: 0 7px;
@@ -222,7 +222,7 @@ main { padding: 24px; }
 .sec-chevron { color: var(--text3); flex-shrink: 0; transition: transform .2s; }
 .sec-chevron.collapsed { transform: rotate(-90deg); }
 /* legado */
-.section-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 10px; padding: 5px 10px; background: var(--surface2); border-radius: 6px; display: inline-block; }
+.section-label { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); margin-bottom: 10px; padding: 5px 10px; background: var(--surface2); border-radius: 6px; display: inline-block; }
 
 /* EMPTY */
 .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
@@ -239,7 +239,7 @@ main { padding: 24px; }
 .modal.xwide { max-width: 920px; }
 .modal-header { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: sticky; top: 0; background: var(--surface); z-index: 1; flex-shrink: 0; }
 .modal-title { font-size: 15px; font-weight: 700; }
-.modal-subtitle { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.modal-subtitle { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
 .close-btn { width: 26px; height: 26px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; transition: all .15s; }
 .close-btn:hover { background: var(--border); color: var(--text); }
 .modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -247,11 +247,11 @@ main { padding: 24px; }
 
 .op-info-block { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
 .op-info-client { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
-.op-info-meta { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; display: flex; gap: 10px; flex-wrap: wrap; }
+.op-info-meta { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* FORM FIELDS */
 .form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-label { font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
+.form-label { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
 .form-input, .form-select, .form-textarea {
   padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--text); font-size: 13px;
@@ -306,8 +306,8 @@ main { padding: 24px; }
 .multi-file-wrap { display: flex; flex-direction: column; gap: 6px; }
 .multi-file-list { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .multi-file-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 5px 9px; }
-.multi-file-item-name { flex: 1; font-size: 11px; font-family: 'DM Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.multi-file-item-size { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.multi-file-item-name { flex: 1; font-size: 12px; font-family: 'DM Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi-file-item-size { font-size: 11px; color: var(--text3); white-space: nowrap; }
 .multi-file-remove { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 15px; padding: 0 2px; line-height: 1; transition: color .1s; flex-shrink: 0; }
 .multi-file-remove:hover { color: var(--red); }
 .multi-file-add-btn { display: block; padding: 8px 12px; background: var(--surface2); border: 1.5px dashed var(--border2); border-radius: var(--radius); font-size: 12px; color: var(--text2); cursor: pointer; transition: all .15s; text-align: center; width: 100%; font-family: 'Inter', sans-serif; }
@@ -334,17 +334,17 @@ main { padding: 24px; }
 /* DETAIL GRID */
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .detail-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; }
-.detail-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; color: var(--text3); margin-bottom: 3px; }
+.detail-label { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; color: var(--text3); margin-bottom: 3px; }
 .detail-value { font-size: 12px; font-weight: 600; word-break: break-word; overflow-wrap: break-word; }
 
 /* HISTORY */
 .history-item { display: flex; gap: 10px; }
-.history-ts { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); width: 80px; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
+.history-ts { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); width: 80px; flex-shrink: 0; padding-top: 1px; line-height: 1.4; }
 .history-text { font-size: 12px; color: var(--text2); line-height: 1.5; }
 .history-author { color: var(--text); font-weight: 600; }
 
 /* SKIP BADGE */
-.skip-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--teal-bg); border: 1px solid rgba(13,148,136,.2); border-radius: 20px; font-size: 10px; color: var(--teal); font-family: 'DM Mono', monospace; }
+.skip-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--teal-bg); border: 1px solid rgba(13,148,136,.2); border-radius: 20px; font-size: 11px; color: var(--teal); font-family: 'DM Mono', monospace; }
 
 /* SECTION DIVIDER */
 .form-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
@@ -354,7 +354,7 @@ main { padding: 24px; }
 @keyframes spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .badge.b-blue .badge-dot, .badge.b-yellow .badge-dot, .badge.b-orange .badge-dot, .badge.b-teal .badge-dot { animation: pulse 2s infinite; }
 @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-.api-status { font-size:11px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
+.api-status { font-size:12px; font-family:'DM Mono',monospace; min-height:13px; margin-top:3px; line-height:1.3; }
 
 /* SPLIT ACTION MODAL */
 /* NOTA: overlay usa display:grid;place-items:center - max-height sozinho não
@@ -413,11 +413,11 @@ main { padding: 24px; }
   flex-direction: column;
   gap: 4px;
 }
-.split-pane-header { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .9px; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-shrink: 0; }
+.split-pane-header { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .9px; color: var(--text3); padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px; flex-shrink: 0; }
 .ctx-sec { display: flex; flex-direction: column; gap: 7px; }
-.ctx-sec-title { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+.ctx-sec-title { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .7px; color: var(--text3); border-bottom: 1px solid var(--border); padding-bottom: 3px; }
 .ctx-row { display: flex; flex-direction: column; gap: 2px; }
-.ctx-label { font-size: 9px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .4px; color: var(--text3); }
+.ctx-label { font-size: 11px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .4px; color: var(--text3); }
 .ctx-value { font-size: 12px; color: var(--text); line-height: 1.4; }
 @media (max-width: 760px) {
   .modal.split { max-width: 98vw; height: 95vh; max-height: 95vh; }
@@ -457,7 +457,7 @@ main { padding: 24px; }
 .equip-dropdown-item:last-child { border-bottom: none; }
 .equip-dropdown-item:hover, .equip-dropdown-item.focused { background: var(--surface2); }
 .equip-dropdown-name { flex: 1; color: var(--text); font-size: 11.5px; }
-.equip-dropdown-code { font-size: 10px; color: var(--accent); background: var(--blue-bg); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
+.equip-dropdown-code { font-size: 11px; color: var(--accent); background: var(--blue-bg); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
 
 /* KANBAN */
 .kanban-wrap {
@@ -475,7 +475,7 @@ main { padding: 24px; }
   border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
   display: flex; justify-content: space-between; align-items: center; gap: 6px;
 }
-.kanban-col-name { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.kanban-col-name { font-size: 12px; font-weight: 700; white-space: nowrap; }
 .kanban-col-body {
   background: var(--surface2); border: 1px solid var(--border); border-top: none;
   border-radius: 0 0 var(--radius) var(--radius);
@@ -483,7 +483,7 @@ main { padding: 24px; }
   overflow-y: auto; max-height: 72vh;
 }
 .kanban-col-body .card { animation: none; }
-.kanban-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 14px 6px; }
+.kanban-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 14px 6px; }
 
 /* Kanban mode: layout travado no viewport, barra h-scroll sempre visível na base */
 body.kanban-mode { overflow: hidden; }
@@ -549,7 +549,7 @@ body.kanban-mode .kanban-col-body {
   display: block; margin-bottom: 26px;
 }
 .login-eyebrow {
-  font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+  font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
   color: rgba(255,255,255,.4); text-transform: uppercase; margin-bottom: 5px;
 }
 .login-title {
@@ -558,7 +558,7 @@ body.kanban-mode .kanban-col-body {
 }
 .login-field { display: flex; flex-direction: column; gap: 0; margin-bottom: 13px; }
 .login-label {
-  font-size: 11px; font-weight: 600; letter-spacing: .4px;
+  font-size: 12px; font-weight: 600; letter-spacing: .4px;
   color: rgba(255,255,255,.45); margin-bottom: 5px; padding-left: 6px;
 }
 .login-input-wrap {
@@ -600,7 +600,7 @@ body.kanban-mode .kanban-col-body {
 .login-btn:active:not(:disabled) { transform: scale(.98); }
 .login-btn:disabled { opacity: .48; cursor: default; }
 .login-footer-text {
-  margin-top: 26px; font-size: 11px; color: rgba(255,255,255,.22);
+  margin-top: 26px; font-size: 12px; color: rgba(255,255,255,.22);
   font-family: 'DM Mono', monospace; letter-spacing: .5px; text-align: center;
 }
 @media (max-width: 780px) {
@@ -645,7 +645,7 @@ body.kanban-mode .kanban-col-body {
   display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
 }
 .user-widget-name {
-  font-size: 9px; font-weight: 600; color: rgba(255,255,255,.7);
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,.7);
   white-space: nowrap; line-height: 1; text-align: center;
   max-width: 60px; overflow: hidden; text-overflow: ellipsis;
 }
@@ -665,7 +665,7 @@ body.kanban-mode .kanban-col-body {
   padding: 5px 11px; border-radius: 8px;
   border: 1px solid rgba(255,255,255,.15);
   background: rgba(255,255,255,.08); color: rgba(255,255,255,.7);
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
   cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px;
   white-space: nowrap;
 }
@@ -683,7 +683,7 @@ body.kanban-mode .kanban-col-body {
   .logo-text { font-size: 12px; }
   .logo-sub { display: none; }
   .view-switcher { gap: 2px; }
-  .view-btn { padding: 4px 8px; font-size: 11px; }
+  .view-btn { padding: 4px 8px; font-size: 12px; }
   .user-widget { gap: 6px; }
   .user-widget-name { display: none; }
   .tabs { padding: 0 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -734,7 +734,7 @@ body.kanban-mode .kanban-col-body {
     content: '← deslize →';
     display: block;
     text-align: center;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text3);
     padding: 4px 0 2px;
     letter-spacing: .4px;
@@ -778,7 +778,7 @@ body.kanban-mode .kanban-col-body {
   min-width: 18px; height: 18px;
   border-radius: 9px;
   background: #e53e3e; color: #fff;
-  font-size: 10px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
   display: none; align-items: center; justify-content: center;
   padding: 0 4px;
   border: 2px solid var(--bg);
@@ -863,12 +863,12 @@ body.kanban-mode .kanban-col-body {
 }
 .cp-user-info { flex: 1; min-width: 0; }
 .cp-user-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
-.cp-user-role { font-size: 10px; color: var(--text3); margin-top: 1px; font-weight: 500; }
+.cp-user-role { font-size: 11px; color: var(--text3); margin-top: 1px; font-weight: 500; }
 .cp-user-preview { font-size: 11.5px; color: var(--text3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
 .cp-unread {
   min-width: 20px; height: 20px; border-radius: 10px;
   background: #25D366; color: #fff;
-  font-size: 10px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
   padding: 0 6px; flex-shrink: 0;
   letter-spacing: -.2px;
@@ -896,7 +896,7 @@ body.kanban-mode .kanban-col-body {
   color: var(--text); border-bottom-left-radius: 3px;
   border: 1px solid var(--border);
 }
-.cp-msg-time { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.cp-msg-time { font-size: 11px; color: var(--text3); margin-top: 2px; }
 .cp-input-row {
   padding: 9px 10px; border-top: 1px solid var(--border);
   display: flex; gap: 7px; flex-shrink: 0;
@@ -993,7 +993,7 @@ body.kanban-mode .kanban-col-body {
 }
 .logs-table tr:nth-child(even) { background: var(--surface2); }
 .log-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
@@ -1135,8 +1135,8 @@ body.kanban-mode .kanban-col-body {
       <!-- Card 1: Nova OP -->
       <div class="lr-card lr-card1">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase">Nova OP</div>
-          <span style="font-size:11px;font-weight:700;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px">Comercial</span>
+          <div style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase">Nova OP</div>
+          <span style="font-size:12px;font-weight:700;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px">Comercial</span>
         </div>
         <div style="font-size:15px;font-weight:800;color:#0f1f35;margin-bottom:4px">OP #5842</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:10px">MULTISHAPE · Cliente XYZ</div>
@@ -1144,7 +1144,7 @@ body.kanban-mode .kanban-col-body {
           <div style="flex:1;height:4px;border-radius:2px;background:#f1f5f9;overflow:hidden">
             <div style="width:28%;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:2px"></div>
           </div>
-          <span style="font-size:11px;font-weight:600;color:#94a3b8">28%</span>
+          <span style="font-size:12px;font-weight:600;color:#94a3b8">28%</span>
         </div>
       </div>
 
@@ -1162,15 +1162,15 @@ body.kanban-mode .kanban-col-body {
         <div style="margin-top:10px;display:flex;gap:6px">
           <div style="flex:1;text-align:center;background:#fff7ed;border-radius:8px;padding:6px">
             <div style="font-size:13px;font-weight:800;color:#f59e0b">2d</div>
-            <div style="font-size:11px;color:#94a3b8">prazo</div>
+            <div style="font-size:12px;color:#94a3b8">prazo</div>
           </div>
           <div style="flex:1;text-align:center;background:#f0fdf4;border-radius:8px;padding:6px">
             <div style="font-size:13px;font-weight:800;color:#16a34a">NF</div>
-            <div style="font-size:11px;color:#94a3b8">emitida</div>
+            <div style="font-size:12px;color:#94a3b8">emitida</div>
           </div>
           <div style="flex:1;text-align:center;background:#eff6ff;border-radius:8px;padding:6px">
             <div style="font-size:13px;font-weight:800;color:#3b82f6">AWB</div>
-            <div style="font-size:11px;color:#94a3b8">rastreio</div>
+            <div style="font-size:12px;color:#94a3b8">rastreio</div>
           </div>
         </div>
       </div>
@@ -1179,7 +1179,7 @@ body.kanban-mode .kanban-col-body {
       <div class="lr-card lr-card3">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
-            <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Hoje</div>
+            <div style="font-size:12px;font-weight:700;letter-spacing:1.4px;color:#94a3b8;text-transform:uppercase;margin-bottom:4px">Hoje</div>
             <div style="display:flex;align-items:baseline;gap:8px">
               <span style="font-size:22px;font-weight:800;color:#0f1f35;line-height:1">18</span>
               <span style="font-size:12px;color:#94a3b8">OPs ativas</span>
@@ -1187,7 +1187,7 @@ body.kanban-mode .kanban-col-body {
           </div>
           <div style="text-align:right">
             <div style="font-size:12px;font-weight:700;color:#16a34a">▲ 12%</div>
-            <div style="font-size:11px;color:#94a3b8">vs ontem</div>
+            <div style="font-size:12px;color:#94a3b8">vs ontem</div>
           </div>
         </div>
         <div style="margin-top:10px;display:flex;gap:4px">
@@ -1196,9 +1196,9 @@ body.kanban-mode .kanban-col-body {
           <div style="flex:1;height:6px;border-radius:3px;background:#ef4444;opacity:.85"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:5px">
-          <span style="font-size:11px;color:#22c55e;font-weight:600">9 entregues</span>
-          <span style="font-size:11px;color:#f59e0b;font-weight:600">6 transit.</span>
-          <span style="font-size:11px;color:#ef4444;font-weight:600">3 atraso</span>
+          <span style="font-size:12px;color:#22c55e;font-weight:600">9 entregues</span>
+          <span style="font-size:12px;color:#f59e0b;font-weight:600">6 transit.</span>
+          <span style="font-size:12px;color:#ef4444;font-weight:600">3 atraso</span>
         </div>
       </div>
     </div>
@@ -1219,7 +1219,7 @@ body.kanban-mode .kanban-col-body {
   </div>
   <div class="header-center" id="headerCenter"></div>
   <div class="header-right">
-    <span id="save-indicator" style="font-size:11px;font-weight:600;letter-spacing:.3px;transition:opacity .3s;opacity:0;white-space:nowrap"></span>
+    <span id="save-indicator" style="font-size:12px;font-weight:600;letter-spacing:.3px;transition:opacity .3s;opacity:0;white-space:nowrap"></span>
     <button id="btnNovaOP" class="btn-nova-op" onclick="openNovaOP()" style="display:none">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nova OP
@@ -3030,12 +3030,12 @@ function renderEquipItem(e, i) {
       <span id="equip-total-${i}" style="font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);min-width:130px;text-align:right;flex-shrink:0">${lt}</span>
     </div>`}
     ${semValor ? '' : `<div style="display:flex;gap:5px;align-items:center">
-      <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
+      <span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;flex-shrink:0">Desconto</span>
       <input id="equip-desc-${i}" class="form-input" style="flex:1;font-size:12px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace"
         type="text" inputmode="decimal"
         value="${e.desconto ? brlFmtNum(e.desconto) : ''}" oninput="brlFormat(this);equipDiscount(${i},this.value)">
     </div>
-    <div id="equip-desc-warn-${i}" style="display:none;font-size:11px;color:var(--red);font-family:'DM Mono',monospace;padding:2px 0"></div>`}
+    <div id="equip-desc-warn-${i}" style="display:none;font-size:12px;color:var(--red);font-family:'DM Mono',monospace;padding:2px 0"></div>`}
     ${qrInputsHtml(e, i)}
   </div>`;
 }
@@ -3082,7 +3082,7 @@ function qrInputsHtml(e, i) {
   if (!n) return '';
   return qrListaDaLinha(e, n).map((val, k) => `
     <div style="display:flex;gap:6px;align-items:center;background:var(--blue-bg);padding:5px 7px;border-radius:6px">
-      <span style="font-size:11px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code${n > 1 ? ' ' + (k+1) : ''}</span>
+      <span style="font-size:12px;color:var(--accent);font-family:'DM Mono',monospace;font-weight:700;flex-shrink:0;display:flex;align-items:center;gap:3px">${icon('qr-code',13,'color:var(--accent)')} QR Code${n > 1 ? ' ' + (k+1) : ''}</span>
       <input class="form-input" style="flex:1;font-size:12px;padding:4px 7px;min-width:0;font-family:'DM Mono',monospace;border-color:var(--accent)${e.qrLocked?';background:var(--surface2);pointer-events:none':''}"
         type="text" ${e.qrLocked?'readonly':''}
         value="${val ? String(val).replace(/"/g,'&quot;') : ''}" oninput="equipQrcode(${i},${k},this.value)">
@@ -3580,7 +3580,7 @@ function fileLinkHtml(f, compact = false) {
     ${thumb}
     <div style="flex:1;min-width:0">
       <div style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</div>
-      ${kb ? `<div style="font-size:11px;color:var(--text3)">${kb}</div>` : ''}
+      ${kb ? `<div style="font-size:12px;color:var(--text3)">${kb}</div>` : ''}
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       ${temArq ? `<button type="button" style="${btn};color:var(--accent)" ${alvo} data-filename="${safeName}" ${canLight ? 'data-lightbox="1"' : ''} onclick="abrirAnexo(this)">${icon('eye',12,'color:var(--accent)')} Visualizar</button>` : ''}
@@ -4254,11 +4254,11 @@ function rastStepperHtml(vm) {
 }
 
 function rastPrevBadge(vm) {
-  if (vm.entregue) return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 8px;border-radius:20px">${icon('check',10,'color:var(--green)')} Entregue</span>`;
-  if (vm.atrasada)  return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 8px;border-radius:20px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada</span>`;
+  if (vm.entregue) return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 8px;border-radius:20px">${icon('check',10,'color:var(--green)')} Entregue</span>`;
+  if (vm.atrasada)  return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 8px;border-radius:20px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada</span>`;
   if (vm.previsao || vm.op.pedidoVenda?.dataPrevista) {
     const txt = vm.previsao ? rastFmtTs(vm.previsao).split(' ')[0] : vm.op.pedidoVenda.dataPrevista;
-    return `<span style="font-size:11px;color:var(--text3)">prev. ${txt}</span>`;
+    return `<span style="font-size:12px;color:var(--text3)">prev. ${txt}</span>`;
   }
   return '';
 }
@@ -4267,7 +4267,7 @@ function rastCardHtml(vm) {
   const op = vm.op;
   const cliente = op.cliente || op.pedidoVenda?.cliente || '—';
   const codigo  = op.rastreio?.awb ? `AWB ${op.rastreio.awb}` : (op.stepData?.aguard_emissao?.numeroNF ? `NF ${op.stepData.aguard_emissao.numeroNF}` : '');
-  const live    = !vm.entregue && vm.r && !vm._stale ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:rastPulse 1.6s ease-in-out infinite"></span>ao vivo</span>` : '';
+  const live    = !vm.entregue && vm.r && !vm._stale ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:rastPulse 1.6s ease-in-out infinite"></span>ao vivo</span>` : '';
   const loadBtn = vm._rastreioLoading || op._rastreioLoading
     ? `<span style="font-size:12px;color:var(--text3)">atualizando…</span>`
     : (vm.rastreavel ? `<button onclick="atualizarRastreio(${op.id})" title="Atualizar" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:4px">${icon('refresh-cw',11)} Atualizar</button>` : '');
@@ -4804,12 +4804,12 @@ function opCardEntrega(o, opts = {}) {
   return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid ${topo};border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
       <span onclick="${onclick}" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--text)">OP ${numOp(o)}</span>
-      <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
+      <span style="font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};white-space:nowrap">${st.label}</span>
     </div>
     <div style="font-size:12px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.cliente)}</div>
-    ${eq?`<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>`:''}
-    <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(destinoOP(o).cidade)}/${esc(destinoOP(o).uf)}</div>
-    <span class="sema ${sm.cls}" style="font-size:11px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'—'}</span>
+    ${eq?`<div style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>`:''}
+    <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(destinoOP(o).cidade)}/${esc(destinoOP(o).uf)}</div>
+    <span class="sema ${sm.cls}" style="font-size:12px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'—'}</span>
     ${opts.acaoHtml || ''}
   </div>`;
 }
@@ -4827,19 +4827,19 @@ function rotaCard(r) {
       return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:8px 0;font-size:12px;cursor:pointer">
         <span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}
         <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${esc(p.cliente)}</div>
-        ${p.endereco?`<div style="color:var(--text3);font-size:11px">${esc(p.endereco)}</div>`:''}
+        ${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}
         ${pb?`<span class="sema ${pb.cls}" style="font-size:12px;font-weight:700;margin-top:5px">PRAZO: ${pb.date}</span>`:''}</div>`;
     }
     return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:12px">
       <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}
-      ${p.endereco?`<div style="color:var(--text3);font-size:11px">${esc(p.endereco)}</div>`:''}</div>`;
+      ${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}</div>`;
   }).join('') || `<div style="font-size:12px;color:var(--text3);padding:7px 0">Sem paradas</div>`;
   return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
       <div style="font-weight:700;color:var(--text);font-size:13px;display:flex;align-items:center;gap:6px;min-width:0"><span style="flex-shrink:0">${icon('truck',14,'color:var(--accent)')}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cab}</span></div>
       <span class="tab-count">${entregas + coletas}</span>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${entregas} entrega(s) · ${coletas} coleta(s)</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:4px">${entregas} entrega(s) · ${coletas} coleta(s)</div>
     ${linhas}
     <div style="display:flex;gap:8px;margin-top:8px">
       <button onclick="abrirRotaMaps(${r.id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;background:none;border:1px solid var(--accent);border-radius:6px;padding:7px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;font-family:inherit">${icon('map-pin',13,'color:var(--accent)')} Ver no mapa</button>
@@ -4870,8 +4870,8 @@ function renderConstrutorRota() {
       <span style="width:14px;height:2px;background:currentColor;border-radius:1px"></span></span>`;
   const paradasHtml = (r.paradas||[]).map((p,i) => {
     const corpo = p.tipo==='entregar'
-      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}<div style="color:var(--text3);font-size:11px">OP ${p.opNum||p.opId} · ${esc(p.cliente)}${p.endereco?' · '+esc(p.endereco):''}</div>`
-      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}${p.endereco?`<div style="color:var(--text3);font-size:11px">${esc(p.endereco)}</div>`:''}`;
+      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}<div style="color:var(--text3);font-size:12px">OP ${p.opNum||p.opId} · ${esc(p.cliente)}${p.endereco?' · '+esc(p.endereco):''}</div>`
+      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}`;
     return `<div draggable="true" data-pidx="${i}"
       ondragstart="paradaDragStart(${i},event)" ondragend="paradaDragEnd(event)"
       ondragover="paradaDragOver(${i},event)" ondrop="paradaDrop(${i},event)"
@@ -4913,7 +4913,7 @@ function renderConstrutorRota() {
               <input id="col-num" class="form-input" placeholder="Número" autocomplete="off">
             </div>
             <input id="col-endereco" class="form-input" placeholder="Endereço (preenchido pelo CEP)" style="font-size:12px;color:var(--text2)">
-            <div id="col-cepstatus" style="font-size:11px;color:var(--text3);min-height:12px"></div>
+            <div id="col-cepstatus" style="font-size:12px;color:var(--text3);min-height:12px"></div>
             <div style="display:flex;gap:8px;justify-content:flex-end">
               <button onclick="cancelColeta()" class="btn-cancel" style="padding:6px 12px;font-size:12px">Cancelar</button>
               <button onclick="confirmarColeta()" class="btn-primary" style="padding:6px 12px;font-size:12px">Adicionar</button>
@@ -5073,7 +5073,7 @@ function renderCancelados(el) {
     return `<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <div style="font-weight:700;color:var(--text);font-size:13px">OP ${numOp(op)} <span style="color:var(--text3);font-weight:400">· ${esc(op.cliente)}</span></div>
-        <span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
+        <span style="font-size:12px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
       </div>
       <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'—'} · por ${c.by||'—'} · estava em: ${etapa}</div>
       ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${esc(c.motivo)}</div>` : ''}
@@ -5426,7 +5426,7 @@ function renderTodas(el) {
     return `<div class="kanban-col">
       <div class="kanban-col-head">
         <span class="kanban-col-name">${s?.label||status}</span>
-        <span class="badge ${badgeCls}" style="font-size:11px;padding:1px 6px">${colOps.length}</span>
+        <span class="badge ${badgeCls}" style="font-size:12px;padding:1px 6px">${colOps.length}</span>
       </div>
       <div class="kanban-col-body">
         ${colOps.length ? colOps.map((op,i)=>card(op,false,i,true)).join('') : `<div class="kanban-empty">${icon('package',18,'color:var(--text3);opacity:.5')}<div style="margin-top:4px">Nenhuma OP</div></div>`}
@@ -5534,12 +5534,12 @@ function card(op, inQueue, animIdx, infoOnly = false) {
     <div class="card-top">
       <div style="min-width:0">
         <div class="card-op">OP ${numOp(op).split(' - ')[0]}</div>
-        ${numOp(op).includes(' - ') ? `<div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(numOp(op).split(' - ')[1])}</div>` : ''}
+        ${numOp(op).includes(' - ') ? `<div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(numOp(op).split(' - ')[1])}</div>` : ''}
         <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${fmtDate(op.dataAbertura)}</div>
         ${op.vendedorCanal||op.vendedorName ? `<div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(op.vendedorCanal||op.vendedorName)}</div>` : ''}
       </div>
       <div class="card-flags">
-        ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
+        ${isEntregue ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 6px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>` : ''}
         ${flagsHtml(op)}
       </div>
     </div>
@@ -5592,12 +5592,15 @@ function buildContextPanel(op) {
   if (pv) {
     // Máquinas primeiro; clones de simples faturamento (TES 624) num bloco à parte.
     const _linhaEq = e => {
-      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>` : '';
+      const tesBadge = !e.tes ? ''
+        : e.simplesFat
+          ? `<span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">TES ${esc(e.tes)}</span>`
+          : `<span style="display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;margin-left:4px">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>`;
       const details = [e.qty>1&&`Qtd: ${e.qty}`, e.numSerie&&`Série: ${e.numSerie}`, e.lote&&`Lote: ${e.lote}`].filter(Boolean);
       return `<div style="padding:3px 0;border-bottom:1px solid var(--border)${e.simplesFat?';border-left:2px solid var(--border);padding-left:7px;background:var(--surface2)':''}">
         <div style="font-size:12px;font-weight:500">${esc(e.name)}</div>
         ${tesBadge}
-        ${details.map(d=>`<div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
+        ${details.map(d=>`<div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${d}</div>`).join('')}
       </div>`;
     };
     const _eqReais  = (pv.equipamentos||[]).filter(e => !e.simplesFat);
@@ -5788,7 +5791,7 @@ function openActionModal(opId, mode) {
   if (op.status === 'aguard_emissao' && op.stepData?.aguard_despacho_reject && mode === 'advance') {
     const nfData = op.stepData.aguard_nf || {};
     const emData = op.stepData.aguard_emissao || {};
-    const sh2 = l => `<div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border);padding:8px 0 2px;margin-top:2px">${l}</div>`;
+    const sh2 = l => `<div style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-top:1px solid var(--border);padding:8px 0 2px;margin-top:2px">${l}</div>`;
     fieldsHtml = `
       ${sh2('Dados de Despacho - verificar e corrigir')}
       <div class="form-group">
@@ -5869,7 +5872,7 @@ function openActionModal(opId, mode) {
             <span class="badge ${stepBadge(op.status, op).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status, op).label}</span>
             ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:11px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:12px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
           ${buildInfoSections(op, op.id)}
@@ -5924,6 +5927,110 @@ function infoAcc(title, iconName, contentHtml, open = false) {
 // SHARED INFO SECTIONS (accordion) - used by info modal & action modal left panel
 // ═══════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════
+// BLOCO "SUA TAREFA" — o que este setor precisa fazer nesta OP, no topo
+// ═══════════════════════════════════════════════════════════════════
+// O detalhe da OP mostrava tudo com o mesmo peso, então o dado que importa
+// para a tarefa de quem abriu ficava disperso: o fiscal tinha que garimpar
+// quais itens eram TES 624 no meio da lista de equipamentos, e o financeiro
+// procurar o valor da entrada entre os campos de pagamento.
+// Aqui cada setor recebe, em destaque e já resolvido, só o que precisa agir.
+
+function _caixaTarefa(titulo, subtitulo, corpo, acaoHtml) {
+  return `<div style="border:1px solid var(--accent);border-left:4px solid var(--accent);background:var(--blue-bg);border-radius:var(--radius);padding:12px 14px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:800;color:var(--text)">${titulo}</div>
+        ${subtitulo ? `<div style="font-size:12px;color:var(--text2);margin-top:2px">${subtitulo}</div>` : ''}
+      </div>
+      ${acaoHtml || ''}
+    </div>
+    ${corpo ? `<div style="margin-top:10px">${corpo}</div>` : ''}
+  </div>`;
+}
+
+/** Linha de item destacada dentro da caixa de tarefa. */
+function _itemTarefa(nome, detalhe) {
+  return `<div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--border)">
+    <span style="font-size:12px;font-weight:600;color:var(--text)">${esc(nome)}</span>
+    ${detalhe ? `<span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap">${esc(detalhe)}</span>` : ''}
+  </div>`;
+}
+
+function blocoTarefaSetor(op, opId) {
+  const view = getActiveView();
+  if (!view || op.cancelada) return '';
+  const role = view.role;
+  const sd   = op.stepData || {};
+  const st   = op.status;
+  const btn  = (rotulo, onclick) => `<button class="btn-primary" style="font-size:12px;padding:7px 14px;white-space:nowrap;flex-shrink:0" onclick="${onclick}">${rotulo}</button>`;
+
+  // FISCAL · Simples Faturamento pendente — mostra QUAIS itens exigem
+  if (role === 'fiscal' && st === 'aguard_financeiro' && sfNeeded(op) && !sfDone(op)) {
+    const itens = (op.pedidoVenda?.equipamentos || []).filter(e => String(e.tes || '').trim() === '624');
+    const falta = finNeeded(op) && !finDone(op);
+    return _caixaTarefa(
+      'Lançar o Simples Faturamento',
+      falta ? 'O financeiro ainda não aprovou — a OP só avança quando os dois estiverem prontos.'
+            : 'O financeiro já aprovou. Falta só isto para a OP seguir para a logística.',
+      `<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:2px">${itens.length} ${itens.length > 1 ? 'itens exigem' : 'item exige'} · TES 624</div>`
+        + itens.map(e => _itemTarefa(e.name, e.qty > 1 ? '×' + e.qty : '')).join(''),
+      btn('Lançar agora', `openSimplesFaturamento(${opId})`));
+  }
+
+  // FISCAL · emissão da NF
+  if (role === 'fiscal' && st === 'aguard_emissao') {
+    const nf = sd.aguard_nf || {};
+    const corpo = [
+      nf.enderecoEntrega && _itemTarefa('Endereço de entrega', ''),
+      nf.enderecoEntrega && `<div style="font-size:12px;color:var(--text2);padding-bottom:5px">${esc(nf.enderecoEntrega)}</div>`,
+      (nf.volumes || nf.peso) && _itemTarefa('Volumes / peso', [nf.volumes && nf.volumes + ' vol.', nf.peso && nf.peso + ' kg'].filter(Boolean).join(' · ')),
+      nf.tecnico && _itemTarefa('Envio', nf.tecnico),
+    ].filter(Boolean).join('');
+    const reemissao = sd.aguard_despacho_reject;
+    return _caixaTarefa('Emitir a nota fiscal',
+      reemissao ? 'Re-emissão solicitada pela logística — confira os dados corrigidos abaixo.'
+                : 'A logística já enviou os dados de transporte.',
+      (reemissao ? `<div style="font-size:12px;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);border-radius:6px;padding:8px 10px;margin-bottom:8px;white-space:pre-line">${esc(reemissao.dadosCorrigidos || reemissao.motivoReemissao || '')}</div>` : '') + corpo,
+      btn('Confirmar emissão', `openActionModal(${opId},'advance')`));
+  }
+
+  // FINANCEIRO · validação do pagamento
+  if (role === 'financeiro' && st === 'aguard_financeiro' && finNeeded(op) && !finDone(op)) {
+    const pv = op.pedidoVenda || {};
+    return _caixaTarefa('Validar o pagamento da entrada',
+      sfNeeded(op) && !sfDone(op) ? 'O fiscal ainda precisa lançar o Simples Faturamento — a OP só avança com os dois.' : '',
+      _itemTarefa('Valor da entrada', pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir')
+        + _itemTarefa('Valor total', fmtBRL(pv.valorLiquido || pv.valorTotal))
+        + (pv.detalhesPagamento ? `<div style="font-size:12px;color:var(--text2);padding-top:6px;white-space:pre-line">${esc(pv.detalhesPagamento)}</div>` : ''),
+      btn('Confirmar pagamento', `openActionModal(${opId},'advance')`));
+  }
+
+  // LOGÍSTICA · dados de transporte, despacho e entrega
+  if (role === 'logistica' && st === 'aguard_nf') {
+    return _caixaTarefa('Enviar os dados de transporte',
+      'Endereço, séries, transportadora, volumes e peso — é o que o fiscal usa para emitir a NF.', '',
+      btn('Preencher', `openActionModal(${opId},'advance')`));
+  }
+  if (role === 'logistica' && st === 'aguard_despacho') {
+    const e = sd.aguard_emissao || {};
+    return _caixaTarefa('Conferir a NF e despachar',
+      'Confira a nota antes de liberar. Ao despachar, as máquinas vão para o Sistema QR.',
+      _itemTarefa('Nota fiscal', e.numeroNF ? 'nº ' + e.numeroNF : '—')
+        + (e.dataEmissao ? _itemTarefa('Emitida em', fmtDate(e.dataEmissao)) : ''),
+      btn('Confirmar e despachar', `openActionModal(${opId},'advance')`));
+  }
+  if (role === 'logistica' && st === 'transito') {
+    const r = op.rastreio;
+    return _caixaTarefa('Confirmar a entrega ao cliente',
+      r ? `Último evento: ${esc(r.statusLabel || '—')}` : 'Anexe o comprovante quando a entrega for confirmada.',
+      r?.previsao ? _itemTarefa('Previsão da transportadora', String(r.previsao).slice(0, 10).split('-').reverse().join('/')) : '',
+      btn('Confirmar entrega', `openActionModal(${opId},'advance')`));
+  }
+
+  return '';
+}
+
 function buildInfoSections(op, opId) {
   const pv = op.pedidoVenda;
   const sd = op.stepData || {};
@@ -5932,6 +6039,10 @@ function buildInfoSections(op, opId) {
     : '';
 
   const sections = [];
+
+  // Primeiro de tudo: o que ESTE setor precisa fazer nesta OP.
+  const _tarefa = blocoTarefaSetor(op, opId);
+  if (_tarefa) sections.push(_tarefa);
 
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
@@ -5944,7 +6055,10 @@ function buildInfoSections(op, opId) {
       const valor = e.simplesFat ? '<span style="color:var(--text3)">Sem valor</span>'
                   : e.gratuito ? '<span style="color:var(--green);font-weight:700">Gratuito</span>'
                   : e.valorUnit ? fmtBRL(Math.max(0,(parseInt(e.qty)||1)*(parseFloat(e.valorUnit)||0)-(parseFloat(e.desconto)||0))) : '';
-      const tesBadge = e.tes ? `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:11px;font-weight:700;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>` : '';
+      const tesBadge = !e.tes ? ''
+        : e.simplesFat
+          ? `<span style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">TES ${esc(e.tes)}</span>`
+          : `<span style="display:inline-flex;align-items:center;align-self:flex-start;font-size:12px;font-weight:600;color:var(--orange);background:var(--orange-bg);border:1px solid rgba(234,88,12,.2);padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace">TES ${esc(e.tes)}${e.tesDesc?' · '+esc(e.tesDesc):''}</span>`;
       const _qrs = qrListaDaLinha(e).filter(Boolean); // 1 QR por máquina
       const details = [valor, _qrs.length&&`QR ${_qrs.join(', ')}`, e.numSerie&&`Série ${e.numSerie}`, e.lote&&`Lote ${e.lote}`].filter(Boolean);
       return `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)${e.simplesFat?';border-left:2px solid var(--border);padding-left:7px;background:var(--surface2)':''}">
@@ -5968,7 +6082,7 @@ function buildInfoSections(op, opId) {
         ${dItem('Analista', pv.analista)}
         ${dItem('Contrato', pv.numContrato)}
       </div>
-      <div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:.6px">Equipamentos</div>
+      <div style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);margin-bottom:5px;letter-spacing:.6px">Equipamentos</div>
       <div style="margin-bottom:10px">${equipLines}</div>`;
     if (pv.valorLiquido || pv.valorTotal) {
       pvHtml += `<div class="detail-grid" style="margin-bottom:8px">
@@ -6011,7 +6125,7 @@ function buildInfoSections(op, opId) {
     </div>
     ${sd.aberta?.comprovanteEntrada?.length ? `
       <div style="margin-top:10px">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:5px">Comprovante da Entrada</div>
+        <div style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--text3);letter-spacing:.5px;margin-bottom:5px">Comprovante da Entrada</div>
         ${fileLinksHtml(sd.aberta.comprovanteEntrada)}
       </div>` : ''}`;
     sections.push(infoAcc('Pedido de Venda', 'file-text', pvHtml, true));
@@ -6067,7 +6181,7 @@ function buildInfoSections(op, opId) {
     if (sd.aguard_despacho_reject) {
       const dr = sd.aguard_despacho_reject;
       entHtml += `<div style="background:var(--red-bg);border:1px solid rgba(220,38,38,.2);border-radius:var(--radius);padding:8px;margin-top:8px">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);margin-bottom:5px">Re-emissão Solicitada</div>
+        <div style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);margin-bottom:5px">Re-emissão Solicitada</div>
         ${dr.motivoReemissao?`<div style="font-size:12px;margin-bottom:4px"><strong>Motivo:</strong> ${esc(dr.motivoReemissao)}</div>`:''}
         ${dr.dadosCorrigidos?`<div style="font-size:12px"><strong>Dados corrigidos:</strong> ${esc(dr.dadosCorrigidos).replace(/\n/g,'<br>')}</div>`:''}
       </div>`;
@@ -6092,7 +6206,7 @@ function buildInfoSections(op, opId) {
   }
 
   // ── SIMPLES FATURAMENTO (fiscal, side-channel) ────────────────────
-  if (sd.aguard_financeiro?.aprovado && !sd.simples_faturamento) {
+  if (sd.aguard_financeiro?.aprovado && !sd.simples_faturamento && getActiveView()?.role !== 'fiscal') {
     sections.push(`<div style="background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.35);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
       ${icon('alert-triangle',14,'color:var(--orange);flex-shrink:0;margin-top:1px')}
       <div style="font-size:12px;color:var(--text);line-height:1.5"><strong>Aguardando Simples Faturamento</strong><br><span style="color:var(--text2)">O Financeiro já aprovou. O Fiscal precisa lançar o Simples Faturamento para a OP avançar.</span></div>
@@ -6123,8 +6237,8 @@ function buildInfoSections(op, opId) {
       if (prevDate) {
         const diasDiff = Math.ceil((entregaDate - prevDate) / 86400000);
         prazoBadge = diasDiff <= 0
-          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('check',10,'color:var(--green)')} No prazo</span>`
-          : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada ${diasDiff}d</span>`;
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('check',10,'color:var(--green)')} No prazo</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--red);background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.28);padding:1px 7px;border-radius:20px;margin-left:6px">${icon('alert-triangle',10,'color:var(--red)')} Atrasada ${diasDiff}d</span>`;
       }
     }
 
@@ -6135,7 +6249,7 @@ function buildInfoSections(op, opId) {
 
     if (d.motivoAtraso) {
       confHtml += `<div style="margin-top:8px;padding:8px 11px;border:1px solid rgba(220,38,38,.22);border-radius:var(--radius);background:rgba(220,38,38,.04)">
-        <div style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);letter-spacing:.5px;margin-bottom:4px">Motivo do Atraso</div>
+        <div style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;color:var(--red);letter-spacing:.5px;margin-bottom:4px">Motivo do Atraso</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.5">${d.motivoAtraso}</div>
       </div>`;
     }
@@ -6147,7 +6261,7 @@ function buildInfoSections(op, opId) {
     if (d.fotos?.length) {
       confHtml += `<div style="margin-top:${d.rastreioPod ? 0 : 8}px">${fileLinksHtml(d.fotos)}</div>`;
     } else if (!d.rastreioPod && op.status === 'entregue') {
-      confHtml += `<div style="margin-top:8px;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);font-style:italic">
+      confHtml += `<div style="margin-top:8px;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text3);font-style:italic">
         ${icon('image',11,'color:var(--text3)')} Nenhuma foto anexada
       </div>`;
     }
@@ -6353,10 +6467,10 @@ function openInfoModal(opId) {
   const statusHeader = `
     <div class="op-info-block" style="margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap">
-        ${op.cancelada?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.3);padding:2px 9px;border-radius:20px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> CANCELADA</span>`:''}
+        ${op.cancelada?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.3);padding:2px 9px;border-radius:20px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> CANCELADA</span>`:''}
         <span class="badge ${badge.cls}"><span class="badge-dot" style="background:currentColor"></span>${badge.label}</span>
         ${op.status!=='entregue'&&!op.cancelada?`<span class="sema ${sem.cls}">${sem.label}</span>`:''}
-        ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
+        ${op.status==='entregue'?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:20px">${icon('check-circle',10,'color:var(--green)')} Concluída</span>`:''}
       </div>
       <div class="op-info-meta">
         <span>${metaLinha}</span>
@@ -6501,7 +6615,7 @@ function openSimplesFaturamento(opId) {
             <span class="badge ${stepBadge(op.status, op).cls}"><span class="badge-dot" style="background:currentColor"></span>${stepBadge(op.status, op).label}</span>
             ${op.status!=='entregue'?`<span class="sema ${semaforo(op).cls}">${semaforo(op).label}</span>`:''}
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:11px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:12px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
           ${buildInfoSections(op, opId)}
@@ -6812,7 +6926,7 @@ function showLightbox(src, name) {
       ${closeBtn}
       <div style="color:#fff;font-size:12px;font-family:'DM Mono',monospace;margin-bottom:10px;opacity:.65">${safeName}</div>
       <img src="${safeSrc}" alt="${safeName}" style="max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.6);cursor:zoom-out" onclick="document.getElementById('img-lightbox').style.display='none'">
-      <div style="color:#fff;font-size:11px;margin-top:10px;opacity:.45">Clique na imagem ou Esc para fechar</div>`;
+      <div style="color:#fff;font-size:12px;margin-top:10px;opacity:.45">Clique na imagem ou Esc para fechar</div>`;
   }
   lb.style.display = 'flex';
 }
@@ -6906,7 +7020,7 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Número</label>
               <input class="form-input" id="nova-endNumero"></div>
           </div>
-          <div class="form-group"><label class="form-label">Complemento <span style="font-size:11px;color:var(--text3)">(apto, bloco, sala...)</span></label>
+          <div class="form-group"><label class="form-label">Complemento <span style="font-size:12px;color:var(--text3)">(apto, bloco, sala...)</span></label>
             <input class="form-input" id="nova-endComplemento" placeholder="Ex: Apto 165, Bloco B"></div>
           <div class="form-row">
             <div class="form-group"><label class="form-label">Bairro</label>
@@ -6932,11 +7046,11 @@ function openNovaOP() {
           ${equipListHtml()}
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:6px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius)">
             <div style="display:flex;align-items:center;gap:7px">
-              <span style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Desconto total (R$)</span>
+              <span style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Desconto total (R$)</span>
               <input class="form-input" id="nova-desconto" type="text" readonly title="Soma dos descontos por equipamento"
                 style="width:130px;font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;background:var(--surface2)"></div>
             <div style="display:flex;align-items:center;gap:7px">
-              <span style="font-size:11px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Valor Total</span>
+              <span style="font-size:12px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Valor Total</span>
               <span id="nova-valor-total-display" style="font-size:15px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green);min-width:110px;text-align:right">-</span>
             </div>
           </div>
@@ -6973,7 +7087,7 @@ function openNovaOP() {
             <div class="form-group"><label class="form-label">Valor da Entrada (R$)</label>
               <input class="form-input" id="nova-valorEntrada" type="text" inputmode="decimal"
                 oninput="brlFormat(this);limitarEntrada(this)" style="font-family:'DM Mono',monospace">
-              <div style="font-size:11px;color:var(--text3);margin-top:3px">Máx: valor total com desconto</div></div>
+              <div style="font-size:12px;color:var(--text3);margin-top:3px">Máx: valor total com desconto</div></div>
             <div class="form-group">
               <div class="multi-file-wrap">
                 <div class="multi-file-list" id="mfl-comprovanteEntrada"></div>
@@ -8521,7 +8635,7 @@ function renderAdminUsers() {
     const label = on ? 'Chat liberado' : 'Sem acesso';
     return `<div class="toggle-row">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'(sem nome)')}${isMe?' <span style="font-size:11px;font-weight:400;color:var(--text3)">(você)</span>':''}</div>
+        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||'(sem nome)')}${isMe?' <span style="font-size:12px;font-weight:400;color:var(--text3)">(você)</span>':''}</div>
         <div style="font-size:12px;color:var(--text3);margin-top:1px">${sectorLabel(u.sector_id)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -9038,7 +9152,7 @@ function _chatRenderUserList() {
         <div class="cp-user-preview">${preview}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        ${timeStr ? `<span style="font-size:11px;color:var(--text3)">${timeStr}</span>` : ''}
+        ${timeStr ? `<span style="font-size:12px;color:var(--text3)">${timeStr}</span>` : ''}
         ${unread > 0 ? `<span class="cp-unread">${unread > 99 ? '99+' : unread}</span>` : ''}
       </div>
     </div>`;
@@ -9128,7 +9242,7 @@ function _chatRenderConv() {
     let out = '';
     if (dStr !== lastDate) {
       lastDate = dStr;
-      out += `<div style="text-align:center;margin:8px 0"><span style="font-size:11px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:8px">${dStr}</span></div>`;
+      out += `<div style="text-align:center;margin:8px 0"><span style="font-size:12px;font-weight:600;color:var(--text3);background:var(--surface2);padding:2px 8px;border-radius:8px">${dStr}</span></div>`;
     }
     out += `<div style="display:flex;flex-direction:column;align-items:${isMe?'flex-end':'flex-start'}">
       <div class="cp-msg ${isMe?'me':'other'}">${esc(m.content)}</div>

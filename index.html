@@ -1734,6 +1734,13 @@ const COLOR_MAP = { blue:'b-blue', yellow:'b-yellow', orange:'b-orange', purple:
 // ── Porta dupla no estágio aguard_financeiro ────────────────────────
 // Aprovação do financeiro só é exigida quando há entrada ("com entrada").
 // Simples Faturamento só é exigido quando algum item tem TES = 624.
+// Bloquear OP e prerrogativa de gestor e ADM. O financeiro aprova ou nao
+// aprova o pagamento; travar a OP e decisao de quem manda no fluxo.
+// Usa o setor REAL (getUser), nao o simulado: o my_sector() do Postgres, que
+// o trigger consulta, tambem le o real -- se divergissem, o botao apareceria
+// para quem o banco vai recusar.
+function podeBloquear() { const r = getUser()?.role; return r === 'gestor' || r === 'adm'; }
+
 function finNeeded(op) { return op.entrada === 'pendente'; }
 function finDone(op)   { return !finNeeded(op) || op.stepData?.aguard_financeiro?.aprovado === true; }
 function sfNeeded(op)  { return (op.pedidoVenda?.equipamentos || []).some(e => String(e.tes || '').trim() === '624'); }
@@ -2854,6 +2861,10 @@ function rejectOP(opId, formData) {
   const step = STEPS[op.status];
   if (!step) { console.warn(`[rejectOP] status "${op.status}" não existe em STEPS — ignorado`); return; }
   if (!step.getReject) return;
+  if (op.status === 'aguard_financeiro' && !podeBloquear()) {
+    showToast('Somente gestor e ADM podem bloquear uma OP', 'err');
+    return;
+  }
   const _snap = JSON.parse(JSON.stringify(op));
   // Defesa: bloquear/rejeitar limpa a aprovação do financeiro, para a OP não
   // voltar "aprovada" ao ser desbloqueada.
@@ -5524,7 +5535,7 @@ function card(op, inQueue, animIdx, infoOnly = false) {
   } else if (canAct) {
     footer = `<div class="card-footer">
       <button class="btn-action" onclick="event.stopPropagation();openActionModal(${op.id},'advance')">${step.actionLabel}</button>
-      ${step.getReject ? `<button class="btn-action danger" onclick="event.stopPropagation();openActionModal(${op.id},'reject')">${step.rejectLabel||'Bloquear'}</button>` : ''}
+      ${step.getReject && (op.status !== 'aguard_financeiro' || podeBloquear()) ? `<button class="btn-action danger" onclick="event.stopPropagation();openActionModal(${op.id},'reject')">${step.rejectLabel||'Bloquear'}</button>` : ''}
     </div>`;
   }
 
@@ -6508,6 +6519,10 @@ function openInfoModal(opId) {
       ? `<button onclick="openCancelarOP(${opId})" style="margin-right:auto;display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--red);font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${banIcon} Cancelar OP</button>`
       : '');
 
+  const bloquearBtn = (!op.cancelada && op.status === 'aguard_financeiro' && podeBloquear())
+    ? `<button onclick="openActionModal(${opId},'reject')" style="display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--red);font-weight:600;padding:8px 14px;border-radius:var(--radius);font-size:12px;cursor:pointer;font-family:inherit">${icon('alert-triangle',13)} Bloquear OP</button>`
+    : '';
+
   const _im = document.getElementById('modal');
   _im.classList.remove('split');
   _im.style.height = '';
@@ -6522,7 +6537,7 @@ function openInfoModal(opId) {
       ${statusHeader}
       <div style="display:flex;flex-direction:column;gap:6px">${sectionsHtml}</div>
     </div>
-    <div class="modal-footer">${cancelarBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
+    <div class="modal-footer">${cancelarBtn}${bloquearBtn}${anexarFotosBtn}<button class="btn-cancel" onclick="closeModal()">Fechar</button></div>`;
 
   document.getElementById('overlay').classList.add('open');
 }

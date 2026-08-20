@@ -1960,7 +1960,7 @@ async function loadOps() {
   // Repair: OPs presas em aguard_financeiro sem nenhum gate necessário (sem entrada + sem TES 624)
   // Pode ocorrer em OPs criadas antes do fix de 2026-08-10 ou por bug de fluxo.
   ops.filter(o => o.status === 'aguard_financeiro' && !finNeeded(o) && !sfNeeded(o)).forEach(op => {
-    op.history.push({ step: 'aguard_financeiro', actor: 'sistema', actorName: 'Sistema', ts: nowTs(), action: 'Avançado automaticamente — sem simples faturamento e sem entrada', note: '' });
+    op.history.push({ step: 'aguard_financeiro', actor: 'sistema', actorName: 'Sistema', ts: nowTs(), action: 'Avançado automaticamente: sem simples faturamento e sem entrada', note: '' });
     op.status = 'aguard_nf';
     dbSaveOp(op, true, null);
   });
@@ -2053,7 +2053,7 @@ function dbSaveOp(op, _semTrava, _snapshot) {
     console.warn(`[dbSaveOp] OP ${op.id} payload muito grande: ${kb} KB - considere reduzir arquivos anexados`);
     if (!op._sizeWarned) {
       op._sizeWarned = true;
-      showToast(`OP muito grande (${kb} KB) — pode travar sincronização para outros usuários. Remova anexos desnecessários.`, 'err');
+      showToast(`OP muito grande (${kb} KB). Pode travar a sincronização para outros usuários. Remova anexos desnecessários.`, 'err');
     }
   }
 
@@ -2073,7 +2073,7 @@ function dbSaveOp(op, _semTrava, _snapshot) {
         // Desfaz mutações in-memory: o DB rejeitou, o usuário enxerga o estado anterior
         const _ri = ops.findIndex(o => o.id === _snapshot.id);
         if (_ri >= 0) { ops[_ri] = _snapshot; renderAll(); }
-        showToast('Falha ao salvar — ação desfeita. Tente novamente.', 'err');
+        showToast('Falha ao salvar. A ação foi desfeita, tente novamente.', 'err');
       } else {
         showToast('Falha ao salvar. Recarregue a página se o problema persistir.', 'err');
       }
@@ -2091,9 +2091,9 @@ function dbSaveOp(op, _semTrava, _snapshot) {
       if (_snapshot) {
         const _ri = ops.findIndex(o => o.id === _snapshot.id);
         if (_ri >= 0) { ops[_ri] = _snapshot; renderAll(); }
-        showToast('Seu setor não pode alterar esta OP nesta etapa — nada foi salvo, a ação foi desfeita.', 'err');
+        showToast('Seu setor não pode alterar esta OP nesta etapa. Nada foi salvo e a ação foi desfeita.', 'err');
       } else {
-        showToast('Seu setor não pode alterar esta OP nesta etapa — nada foi salvo. Recarregue a página.', 'err');
+        showToast('Seu setor não pode alterar esta OP nesta etapa. Nada foi salvo, recarregue a página.', 'err');
       }
       op._saving = false; op._saveDirty = false; // não re-tenta: sem permissão não melhora sozinho
       return;
@@ -2263,7 +2263,7 @@ function startRealtime() {
           // Atualiza o modal se a OP alterada estiver aberta
           if (activeOpId === updated.id && document.getElementById('overlay')?.classList.contains('open')) {
             if (modalMode) {
-              showToast('Esta OP foi atualizada por outro usuário — revise antes de confirmar', 'err');
+              showToast('Esta OP foi atualizada por outro usuário. Revise antes de confirmar', 'err');
             } else {
               openInfoModal(updated.id); // info modal: recarrega silenciosamente
             }
@@ -3728,7 +3728,7 @@ async function autoPreencherNota(file) {
     const dados = ehXml ? extrairDadosNotaXml(await file.text()) : extrairDadosNota(await pdfParaTexto(file));
     if (activeOpId !== opAoLer) return; // modal mudou durante a leitura — não contamina
     if (!dados || (!dados.chave && !dados.numero)) {
-      showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
+      showToast('Não consegui ler a nota automaticamente. Preencha os campos manualmente', 'err');
       return;
     }
     // Só preenche campo vazio: não sobrescreve o que o operador já digitou.
@@ -3737,7 +3737,7 @@ async function autoPreencherNota(file) {
     setVal('f-dataEmissao', dados.dataEmissao);
     showToast(`Nota lida: NF ${dados.numero || '?'}`, 'ok');
   } catch (e) {
-    showToast('Não consegui ler a nota automaticamente — preencha os campos manualmente', 'err');
+    showToast('Não consegui ler a nota automaticamente. Preencha os campos manualmente', 'err');
   }
 }
 
@@ -4025,7 +4025,7 @@ function qrMontarPayload(op) {
   const vistos = new Set();
   itens.forEach(it => {
     const chave = it.qr_code.replace(/\s+/g, '').toUpperCase();
-    if (vistos.has(chave)) avisos.push(`QR ${it.qr_code} repetido na OP — cada máquina precisa do seu`);
+    if (vistos.has(chave)) avisos.push(`QR ${it.qr_code} repetido na OP. Cada máquina precisa do seu`);
     vistos.add(chave);
   });
 
@@ -4058,7 +4058,7 @@ async function _cadastrarEquipamentosQR(op) {
       op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [], avisos, ignorados };
       dbSaveOp(op);
     } else if (ignorados.length) {
-      showToast(`Sistema QR: nada a cadastrar — ${ignorados.join(', ')}`, 'ok');
+      showToast(`Sistema QR: nada a cadastrar (${ignorados.join(', ')})`, 'ok');
     } else {
       showToast('Sistema QR: nenhum equipamento nesta OP', 'ok');
     }
@@ -4082,11 +4082,11 @@ async function _cadastrarEquipamentosQR(op) {
     // Máquina pulada por falta de QR/série NÃO pode sumir só porque outra deu
     // certo: antes o toast verde dizia "2 cadastrados" e a 3ª ficava fora do
     // Sistema QR sem ninguém saber.
-    if (avisos.length) showToast('Sistema QR — ficaram de fora: ' + avisos.join(' · '), 'err');
+    if (avisos.length) showToast('Sistema QR, ficaram de fora: ' + avisos.join(' · '), 'err');
   } catch (e) {
     op.qrCadastro = { ts: nowTs(), gravados: 0, erros: [e.message], avisos, ignorados };
     dbSaveOp(op);
-    showToast('Sistema QR falhou: ' + e.message + ' — o despacho seguiu normalmente', 'err');
+    showToast('Sistema QR falhou: ' + e.message + '. O despacho seguiu normalmente', 'err');
   }
   if (currentTab === 'rastreio') renderMain();
 }
@@ -4199,8 +4199,8 @@ async function atualizarRastreio(opId, silent) {
   if (!RASTREAVEIS.has(transp)) { if (!silent) showToast('Transportadora sem integração de rastreio', 'err'); return; }
   if (!numeroNF && !chaveNfe && !codigoObjeto) { if (!silent) showToast('Número da NF não informado na emissão', 'err'); return; }
   if (transp === 'rotta'    && !cnpj)         { if (!silent) showToast('CNPJ do cliente não informado no pedido de venda', 'err'); return; }
-  if (transp === 'loggica'  && !chaveNfe)     { if (!silent) showToast('Chave NF-e (44 dígitos) obrigatória para Loggica — preencha no passo Emissão de NF', 'err'); return; }
-  if (transp === 'correios' && !codigoObjeto) { if (!silent) showToast('Código objeto postal obrigatório para Correios — preencha no passo Emissão de NF', 'err'); return; }
+  if (transp === 'loggica'  && !chaveNfe)     { if (!silent) showToast('Chave NF-e (44 dígitos) obrigatória para Loggica. Preencha no passo Emissão de NF', 'err'); return; }
+  if (transp === 'correios' && !codigoObjeto) { if (!silent) showToast('Código objeto postal obrigatório para Correios. Preencha no passo Emissão de NF', 'err'); return; }
 
   op._rastreioLoading = true; op._rastreioErro = null;
   if (currentTab === 'rastreio') renderMain();
@@ -4276,7 +4276,7 @@ function rastPrevBadge(vm) {
 
 function rastCardHtml(vm) {
   const op = vm.op;
-  const cliente = op.cliente || op.pedidoVenda?.cliente || '—';
+  const cliente = op.cliente || op.pedidoVenda?.cliente || '-';
   const codigo  = op.rastreio?.awb ? `AWB ${op.rastreio.awb}` : (op.stepData?.aguard_emissao?.numeroNF ? `NF ${op.stepData.aguard_emissao.numeroNF}` : '');
   const live    = !vm.entregue && vm.r && !vm._stale ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent)"><span style="width:7px;height:7px;border-radius:50%;background:var(--accent);animation:rastPulse 1.6s ease-in-out infinite"></span>ao vivo</span>` : '';
   const loadBtn = vm._rastreioLoading || op._rastreioLoading
@@ -4292,7 +4292,7 @@ function rastCardHtml(vm) {
       <div style="font-weight:700;color:var(--text);font-size:13px">OP ${op.numero || op.id} <span style="color:var(--text3);font-weight:400">· ${cliente}</span></div>
       ${live}
     </div>
-    <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${TRANSPORTADORAS[vm.transp] || '—'}${codigo ? ' · ' + codigo : ''}</div>
+    <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">${TRANSPORTADORAS[vm.transp] || '-'}${codigo ? ' · ' + codigo : ''}</div>
     ${rastStepperHtml(vm)}
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
       <div style="font-size:12px;color:var(--text);font-weight:600">${vm.statusLabel}</div>
@@ -4369,7 +4369,7 @@ function verTimeline(opId) {
           ${i < eventos.length - 1 ? `<div style="flex:1;width:2px;background:var(--border2)"></div>` : ''}
         </div>
         <div style="padding-bottom:14px">
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${esc(ev.descricao || '—')}</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${esc(ev.descricao || '-')}</div>
           <div style="font-size:12px;color:var(--text3)">${rastFmtTs(ev.ts)}${ev.local ? ' · ' + ev.local : ''}${pod}${ins}</div>
         </div>
       </div>`;
@@ -4591,7 +4591,7 @@ function renderMain() {
     else                                  renderTodas(el);
   } catch (e) {
     console.error('renderMain falhou:', e);
-    el.innerHTML = `<div class="empty"><div class="empty-icon">${icon('alert-triangle',32,'color:var(--red)')}</div><div class="empty-title">Não foi possível carregar esta aba</div><div class="empty-desc">${(e&&e.message)||'Erro inesperado'} — tente recarregar a página.</div></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">${icon('alert-triangle',32,'color:var(--red)')}</div><div class="empty-title">Não foi possível carregar esta aba</div><div class="empty-desc">${(e&&e.message)||'Erro inesperado'}. Tente recarregar a página.</div></div>`;
   }
   syncActiveTab(); // a aba destacada SEMPRE reflete o conteúdo mostrado
 }
@@ -4737,7 +4737,7 @@ function prazoData(op) {
 //   • Amarelo:  fora da ótima e ainda no prazo (faltam de 0 a 9 dias — inclui os 3 dias finais)
 //   • Vermelho: passou da data máxima
 function prazoBadge(op) {
-  const date = prazoData(op) || '—';
+  const date = prazoData(op) || '-';
   const dias = diasRestantes(op);
   const cls  = dias < 0 ? 'b-red' : dias < 10 ? 'b-yellow' : 'b-green';
   return { cls, date };
@@ -4820,7 +4820,7 @@ function opCardEntrega(o, opts = {}) {
     <div style="font-size:12px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.cliente)}</div>
     ${eq?`<div style="font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${eq}</div>`:''}
     <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(destinoOP(o).cidade)}/${esc(destinoOP(o).uf)}</div>
-    <span class="sema ${sm.cls}" style="font-size:12px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'—'}</span>
+    <span class="sema ${sm.cls}" style="font-size:12px;font-weight:700;display:inline-block;margin-top:4px">PRAZO: ${prazo||'-'}</span>
     ${opts.acaoHtml || ''}
   </div>`;
 }
@@ -4836,13 +4836,13 @@ function rotaCard(r) {
       const o = ops.find(x => x.id === p.opId);
       const pb = o ? prazoBadge(o) : null;
       return `<div onclick="openInfoModal(${p.opId})" title="Ver detalhes da OP" style="border-top:1px solid var(--border);padding:8px 0;font-size:12px;cursor:pointer">
-        <span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}
+        <span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'-')}
         <div style="color:var(--text3)">OP ${p.opNum||p.opId} · ${esc(p.cliente)}</div>
         ${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}
         ${pb?`<span class="sema ${pb.cls}" style="font-size:12px;font-weight:700;margin-top:5px">PRAZO: ${pb.date}</span>`:''}</div>`;
     }
     return `<div style="border-top:1px solid var(--border);padding:7px 0;font-size:12px">
-      <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}
+      <span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'-')}
       ${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}</div>`;
   }).join('') || `<div style="font-size:12px;color:var(--text3);padding:7px 0">Sem paradas</div>`;
   return `<div style="background:var(--surface);border:1.5px solid var(--border2);border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);break-inside:avoid;-webkit-column-break-inside:avoid">
@@ -4881,8 +4881,8 @@ function renderConstrutorRota() {
       <span style="width:14px;height:2px;background:currentColor;border-radius:1px"></span></span>`;
   const paradasHtml = (r.paradas||[]).map((p,i) => {
     const corpo = p.tipo==='entregar'
-      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'—')}<div style="color:var(--text3);font-size:12px">OP ${p.opNum||p.opId} · ${esc(p.cliente)}${p.endereco?' · '+esc(p.endereco):''}</div>`
-      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'—')}${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}`;
+      ? `<span style="font-weight:700;color:var(--green)">Entregar</span> · ${esc(p.equip||'-')}<div style="color:var(--text3);font-size:12px">OP ${p.opNum||p.opId} · ${esc(p.cliente)}${p.endereco?' · '+esc(p.endereco):''}</div>`
+      : `<span style="font-weight:700;color:var(--accent)">Buscar</span> · ${esc(p.item||'-')}${p.endereco?`<div style="color:var(--text3);font-size:12px">${esc(p.endereco)}</div>`:''}`;
     return `<div draggable="true" data-pidx="${i}"
       ondragstart="paradaDragStart(${i},event)" ondragend="paradaDragEnd(event)"
       ondragover="paradaDragOver(${i},event)" ondrop="paradaDrop(${i},event)"
@@ -5080,13 +5080,13 @@ function renderCancelados(el) {
 
   const cards = list.map(op => {
     const c = op.cancelada || {};
-    const etapa = STEPS[c.statusAnterior]?.label || c.statusAnterior || '—';
+    const etapa = STEPS[c.statusAnterior]?.label || c.statusAnterior || '-';
     return `<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <div style="font-weight:700;color:var(--text);font-size:13px">OP ${numOp(op)} <span style="color:var(--text3);font-weight:400">· ${esc(op.cliente)}</span></div>
         <span style="font-size:12px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);padding:2px 8px;border-radius:20px">CANCELADA</span>
       </div>
-      <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'—'} · por ${c.by||'—'} · estava em: ${etapa}</div>
+      <div style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace">cancelada em ${c.ts||'-'} · por ${c.by||'-'} · estava em: ${etapa}</div>
       ${c.motivo ? `<div style="font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px"><strong>Motivo:</strong> ${esc(c.motivo)}</div>` : ''}
       <div style="display:flex;gap:6px;margin-top:4px">
         <button onclick="openInfoModal(${op.id})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;color:var(--text2);cursor:pointer">Abrir OP</button>
@@ -5112,7 +5112,7 @@ function openCancelarOP(opId) {
     <div class="modal-body" style="padding:16px 22px;gap:12px">
       <div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">
         ${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}
-        <span style="font-size:12px;line-height:1.5">A OP sai das filas de todos os setores e vai para a lista de canceladas. Não some do sistema — dá para <strong>reativar</strong> depois. Não cancela a NF na SEFAZ nem desfaz cadastro no Sistema QR.</span>
+        <span style="font-size:12px;line-height:1.5">A OP sai das filas de todos os setores e vai para a lista de canceladas. Não some do sistema: dá para <strong>reativar</strong> depois. Não cancela a NF na SEFAZ nem desfaz cadastro no Sistema QR.</span>
       </div>
       <div class="form-group">
         <label class="form-label">Motivo do cancelamento *</label>
@@ -5139,7 +5139,7 @@ function doCancelarOP(opId) {
   if (!op) return;
   // Guarda de papel (defesa client-side; o gate real é o trigger no Postgres).
   if (getUser()?.role !== 'gestor') { showToast('Somente o gestor pode cancelar uma OP', 'err'); closeModal(); return; }
-  if (op.status === 'entregue') { showToast('OP já entregue — não pode ser cancelada', 'err'); closeModal(); return; }
+  if (op.status === 'entregue') { showToast('OP já entregue, não pode ser cancelada', 'err'); closeModal(); return; }
   if (op.cancelada) { showToast('OP já está cancelada', 'err'); closeModal(); return; }
   const _snapCancel = JSON.parse(JSON.stringify(op));
   const user = getUser();
@@ -5165,7 +5165,7 @@ function reativarOP(opId) {
   op.history.push({ step: op.status, actor: getActiveView()?.role || '', actorName: user?.userName || user?.name || '-', ts: nowTs(), action: 'OP Reativada', note: '' });
   dbSaveOp(op, false, _snapReativar);
   renderAll();
-  showToast(`OP ${numOp(op)} reativada${etapa && STEPS[etapa] ? ' — voltou para ' + STEPS[etapa].label : ''}`, 'ok');
+  showToast(`OP ${numOp(op)} reativada${etapa && STEPS[etapa] ? '. Voltou para ' + STEPS[etapa].label : ''}`, 'ok');
 }
 
 function secBlock(key, iconHtml, iconBg, title, desc, count, countStyle, cards) {
@@ -5247,7 +5247,7 @@ function renderDashboard(el) {
     </div>`;
 
   el.innerHTML = `
-    <div class="step-header"><div class="step-title">Dashboard</div><div class="step-desc">Visão executiva da operação — ${ativos.length} OPs ativas</div></div>
+    <div class="step-header"><div class="step-title">Dashboard</div><div class="step-desc">Visão executiva da operação: ${ativos.length} OPs ativas</div></div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px">
       ${kpi('Em andamento', emAndamento.length, 'var(--accent)', bloqueadas ? bloqueadas + ' bloqueada(s)' : 'no fluxo')}
@@ -5779,8 +5779,8 @@ function openActionModal(opId, mode) {
   let algoNote = '';
   if (op.status === 'aberta' && mode === 'advance') {
     algoNote = op.entrada === 'pendente'
-      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong> — esta OP exige aprovação do <strong>Financeiro</strong> e Simples Faturamento do <strong>Fiscal</strong> antes de ir para Logística.</span></div>`
-      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong> — aprovação financeira não necessária. OP avança para Logística assim que o <strong>Fiscal lançar o Simples Faturamento</strong>.</span></div>`;
+      ? `<div class="warn-block" style="display:flex;align-items:flex-start;gap:8px">${icon('alert-triangle',15,'color:var(--orange);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>pendente</strong>: esta OP exige aprovação do <strong>Financeiro</strong> e Simples Faturamento do <strong>Fiscal</strong> antes de ir para Logística.</span></div>`
+      : `<div class="success-block" style="display:flex;align-items:flex-start;gap:8px">${icon('check-circle',15,'color:var(--green);flex-shrink:0;margin-top:1px')}<span>Entrada <strong>${op.entrada==='paga'?'paga':'não exigida'}</strong>: aprovação financeira não necessária. OP avança para Logística assim que o <strong>Fiscal lançar o Simples Faturamento</strong>.</span></div>`;
   }
 
   const dirNote = '';
@@ -5982,7 +5982,7 @@ function blocoTarefaSetor(op, opId) {
     const falta = finNeeded(op) && !finDone(op);
     return _caixaTarefa(
       'Lançar o Simples Faturamento',
-      falta ? 'O financeiro ainda não aprovou — a OP só avança quando os dois estiverem prontos.'
+      falta ? 'O financeiro ainda não aprovou. A OP só avança quando os dois estiverem prontos.'
             : 'O financeiro já aprovou. Falta só isto para a OP seguir para a logística.',
       `<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:2px">${itens.length} ${itens.length > 1 ? 'itens exigem' : 'item exige'} · TES 624</div>`
         + itens.map(e => _itemTarefa(e.name, e.qty > 1 ? '×' + e.qty : '')).join(''),
@@ -6000,7 +6000,7 @@ function blocoTarefaSetor(op, opId) {
     ].filter(Boolean).join('');
     const reemissao = sd.aguard_despacho_reject;
     return _caixaTarefa('Emitir a nota fiscal',
-      reemissao ? 'Re-emissão solicitada pela logística — confira os dados corrigidos abaixo.'
+      reemissao ? 'Re-emissão solicitada pela logística. Confira os dados corrigidos abaixo.'
                 : 'A logística já enviou os dados de transporte.',
       (reemissao ? `<div style="font-size:12px;color:var(--red);background:var(--red-bg);border:1px solid rgba(220,38,38,.25);border-radius:6px;padding:8px 10px;margin-bottom:8px;white-space:pre-line">${esc(reemissao.dadosCorrigidos || reemissao.motivoReemissao || '')}</div>` : '') + corpo,
       btn('Confirmar emissão', `openActionModal(${opId},'advance')`));
@@ -6010,7 +6010,7 @@ function blocoTarefaSetor(op, opId) {
   if (role === 'financeiro' && st === 'aguard_financeiro' && finNeeded(op) && !finDone(op)) {
     const pv = op.pedidoVenda || {};
     return _caixaTarefa('Validar o pagamento da entrada',
-      sfNeeded(op) && !sfDone(op) ? 'O fiscal ainda precisa lançar o Simples Faturamento — a OP só avança com os dois.' : '',
+      sfNeeded(op) && !sfDone(op) ? 'O fiscal ainda precisa lançar o Simples Faturamento. A OP só avança com os dois.' : '',
       _itemTarefa('Valor da entrada', pv.valorEntrada ? fmtBRL(pv.valorEntrada) : 'a definir')
         + _itemTarefa('Valor total', fmtBRL(pv.valorLiquido || pv.valorTotal))
         + (pv.detalhesPagamento ? `<div style="font-size:12px;color:var(--text2);padding-top:6px;white-space:pre-line">${esc(pv.detalhesPagamento)}</div>` : ''),
@@ -6020,21 +6020,21 @@ function blocoTarefaSetor(op, opId) {
   // LOGÍSTICA · dados de transporte, despacho e entrega
   if (role === 'logistica' && st === 'aguard_nf') {
     return _caixaTarefa('Enviar os dados de transporte',
-      'Endereço, séries, transportadora, volumes e peso — é o que o fiscal usa para emitir a NF.', '',
+      'Endereço, séries, transportadora, volumes e peso: é o que o fiscal usa para emitir a NF.', '',
       btn('Preencher', `openActionModal(${opId},'advance')`));
   }
   if (role === 'logistica' && st === 'aguard_despacho') {
     const e = sd.aguard_emissao || {};
     return _caixaTarefa('Conferir a NF e despachar',
       'Confira a nota antes de liberar. Ao despachar, as máquinas vão para o Sistema QR.',
-      _itemTarefa('Nota fiscal', e.numeroNF ? 'nº ' + e.numeroNF : '—')
+      _itemTarefa('Nota fiscal', e.numeroNF ? 'nº ' + e.numeroNF : '-')
         + (e.dataEmissao ? _itemTarefa('Emitida em', fmtDate(e.dataEmissao)) : ''),
       btn('Confirmar e despachar', `openActionModal(${opId},'advance')`));
   }
   if (role === 'logistica' && st === 'transito') {
     const r = op.rastreio;
     return _caixaTarefa('Confirmar a entrega ao cliente',
-      r ? `Último evento: ${esc(r.statusLabel || '—')}` : 'Anexe o comprovante quando a entrega for confirmada.',
+      r ? `Último evento: ${esc(r.statusLabel || '-')}` : 'Anexe o comprovante quando a entrega for confirmada.',
       r?.previsao ? _itemTarefa('Previsão da transportadora', String(r.previsao).slice(0, 10).split('-').reverse().join('/')) : '',
       btn('Confirmar entrega', `openActionModal(${opId},'advance')`));
   }
@@ -6290,7 +6290,7 @@ function buildInfoSections(op, opId, comTarefa = true) {
   if (RASTREIO_ATIVO && sd.aguard_nf?.envioTipo === 'transportadora') {
     const vm = rastreioVM(op);
     let rHtml = `<div class="detail-grid">
-      ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '—')}
+      ${dItem('Transportadora', TRANSPORTADORAS[vm.transp] || vm.transp || '-')}
       ${op.rastreio?.awb ? dItem('AWB', op.rastreio.awb) : ''}
       ${dItem('Situação', vm.statusLabel)}
       ${vm.local ? dItem('Local atual', vm.local) : ''}
@@ -6708,7 +6708,7 @@ function saveSimplesFaturamento(opId) {
 
   // Porta dupla: se o gate do financeiro já está satisfeito, avança para aguard_nf
   if (op.status === 'aguard_financeiro' && finDone(op)) {
-    op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '-', ts: nowTs(), action: 'Gate duplo concluído — avançado para Logística', note: '' });
+    op.history.push({ step: 'aguard_financeiro', actor: _v?.role || 'fiscal', actorName: _u?.userName || _u?.name || '-', ts: nowTs(), action: 'Gate duplo concluído: avançado para Logística', note: '' });
     op.status = 'aguard_nf';
     dbSaveOp(op, false, _snapSF);
     showToast('Simples faturamento salvo! OP avançada para Logística.', 'ok');
@@ -6877,7 +6877,7 @@ function submitModal() {
         vazio.style.borderColor = 'var(--red)';
         vazio.style.boxShadow = '0 0 0 3px rgba(220,38,38,.12)';
         vazio.focus();
-        showToast('Preencha o Nº de Série / Lote de todos os equipamentos — sem ele a máquina não é cadastrada no Sistema QR', 'err');
+        showToast('Preencha o Nº de Série / Lote de todos os equipamentos. Sem ele a máquina não é cadastrada no Sistema QR', 'err');
         return;
       }
       formData.numSeries       = series;
@@ -7322,7 +7322,7 @@ async function puxarSerieLote(opId) {
       // Avisa, mas NÃO move a OP para trás sozinho: reabrir etapa por conta
       // própria bagunçaria o fluxo de quem já seguiu adiante.
       if (!_antesSF && sfNeeded(op) && !sfDone(op)) {
-        showToast('Atenção: agora há item com TES 624 nesta OP — o Simples Faturamento passou a ser necessário.', 'err');
+        showToast('Atenção: agora há item com TES 624 nesta OP. O Simples Faturamento passou a ser necessário.', 'err');
       }
     }
 
@@ -8278,7 +8278,7 @@ function printPedidoVenda(opId) {
   if (pv.prazo) {
     let ps = `Prazo de entrega: ${pv.prazo} ${pv.diasUteis===false?'dias':'dias úteis'}`;
     if (pv.aContarDe) ps += ` a contar de ${pv.aContarDe}`;
-    if (pv.dataPrevista) ps += ` — Previsão: ${pv.dataPrevista}`;
+    if (pv.dataPrevista) ps += `. Previsão: ${pv.dataPrevista}`;
     obsParts.push(ps);
   }
   if (pv.treinamento) obsParts.push(`Treinamento: ${pv.treinamento}`);
@@ -8649,7 +8649,7 @@ function renderAdminUsers() {
     box.innerHTML = `<div style="text-align:center;color:var(--text3);padding:16px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">Nenhum usuário encontrado.</div>`;
     return;
   }
-  const sectorLabel = id => SECTORS.find(s => s.id === (id||'').toLowerCase())?.name || id || '—';
+  const sectorLabel = id => SECTORS.find(s => s.id === (id||'').toLowerCase())?.name || id || '-';
   box.innerHTML = _adminUsers.map(u => {
     const isMe  = u.id === me?.uid;
     const on    = !!u.chat_enabled;
@@ -8694,7 +8694,7 @@ async function loadAdminLogs() {
     renderAdminLogs();
   } catch(e) {
     const box = document.getElementById('admin-logs-box');
-    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Tabela de logs não encontrada — execute a migração <code>2026-07-30-admin-chat-logs.sql</code> no Supabase.</div>`;
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px">Tabela de logs não encontrada. Execute a migração <code>2026-07-30-admin-chat-logs.sql</code> no Supabase.</div>`;
   }
 }
 
@@ -8718,10 +8718,10 @@ function renderAdminLogs() {
       return `<tr>
         <td style="white-space:nowrap;color:var(--text3)">${dtStr}</td>
         <td><span class="log-badge" style="color:${col};background:${col}20">${esc(log.event_type)}</span></td>
-        <td style="font-weight:600">${esc(log.user_name||'—')}</td>
-        <td style="color:var(--text3)">${esc(log.user_role||'—')}</td>
-        <td style="color:var(--accent);font-weight:600">${esc(log.op_numero||'—')}</td>
-        <td style="color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(det)}">${esc(det)||'—'}</td>
+        <td style="font-weight:600">${esc(log.user_name||'-')}</td>
+        <td style="color:var(--text3)">${esc(log.user_role||'-')}</td>
+        <td style="color:var(--accent);font-weight:600">${esc(log.op_numero||'-')}</td>
+        <td style="color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(det)}">${esc(det)||'-'}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -8749,7 +8749,7 @@ function renderAdmin(el) {
   el.innerHTML = `
     <div class="step-header">
       <div class="step-title">Painel Admin</div>
-      <div class="step-desc">Configurações do sistema e logs de auditoria — acesso restrito ao gestor</div>
+      <div class="step-desc">Configurações do sistema e logs de auditoria. Acesso restrito ao gestor</div>
     </div>
     <div class="admin-grid">
       <div>
@@ -8800,7 +8800,7 @@ function renderAdmin(el) {
 // ═══════════════════════════════════════════════════════════════════
 
 function exportXLSX() {
-  if (typeof XLSX === 'undefined') { showToast('Módulo XLSX não carregado — recarregue a página.', 'err'); return; }
+  if (typeof XLSX === 'undefined') { showToast('Módulo XLSX não carregado. Recarregue a página.', 'err'); return; }
   const lista = _opsFiltered();
   if (!lista.length) { showToast('Nenhuma OP para exportar com os filtros ativos.', 'err'); return; }
 
@@ -9240,7 +9240,7 @@ async function _chatLoadConv(userId) {
     _chatRenderConv();
   } catch(e) {
     const box = document.getElementById('cp-msgs-box');
-    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:12px">Tabela não encontrada — execute a migração SQL.</div>`;
+    if (box) box.innerHTML = `<div style="padding:16px;color:var(--red);font-size:12px">Tabela não encontrada. Execute a migração SQL.</div>`;
   }
 }
 

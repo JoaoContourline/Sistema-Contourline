@@ -768,7 +768,7 @@ body.kanban-mode .kanban-col-body {
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 4px 16px rgba(18,81,187,.45), 0 1px 4px rgba(0,0,0,.2);
-  z-index: 1000;
+  z-index: 290;
   transition: transform .15s, box-shadow .15s;
 }
 #chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 22px rgba(18,81,187,.55), 0 2px 6px rgba(0,0,0,.22); }
@@ -5875,7 +5875,7 @@ function openActionModal(opId, mode) {
           <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:12px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
-          ${buildInfoSections(op, op.id)}
+          ${buildInfoSections(op, op.id, false)}
         </div>
       </div>
     </div>
@@ -6031,7 +6031,11 @@ function blocoTarefaSetor(op, opId) {
   return '';
 }
 
-function buildInfoSections(op, opId) {
+// comTarefa=false nos paineis de CONTEXTO dos modais de acao: la a caixa
+// "sua tarefa" mandaria fazer exatamente o que o usuario ja abriu para fazer.
+// Era isso que dava a impressao de que o botao "Lançar agora" nao fazia nada:
+// o modal trocava, mas a primeira coisa do painel lateral era a mesma caixa.
+function buildInfoSections(op, opId, comTarefa = true) {
   const pv = op.pedidoVenda;
   const sd = op.stepData || {};
   const dItem = (label, val) => val
@@ -6041,8 +6045,10 @@ function buildInfoSections(op, opId) {
   const sections = [];
 
   // Primeiro de tudo: o que ESTE setor precisa fazer nesta OP.
-  const _tarefa = blocoTarefaSetor(op, opId);
-  if (_tarefa) sections.push(_tarefa);
+  if (comTarefa) {
+    const _tarefa = blocoTarefaSetor(op, opId);
+    if (_tarefa) sections.push(_tarefa);
+  }
 
   // ── PEDIDO DE VENDA ──────────────────────────────────────────────
   if (pv) {
@@ -6618,7 +6624,7 @@ function openSimplesFaturamento(opId) {
           <div style="display:flex;gap:4px;flex-wrap:wrap">${(op.equipamentos||[]).map(e=>`<span class="equip-chip" style="font-size:12px">${typeof e==='object'?esc(e.name)+(e.qty>1?' ×'+e.qty:''):esc(e)}</span>`).join('')}</div>
         </div>
         <div class="split-pane-left-scroll">
-          ${buildInfoSections(op, opId)}
+          ${buildInfoSections(op, opId, false)}
         </div>
       </div>
     </div>

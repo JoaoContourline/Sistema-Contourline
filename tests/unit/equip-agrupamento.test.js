@@ -30,12 +30,12 @@ ok('reais primeiro, clones depois', idx.map(x=>x.nome.endsWith('*')?'C':'R').joi
 ok('cada índice aponta para o item certo',
    idx.every(x=>x.nome.replace('*','')===tempEquipList[x.i].name),
    JSON.stringify(idx));
-ok('divisor "Simples Faturamento" presente', /Simples Faturamento/.test(html));
+ok('divisor de simples faturamento presente', /simples faturamento/i.test(html));
 
 // Sem clones a lista sai como antes, sem cabeçalho nenhum
 tempEquipList=[{name:'A'},{name:'B'}];
 const h2=equipListItemsHtml();
-ok('sem clones: nenhum cabeçalho é adicionado', !/Simples Faturamento|Equipamentos<\/span>/.test(h2) && h2==='[0:A][1:B]', h2);
+ok('sem clones: nenhum cabeçalho é adicionado', !/simples faturamento|Equipamentos<\/span>/i.test(h2) && h2==='[0:A][1:B]', h2);
 
 // Lista vazia
 tempEquipList=[];
